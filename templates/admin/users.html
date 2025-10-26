@@ -1,0 +1,316 @@
+{% extends "base.html" %}
+{% block title %}Gestão de Usuários{% endblock %}
+{% block page_title %}Gestão de Usuários{% endblock %}
+{% block breadcrumb_title %}Gestão de Usuários{% endblock %}
+{% block extra_css %}
+<style>
+  .modal-overlay { position: fixed; inset: 0; background: rgba(0,0,0,.35); display: none; align-items: flex-start; justify-content: center; padding-top: 6vh; z-index: 1050; }
+  .modal-overlay.show { display: flex; }
+  .modal-card { background: #fff; border-radius: 12px; width: 100%; max-width: 680px; }
+</style>
+{% endblock %}
+{% block content %}
+<div class="container-fluid">
+  <div class="card shadow-sm">
+    <div class="card-body">
+      <div class="d-flex flex-wrap gap-2 mb-3">
+        <input id="search" type="text" class="form-control" style="max-width:260px" placeholder="Buscar por nome, login, e-mail" />
+        <select id="sector" class="form-select" style="max-width:180px"></select>
+        <select id="is_admin" class="form-select" style="max-width:160px">
+          <option value="">Perfil</option>
+          <option value="true">Admin</option>
+          <option value="false">Usuário</option>
+        </select>
+        <select id="is_active" class="form-select" style="max-width:160px">
+          <option value="">Status</option>
+          <option value="true">Ativo</option>
+          <option value="false">Inativo</option>
+        </select>
+        <button id="btnFilter" class="btn btn-primary">Filtrar</button>
+        <button id="btnExport" class="btn btn-secondary">Exportar CSV</button>
+        <!-- Novo botão de cadastro -->
+        <button id="btnNewUser" class="btn btn-success"><i class="bi bi-person-plus"></i> Cadastrar Usuário</button>
+      </div>
+      <div class="table-responsive">
+        <table class="table table-hover align-middle">
+          <thead>
+            <tr>
+              <th>ID</th>
+              <th>Login</th>
+              <th>Nome</th>
+              <th>E-mail</th>
+              <th>Setor</th>
+              <th>Obra/Empresa</th>
+              <th>Perfil</th>
+              <th>Status</th>
+              <th class="text-end">Ações</th>
+            </tr>
+          </thead>
+          <tbody id="grid"></tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Modal de Cadastro de Usuário -->
+<div id="createUserModal" class="modal-overlay">
+  <div class="modal-card shadow">
+    <div class="p-3 border-bottom d-flex justify-content-between align-items-center">
+      <h5 class="mb-0">Cadastrar Usuário</h5>
+      <button type="button" class="btn-close" aria-label="Fechar" onclick="closeCreateUserModal()"></button>
+    </div>
+    <div class="p-3">
+      <div class="row g-3">
+        <div class="col-12 col-md-6">
+          <label class="form-label">Login</label>
+          <input id="cu_username" type="text" class="form-control" placeholder="login do usuário">
+        </div>
+        <div class="col-12 col-md-6">
+          <label class="form-label">Nome</label>
+          <input id="cu_full_name" type="text" class="form-control" placeholder="nome completo">
+        </div>
+        <div class="col-12 col-md-6">
+          <label class="form-label">E-mail</label>
+          <input id="cu_email" type="email" class="form-control" placeholder="email@exemplo.com">
+        </div>
+        <div class="col-12 col-md-6">
+          <label class="form-label">Setor</label>
+          <select id="cu_sector" class="form-select"></select>
+        </div>
+        <div class="col-12 col-md-6">
+          <label class="form-label">Obra/Empresa</label>
+          <input id="cu_company_code" type="text" class="form-control" placeholder="001 a 999" maxlength="3" inputmode="numeric">
+        </div>
+        <div class="col-12 col-md-6">
+          <label class="form-label">Senha temporária</label>
+          <input id="cu_password" type="text" class="form-control" placeholder="deixe em branco para gerar">
+        </div>
+        <div class="col-12 col-md-6">
+          <label class="form-label">Perfil</label>
+          <div class="form-check form-switch mt-2">
+            <input class="form-check-input" type="checkbox" id="cu_is_admin">
+            <label class="form-check-label" for="cu_is_admin">Administrador</label>
+          </div>
+        </div>
+      </div>
+      <div class="mt-3 small text-muted">
+        Se a senha ficar em branco, o sistema gera uma temporária e envia por e-mail (se informado).
+      </div>
+    </div>
+    <div class="p-3 border-top d-flex justify-content-end gap-2">
+      <button class="btn btn-secondary" onclick="closeCreateUserModal()">Cancelar</button>
+      <button class="btn btn-primary" id="btnCreateUserSave">Salvar</button>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+  const token = getAuthToken();
+  function getAuthToken(){
+    const m = document.cookie.match(/(?:^|; )auth_token=([^;]+)/);
+    if (m) return decodeURIComponent(m[1]);
+    // Fallback para token salvo no localStorage pelo login
+    const ls = localStorage.getItem('authToken');
+    return ls ? ls : null;
+  }
+  async function fetchSectors(){
+    try {
+      const res = await fetch('/api/admin/sectors', { headers: token ? { Authorization: `Bearer ${token}` } : {} });
+      let optionsHtml = '';
+      if (res.ok) {
+        const data = await res.json();
+        const items = Array.isArray(data.items) ? data.items : [];
+        if (items.length) {
+          optionsHtml = items.map(s => `<option value="${s.name}">${s.name}</option>`).join('');
+        }
+      }
+      // Fallback: usar lista padrão de setores do módulo RH se não houver setores cadastrados
+      if (!optionsHtml) {
+        const fallback = await fetch('/api/hr/sectors');
+        if (fallback.ok) {
+          const dat = await fallback.json();
+          const names = Array.isArray(dat.data) ? dat.data : [];
+          optionsHtml = names.map(n => `<option value="${n}">${n}</option>`).join('');
+        }
+      }
+      const sel = document.getElementById('sector');
+      sel.innerHTML = `<option value="">Setor</option>` + optionsHtml;
+      const cuSel = document.getElementById('cu_sector');
+      if(cuSel) cuSel.innerHTML = `<option value="">Selecione</option>` + optionsHtml;
+    } catch (e) {
+      console.error('Erro ao carregar setores:', e);
+      const sel = document.getElementById('sector');
+      sel.innerHTML = `<option value="">Setor</option>`;
+      const cuSel = document.getElementById('cu_sector');
+      if(cuSel) cuSel.innerHTML = `<option value="">Selecione</option>`;
+    }
+  }
+  function buildQuery(){
+    const params = new URLSearchParams();
+    const search = document.getElementById('search').value.trim();
+    const sector = document.getElementById('sector').value;
+    const is_admin = document.getElementById('is_admin').value;
+    const is_active = document.getElementById('is_active').value;
+    if(search) params.append('search', search);
+    if(sector) params.append('sector', sector);
+    if(is_admin) params.append('is_admin', is_admin);
+    if(is_active) params.append('is_active', is_active);
+    return params.toString();
+  }
+  async function loadUsers(){
+    const qs = buildQuery();
+    const url = `/api/admin/users${qs ? ('?' + qs) : ''}`;
+    const res = await fetch(url, { headers: token ? { Authorization: `Bearer ${token}` } : {} });
+    const data = await res.json();
+    renderGrid(data.items||[]);
+  }
+  function renderGrid(items){
+    const tbody = document.getElementById('grid');
+    tbody.innerHTML = items.map(u => `
+      <tr>
+        <td>${u.id}</td>
+        <td>${u.username}</td>
+        <td>${u.full_name || ''}</td>
+        <td>${u.email || ''}</td>
+        <td>${u.sector || ''}</td>
+        <td>${u.company_code || ''}</td>
+        <td>${u.is_admin ? '<span class=\"badge bg-info\">Admin</span>' : '<span class=\"badge bg-success\">Usuário</span>'}</td>
+        <td>${u.is_active ? '<span class=\"badge bg-primary\">Ativo</span>' : '<span class=\"badge bg-danger\">Inativo</span>'}</td>
+        <td class="text-end">
+          <div class="btn-group btn-group-sm" role="group">
+            <button class="btn btn-outline-secondary" onclick="toggleAdmin(${u.id}, ${u.is_admin ? 'false' : 'true'})">${u.is_admin ? 'Remover Admin' : 'Tornar Admin'}</button>
+            <button class="btn btn-outline-secondary" onclick="toggleActive(${u.id}, ${u.is_active ? 'false' : 'true'})">${u.is_active ? 'Inativar' : 'Ativar'}</button>
+            <button class="btn btn-outline-danger" onclick="deleteUser(${u.id})">Excluir</button>
+          </div>
+        </td>
+      </tr>
+    `).join('');
+  }
+  async function updateUser(id, payload){
+    const res = await fetch(`/api/admin/users/${id}`, {
+      method: 'PUT',
+      headers: {
+        'Content-Type': 'application/json',
+        ...(token ? { Authorization: `Bearer ${token}` } : {})
+      },
+      body: JSON.stringify(payload)
+    });
+    if(!res.ok){
+      const msg = await res.text();
+      alert('Falha ao atualizar usuário: ' + msg);
+    } else {
+      await loadUsers();
+    }
+  }
+  function toggleAdmin(id, is_admin){ updateUser(id, { is_admin }); }
+  function toggleActive(id, is_active){ updateUser(id, { is_active }); }
+  async function deleteUser(id){
+    if(!confirm('Confirma excluir o usuário #' + id + '?')) return;
+    const res = await fetch(`/api/admin/users/${id}`, {
+      method: 'DELETE',
+      headers: token ? { Authorization: `Bearer ${token}` } : {}
+    });
+    if(!res.ok){
+      const msg = await res.text();
+      alert('Falha ao excluir: ' + msg);
+    } else {
+      await loadUsers();
+    }
+  }
+
+  // Normalização do campo Obra/Empresa no front
+  function normalizeCompanyInputValue(v){
+    const digits = (v || '').replace(/\D/g, '').slice(0,3);
+    if(!digits) return '';
+    const n = parseInt(digits, 10);
+    if(!Number.isFinite(n)) return '';
+    if(n < 1 || n > 999) return '';
+    return String(n).padStart(3, '0');
+  }
+
+  // Modal helpers
+  function openCreateUserModal(){
+    const modal = document.getElementById('createUserModal');
+    modal.classList.add('show');
+  }
+  function closeCreateUserModal(){
+    const modal = document.getElementById('createUserModal');
+    modal.classList.remove('show');
+  }
+  async function submitCreateUser(){
+    const payload = {
+      username: document.getElementById('cu_username').value.trim(),
+      full_name: document.getElementById('cu_full_name').value.trim(),
+      email: document.getElementById('cu_email').value.trim() || null,
+      sector: document.getElementById('cu_sector').value || null,
+      company_code: normalizeCompanyInputValue(document.getElementById('cu_company_code').value.trim()) || null,
+      is_admin: document.getElementById('cu_is_admin').checked
+    };
+    const pwd = document.getElementById('cu_password').value.trim();
+    if(pwd) payload.password = pwd;
+
+    if(!payload.username){
+      alert('Informe o login do usuário.');
+      return;
+    }
+
+    // validação simples do código (opcional)
+    const ccodeRaw = document.getElementById('cu_company_code').value.trim();
+    if(ccodeRaw){
+      const norm = normalizeCompanyInputValue(ccodeRaw);
+      if(!norm){
+        alert('Obra/Empresa deve ser um número de 001 a 999.');
+        return;
+      }
+      payload.company_code = norm;
+    }
+
+    const res = await fetch(`/api/admin/auth/register`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        ...(token ? { Authorization: `Bearer ${token}` } : {})
+      },
+      body: JSON.stringify(payload)
+    });
+    if(!res.ok){
+      const msg = await res.text();
+      alert('Falha ao cadastrar: ' + msg);
+      return;
+    }
+    const data = await res.json();
+    const temp = data.temp_password;
+    alert('Usuário cadastrado com sucesso.' + (temp ? `\nSenha temporária: ${temp}` : ''));
+    closeCreateUserModal();
+    await loadUsers();
+  }
+
+  document.getElementById('btnFilter').addEventListener('click', loadUsers);
+  document.getElementById('btnExport').addEventListener('click', () => {
+    const qs = buildQuery();
+    window.location.href = `/api/admin/users?${qs ? qs + '&' : ''}format=csv`;
+  });
+  document.getElementById('btnNewUser').addEventListener('click', openCreateUserModal);
+  document.getElementById('btnCreateUserSave').addEventListener('click', submitCreateUser);
+
+  (async function init(){
+    await fetchSectors();
+    // listeners de normalização do campo Obra/Empresa
+    const cc = document.getElementById('cu_company_code');
+    if(cc){
+      cc.addEventListener('input', (e) => {
+        const digits = e.target.value.replace(/\D/g, '').slice(0,3);
+        e.target.value = digits;
+      });
+      cc.addEventListener('blur', (e) => {
+        const norm = normalizeCompanyInputValue(e.target.value);
+        e.target.value = norm;
+      });
+    }
+    await loadUsers();
+  })();
+</script>
+{% endblock %}

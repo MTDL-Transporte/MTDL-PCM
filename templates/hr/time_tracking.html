@@ -1,0 +1,150 @@
+{% extends "base.html" %}
+{% block title %}Controle de Ponto{% endblock %}
+{% block page_title %}Recursos Humanos{% endblock %}
+{% block breadcrumb_title %}Controle de Ponto{% endblock %}
+
+{% block content %}
+<div class="row">
+  <div class="col-12">
+    <div class="card shadow-sm">
+      <div class="card-header d-flex justify-content-between align-items-center">
+        <h5 class="mb-0">Registros de Ponto</h5>
+        <div class="d-flex align-items-center gap-2">
+          <input type="number" class="form-control" style="width: 160px" id="tcFilterEmployee" placeholder="ID Funcionário">
+          <button class="btn btn-outline-secondary" id="btnFilterTimeclock"><i class="bi bi-search"></i></button>
+          <button class="btn btn-primary" id="btnNewTimeclock"><i class="bi bi-plus-circle"></i> Marcar Ponto</button>
+        </div>
+      </div>
+      <div class="card-body">
+        <div class="table-responsive">
+          <table class="table table-striped table-hover">
+            <thead>
+              <tr>
+                <th>Data/Hora</th>
+                <th>Func.</th>
+                <th>Ação</th>
+                <th>Origem</th>
+                <th>Observação</th>
+              </tr>
+            </thead>
+            <tbody id="timeclockTableBody"></tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Modal Marcar Ponto -->
+<div class="modal fade" id="timeclockModal" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title">Marcar Ponto</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+      </div>
+      <div class="modal-body">
+        <form id="timeclockForm">
+          <div class="row g-3">
+            <div class="col-6">
+              <label class="form-label">ID Funcionário</label>
+              <input type="number" id="tc_employee_id" class="form-control" required>
+            </div>
+            <div class="col-6">
+              <label class="form-label">Ação</label>
+              <select id="tc_action" class="form-select" required>
+                <option value="in">Entrada</option>
+                <option value="out">Saída</option>
+              </select>
+            </div>
+            <div class="col-6">
+              <label class="form-label">Data/Hora</label>
+              <input type="datetime-local" id="tc_timestamp" class="form-control" placeholder="Opcional (usa agora)">
+            </div>
+            <div class="col-6">
+              <label class="form-label">Origem</label>
+              <input type="text" id="tc_source" class="form-control" value="web">
+            </div>
+            <div class="col-12">
+              <label class="form-label">Observação</label>
+              <input type="text" id="tc_note" class="form-control">
+            </div>
+          </div>
+        </form>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+        <button type="button" class="btn btn-primary" id="saveTimeclockBtn">Salvar</button>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+const apiHr = '/api/hr';
+
+function idempotencyHeaders() {
+  return { 'X-Idempotency-Key': `${Date.now()}-${Math.random().toString(36).slice(2)}` };
+}
+
+function fmtDateTime(v){ return window.MTDL ? MTDL.formatDateTime(v) : (v || ''); }
+
+async function loadTimeclock(){
+  try {
+    const empId = document.getElementById('tcFilterEmployee').value || undefined;
+    const res = await axios.get(`${apiHr}/timeclock`, { params: { employee_id: empId }, headers: { Accept: 'application/json' } });
+    const tbody = document.getElementById('timeclockTableBody');
+    tbody.innerHTML = '';
+    (res.data || []).forEach(l => {
+      const tr = document.createElement('tr');
+      tr.innerHTML = `
+        <td>${fmtDateTime(l.timestamp)}</td>
+        <td>${l.employee_id}</td>
+        <td>${l.action === 'in' ? 'Entrada' : 'Saída'}</td>
+        <td>${l.source || ''}</td>
+        <td>${l.note || ''}</td>`;
+      tbody.appendChild(tr);
+    });
+  } catch (e){ console.error(e); }
+}
+
+function showTimeclockModal(){ bootstrap.Modal.getOrCreateInstance(document.getElementById('timeclockModal')).show(); }
+
+function toISO(dtLocal){
+  if (!dtLocal) return null;
+  try {
+    const d = new Date(dtLocal);
+    if (!isNaN(d.getTime())) return d.toISOString();
+  } catch {}
+  return dtLocal; // fallback
+}
+
+async function saveTimeclock(){
+  try {
+    const payload = {
+      employee_id: parseInt(document.getElementById('tc_employee_id').value),
+      action: document.getElementById('tc_action').value,
+      timestamp: toISO(document.getElementById('tc_timestamp').value) || null,
+      source: document.getElementById('tc_source').value || 'web',
+      note: document.getElementById('tc_note').value || null,
+    };
+    const headers = Object.assign({ 'Content-Type': 'application/json', Accept: 'application/json' }, idempotencyHeaders());
+    await axios.post(`${apiHr}/timeclock`, payload, { headers });
+    bootstrap.Modal.getInstance(document.getElementById('timeclockModal')).hide();
+    await loadTimeclock();
+    if (typeof showAlert === 'function') showAlert('Ponto registrado!', 'success', 3000);
+  } catch (e){ console.error(e); alert('Erro ao registrar ponto'); }
+}
+
+// Eventos
+
+document.getElementById('btnFilterTimeclock').addEventListener('click', loadTimeclock);
+document.getElementById('btnNewTimeclock').addEventListener('click', showTimeclockModal);
+document.getElementById('saveTimeclockBtn').addEventListener('click', saveTimeclock);
+
+// Inicialização
+loadTimeclock();
+</script>
+{% endblock %}

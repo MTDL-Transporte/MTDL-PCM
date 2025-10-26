@@ -1,0 +1,470 @@
+{% extends "base.html" %}
+
+{% block title %}Mão de Obra - MTDL-PCM{% endblock %}
+
+{% block page_title %}Mão de Obra{% endblock %}
+{% block breadcrumb_title %}Mão de Obra{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <!-- Filtros e Ações -->
+    <div class="row mb-4">
+        <div class="col-md-6">
+            <div class="d-flex align-items-center gap-2">
+                <div class="flex-grow-1">
+                    <select class="form-select" id="filter-function">
+                        <option value="">Todas as Funções</option>
+                        <option value="Ajudante de manutenção">Ajudante de manutenção</option>
+                        <option value="Mecânico">Mecânico</option>
+                        <option value="Eletricista">Eletricista</option>
+                        <option value="Técnico">Técnico</option>
+                    </select>
+                </div>
+                <div class="flex-grow-1">
+                    <select class="form-select" id="filter-status">
+                        <option value="">Todos os Status</option>
+                        <option value="true">Ativo</option>
+                        <option value="false">Inativo</option>
+                    </select>
+                </div>
+                <div class="flex-grow-1">
+                    <input type="text" class="form-control" id="search-input" placeholder="Buscar por nome...">
+                </div>
+            </div>
+        </div>
+        <div class="col-md-6">
+            <div class="d-flex justify-content-end gap-2">
+                <button class="btn btn-outline-secondary" onclick="clearFilters()">
+                    <i class="bi bi-arrow-clockwise"></i> Limpar
+                </button>
+                <button class="btn btn-outline-primary" onclick="applyFilters()">
+                    <i class="bi bi-funnel"></i> Filtrar
+                </button>
+                <button class="btn btn-success" onclick="openNewTechnicianModal()">
+                    <i class="bi bi-plus"></i> Novo Técnico
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Lista de Técnicos -->
+    <div class="card shadow-sm">
+        <div class="card-body p-0">
+            <div class="table-responsive">
+                <table class="table table-light border-0 mb-0" id="technicians-table">
+                    <thead>
+                        <tr>
+                            <th class="border-0 ps-4">NOME</th>
+                            <th class="border-0">FUNÇÃO</th>
+                            <th class="border-0">VALOR/HORA</th>
+                            <th class="border-0">TELEFONE</th>
+                            <th class="border-0">EMAIL</th>
+                            <th class="border-0">STATUS</th>
+                            <th class="border-0 pe-4">AÇÕES</th>
+                        </tr>
+                    </thead>
+                    <tbody id="technicians-tbody">
+                        <tr>
+                            <td colspan="7" class="text-center py-5">
+                                <div class="text-muted">
+                                    <i class="bi bi-people fs-1 d-block mb-2"></i>
+                                    Nenhum técnico encontrado
+                                </div>
+                            </td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+            
+            <!-- Paginação -->
+            <div class="d-flex justify-content-center py-3 border-top">
+                <nav aria-label="Paginação">
+                    <ul class="pagination pagination-sm mb-0" id="pagination">
+                    </ul>
+                </nav>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Modal para Novo/Editar Técnico -->
+<div class="modal fade" id="technicianModal" tabindex="-1" aria-labelledby="technicianModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="technicianModalLabel">Novo Técnico</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <form id="technicianForm">
+                    <input type="hidden" id="technician-id">
+                    
+                    <div class="row">
+                        <div class="col-md-4">
+                            <div class="mb-3">
+                                <label for="technician-hr-matricula" class="form-label">Matrícula (RH)</label>
+                                <input type="number" class="form-control" id="technician-hr-matricula" min="0" step="1" placeholder="Digite a matrícula para auto preencher">
+                                <div class="form-text">Ao informar a matrícula, os dados serão preenchidos automaticamente com base no cadastro do RH e o valor/hora será calculado.</div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="row">
+                        <div class="col-md-8">
+                            <div class="mb-3">
+                                <label for="technician-name" class="form-label">Nome Completo *</label>
+                                <input type="text" class="form-control" id="technician-name" required>
+                            </div>
+                        </div>
+                        <div class="col-md-4">
+                            <div class="mb-3">
+                                <label for="technician-function" class="form-label">Função *</label>
+                                <select class="form-select" id="technician-function" required>
+                                    <option value="">Selecione...</option>
+                                    <option value="Ajudante de manutenção">Ajudante de manutenção</option>
+                                    <option value="Mecânico">Mecânico</option>
+                                    <option value="Eletricista">Eletricista</option>
+                                    <option value="Técnico">Técnico</option>
+                                </select>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="row">
+                        <div class="col-md-4">
+                            <div class="mb-3">
+                                <label for="technician-hourly-rate" class="form-label">Valor/Hora (R$) *</label>
+                                <input type="number" class="form-control" id="technician-hourly-rate" step="0.01" min="0" required>
+                            </div>
+                        </div>
+                        <div class="col-md-4">
+                            <div class="mb-3">
+                                <label for="technician-phone" class="form-label">Telefone</label>
+                                <input type="tel" class="form-control" id="technician-phone">
+                            </div>
+                        </div>
+                        <div class="col-md-4">
+                            <div class="mb-3">
+                                <label for="technician-email" class="form-label">Email</label>
+                                <input type="email" class="form-control" id="technician-email">
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="mb-3">
+                        <label for="technician-specialties" class="form-label">Especialidades</label>
+                        <textarea class="form-control" id="technician-specialties" rows="3" placeholder="Descreva as especialidades e competências do técnico..."></textarea>
+                    </div>
+
+                    <div class="form-check">
+                        <input class="form-check-input" type="checkbox" id="technician-is-active" checked>
+                        <label class="form-check-label" for="technician-is-active">
+                            Técnico ativo
+                        </label>
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                <button type="button" class="btn btn-success" onclick="saveTechnician()">
+                    <i class="bi bi-check"></i> Salvar
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Modal de Confirmação de Exclusão -->
+<div class="modal fade" id="deleteConfirmModal" tabindex="-1" aria-labelledby="deleteConfirmModalLabel" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="deleteConfirmModalLabel">Confirmar Exclusão</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <p>Tem certeza que deseja excluir este técnico?</p>
+                <p class="text-muted small">Esta ação não pode ser desfeita. Se o técnico possuir ordens de serviço associadas, ele será apenas desativado.</p>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                <button type="button" class="btn btn-danger" onclick="confirmDeleteTechnician()">
+                    <i class="bi bi-trash"></i> Excluir
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+let currentPage = 1;
+let totalPages = 1;
+let technicianToDelete = null;
+
+// Carregar técnicos ao carregar a página
+document.addEventListener('DOMContentLoaded', function() {
+    loadTechnicians();
+    const matriculaInput = document.getElementById('technician-hr-matricula');
+    if (matriculaInput) {
+        matriculaInput.addEventListener('change', handleMatriculaChange);
+        matriculaInput.addEventListener('blur', handleMatriculaChange);
+    }
+});
+
+// Função para carregar técnicos
+async function loadTechnicians(page = 1) {
+    try {
+        const response = await fetch(`/maintenance/api/technicians?skip=${(page - 1) * 20}&limit=20`);
+        const technicians = await response.json();
+        
+        displayTechnicians(technicians);
+        currentPage = page;
+    } catch (error) {
+        console.error('Erro ao carregar técnicos:', error);
+        showAlert('Erro ao carregar técnicos', 'danger');
+    }
+}
+
+// Função para exibir técnicos na tabela
+function displayTechnicians(technicians) {
+    const tbody = document.getElementById('technicians-tbody');
+    
+    if (technicians.length === 0) {
+        tbody.innerHTML = `
+            <tr>
+                <td colspan="7" class="text-center py-5">
+                    <div class="text-muted">
+                        <i class="bi bi-people fs-1 d-block mb-2"></i>
+                        Nenhum técnico encontrado
+                    </div>
+                </td>
+            </tr>
+        `;
+        return;
+    }
+    
+    tbody.innerHTML = technicians.map(technician => `
+        <tr>
+            <td class="ps-4">
+                <div class="fw-bold">${technician.name}</div>
+                ${technician.specialties ? `<small class="text-muted">${technician.specialties}</small>` : ''}
+            </td>
+            <td>
+                <span class="badge bg-primary">${technician.function}</span>
+            </td>
+            <td>
+                <strong>R$ ${parseFloat(technician.hourly_rate).toFixed(2)}</strong>
+            </td>
+            <td>${technician.phone || '-'}</td>
+            <td>${technician.email || '-'}</td>
+            <td>
+                <span class="badge ${technician.is_active ? 'bg-success' : 'bg-secondary'}">
+                    ${technician.is_active ? 'Ativo' : 'Inativo'}
+                </span>
+            </td>
+            <td class="pe-4">
+                <div class="btn-group btn-group-sm" role="group">
+                    <button class="btn btn-outline-primary" onclick="editTechnician(${technician.id})" title="Editar" aria-label="Editar técnico">
+                        <i class="bi bi-pencil"></i>
+                    </button>
+                    <button class="btn btn-outline-danger" onclick="deleteTechnician(${technician.id})" title="Excluir" aria-label="Excluir técnico">
+                        <i class="bi bi-trash"></i>
+                    </button>
+                </div>
+            </td>
+        </tr>
+    `).join('');
+}
+
+// Função para abrir modal de novo técnico
+function openNewTechnicianModal() {
+    document.getElementById('technicianModalLabel').textContent = 'Novo Técnico';
+    document.getElementById('technicianForm').reset();
+    document.getElementById('technician-id').value = '';
+    document.getElementById('technician-is-active').checked = true;
+    
+    const modal = new bootstrap.Modal(document.getElementById('technicianModal'));
+    modal.show();
+}
+
+// Função para editar técnico
+async function editTechnician(id) {
+    try {
+        const response = await fetch(`/maintenance/api/technicians/${id}`);
+        const technician = await response.json();
+        
+        document.getElementById('technicianModalLabel').textContent = 'Editar Técnico';
+        document.getElementById('technician-id').value = technician.id;
+        document.getElementById('technician-name').value = technician.name;
+        document.getElementById('technician-function').value = technician.function;
+        document.getElementById('technician-hourly-rate').value = technician.hourly_rate;
+        document.getElementById('technician-phone').value = technician.phone || '';
+        document.getElementById('technician-email').value = technician.email || '';
+        document.getElementById('technician-specialties').value = technician.specialties || '';
+        document.getElementById('technician-is-active').checked = technician.is_active;
+        document.getElementById('technician-hr-matricula').value = technician.hr_matricula || '';
+        
+        const modal = new bootstrap.Modal(document.getElementById('technicianModal'));
+        modal.show();
+    } catch (error) {
+        console.error('Erro ao carregar técnico:', error);
+        showAlert('Erro ao carregar dados do técnico', 'danger');
+    }
+}
+
+async function handleMatriculaChange() {
+    const input = document.getElementById('technician-hr-matricula');
+    const value = input.value && input.value.trim();
+    const matricula = value ? parseInt(value, 10) : NaN;
+    if (!matricula || matricula <= 0) {
+        return;
+    }
+    try {
+        const resp = await fetch(`/api/hr/employees/by-matricula/${matricula}`);
+        if (!resp.ok) {
+            showAlert('Matrícula não encontrada no RH', 'warning');
+            return;
+        }
+        const emp = await resp.json();
+        // Preencher dados
+        document.getElementById('technician-name').value = emp.name || '';
+        // Função/cargo
+        const role = emp.role || '';
+        const functionSelect = document.getElementById('technician-function');
+        const allowed = ['Ajudante de manutenção','Mecânico','Eletricista','Técnico'];
+        if (allowed.includes(role)) {
+            functionSelect.value = role;
+        }
+        // Calcular valor/hora: salário mensal ÷ 220
+        const salary = typeof emp.initial_salary === 'number' ? emp.initial_salary : parseFloat(emp.initial_salary || 0);
+        const hourly = salary > 0 ? (salary / 220) : 0;
+        document.getElementById('technician-hourly-rate').value = hourly.toFixed(2);
+        // Contatos
+        document.getElementById('technician-phone').value = emp.phone || '';
+        document.getElementById('technician-email').value = emp.corporate_email || '';
+        showAlert('Dados preenchidos a partir do RH', 'success');
+    } catch (error) {
+        console.error('Erro ao buscar funcionário por matrícula:', error);
+        showAlert('Erro ao buscar dados do RH', 'danger');
+    }
+}
+
+// Função para salvar técnico
+async function saveTechnician() {
+    const form = document.getElementById('technicianForm');
+    if (!form.checkValidity()) {
+        form.reportValidity();
+        return;
+    }
+    
+    const id = document.getElementById('technician-id').value;
+    const rawMatricula = document.getElementById('technician-hr-matricula').value;
+    const hr_matricula = rawMatricula ? parseInt(rawMatricula, 10) : null;
+    const data = {
+        name: document.getElementById('technician-name').value,
+        function: document.getElementById('technician-function').value,
+        hourly_rate: parseFloat(document.getElementById('technician-hourly-rate').value),
+        hr_matricula: hr_matricula,
+        phone: document.getElementById('technician-phone').value || null,
+        email: document.getElementById('technician-email').value || null,
+        specialties: document.getElementById('technician-specialties').value || null,
+        is_active: document.getElementById('technician-is-active').checked
+    };
+    
+    try {
+        const url = id ? `/maintenance/api/technicians/${id}` : '/maintenance/api/technicians';
+        const method = id ? 'PUT' : 'POST';
+        
+        const response = await fetch(url, {
+            method: method,
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify(data)
+        });
+        
+        if (response.ok) {
+            const modal = bootstrap.Modal.getInstance(document.getElementById('technicianModal'));
+            modal.hide();
+            
+            showAlert(id ? 'Técnico atualizado com sucesso!' : 'Técnico criado com sucesso!', 'success');
+            loadTechnicians(currentPage);
+        } else {
+            const error = await response.json();
+            showAlert(error.detail || 'Erro ao salvar técnico', 'danger');
+        }
+    } catch (error) {
+        console.error('Erro ao salvar técnico:', error);
+        showAlert('Erro ao salvar técnico', 'danger');
+    }
+}
+
+// Função para excluir técnico
+function deleteTechnician(id) {
+    technicianToDelete = id;
+    const modal = new bootstrap.Modal(document.getElementById('deleteConfirmModal'));
+    modal.show();
+}
+
+// Função para confirmar exclusão
+async function confirmDeleteTechnician() {
+    if (!technicianToDelete) return;
+    
+    try {
+        const response = await fetch(`/maintenance/api/technicians/${technicianToDelete}`, {
+            method: 'DELETE'
+        });
+        
+        if (response.ok) {
+            const result = await response.json();
+            const modal = bootstrap.Modal.getInstance(document.getElementById('deleteConfirmModal'));
+            modal.hide();
+            
+            showAlert(result.message, 'success');
+            loadTechnicians(currentPage);
+        } else {
+            const error = await response.json();
+            showAlert(error.detail || 'Erro ao excluir técnico', 'danger');
+        }
+    } catch (error) {
+        console.error('Erro ao excluir técnico:', error);
+        showAlert('Erro ao excluir técnico', 'danger');
+    }
+    
+    technicianToDelete = null;
+}
+
+// Função para aplicar filtros
+function applyFilters() {
+    // Implementar filtros se necessário
+    loadTechnicians(1);
+}
+
+// Função para limpar filtros
+function clearFilters() {
+    document.getElementById('filter-function').value = '';
+    document.getElementById('filter-status').value = '';
+    document.getElementById('search-input').value = '';
+    loadTechnicians(1);
+}
+
+// Função para exibir alertas
+function showAlert(message, type = 'info') {
+    const alertContainer = document.createElement('div');
+    alertContainer.className = `alert alert-${type} alert-dismissible fade show position-fixed`;
+    alertContainer.style.cssText = 'top: 20px; right: 20px; z-index: 9999; min-width: 300px;';
+    alertContainer.innerHTML = `
+        ${message}
+        <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+    `;
+    
+    document.body.appendChild(alertContainer);
+    
+    setTimeout(() => {
+        if (alertContainer.parentNode) {
+            alertContainer.remove();
+        }
+    }, 5000);
+}
+</script>
+{% endblock %}

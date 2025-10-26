@@ -1,0 +1,540 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Abastecimento - MTDL PCM</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <style>
+        .sidebar {
+            min-height: 100vh;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        }
+        .nav-link {
+            color: rgba(255,255,255,0.8) !important;
+            transition: all 0.3s;
+        }
+        .nav-link:hover, .nav-link.active {
+            color: white !important;
+            background-color: rgba(255,255,255,0.1);
+            border-radius: 5px;
+        }
+        .card {
+            border: none;
+            box-shadow: 0 0.125rem 0.25rem rgba(0, 0, 0, 0.075);
+            transition: all 0.3s;
+        }
+        .card:hover {
+            box-shadow: 0 0.5rem 1rem rgba(0, 0, 0, 0.15);
+        }
+        .btn-primary {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            border: none;
+        }
+        .btn-primary:hover {
+            background: linear-gradient(135deg, #5a6fd8 0%, #6a4190 100%);
+        }
+        .table th {
+            background-color: #f8f9fa;
+            border-top: none;
+        }
+        .badge {
+            font-size: 0.75em;
+        }
+        .form-control:focus {
+            border-color: #667eea;
+            box-shadow: 0 0 0 0.2rem rgba(102, 126, 234, 0.25);
+        }
+        .alert-info {
+            background-color: #e3f2fd;
+            border-color: #bbdefb;
+            color: #0d47a1;
+        }
+    </style>
+</head>
+<body>
+    <div class="container-fluid">
+        <div class="row">
+            <!-- Sidebar -->
+            <nav class="col-md-3 col-lg-2 d-md-block sidebar collapse">
+                <div class="position-sticky pt-3">
+                    <div class="text-center mb-4">
+                        <h4 class="text-white">MTDL PCM</h4>
+                        <small class="text-white-50">Sistema de Gestão</small>
+                    </div>
+                    
+                    <ul class="nav flex-column">
+                        <li class="nav-item">
+                            <a class="nav-link" href="/">
+                                <i class="fas fa-home me-2"></i>Dashboard
+                            </a>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link" href="/maintenance/equipment">
+                                <i class="fas fa-cogs me-2"></i>Equipamentos
+                            </a>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link" href="/maintenance/plans">
+                                <i class="fas fa-calendar-alt me-2"></i>Planos de Manutenção
+                            </a>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link" href="/maintenance/work_orders">
+                                <i class="fas fa-clipboard-list me-2"></i>Ordens de Serviço
+                            </a>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link" href="/warehouse/materials">
+                                <i class="fas fa-boxes me-2"></i>Materiais
+                            </a>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link" href="/warehouse/stock">
+                                <i class="fas fa-warehouse me-2"></i>Estoque
+                            </a>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link active" href="/warehouse/fueling">
+                                <i class="fas fa-gas-pump me-2"></i>Abastecimento
+                            </a>
+                        </li>
+                    </ul>
+                </div>
+            </nav>
+
+            <!-- Main content -->
+            <main class="col-md-9 ms-sm-auto col-lg-10 px-md-4">
+                <div class="d-flex justify-content-between flex-wrap flex-md-nowrap align-items-center pt-3 pb-2 mb-3 border-bottom">
+                    <h1 class="h2">
+                        <i class="fas fa-gas-pump me-2"></i>Abastecimento
+                    </h1>
+                    <div class="btn-toolbar mb-2 mb-md-0">
+                        <button type="button" class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#fuelingModal">
+                            <i class="fas fa-plus me-2"></i>Novo Abastecimento
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Filtros -->
+                <div class="card mb-4">
+                    <div class="card-body">
+                        <div class="row">
+                            <div class="col-md-4">
+                                <label for="filterEquipment" class="form-label">Equipamento</label>
+                                <select class="form-select" id="filterEquipment">
+                                    <option value="">Todos os equipamentos</option>
+                                </select>
+                            </div>
+                            <div class="col-md-4">
+                                <label for="filterDateFrom" class="form-label">Data Inicial</label>
+                                <input type="date" class="form-control" id="filterDateFrom">
+                            </div>
+                            <div class="col-md-4">
+                                <label for="filterDateTo" class="form-label">Data Final</label>
+                                <input type="date" class="form-control" id="filterDateTo">
+                            </div>
+                        </div>
+                        <div class="row mt-3">
+                            <div class="col-12">
+                                <button type="button" class="btn btn-outline-primary" onclick="applyFilters()">
+                                    <i class="fas fa-filter me-2"></i>Filtrar
+                                </button>
+                                <button type="button" class="btn btn-outline-secondary ms-2" onclick="clearFilters()">
+                                    <i class="fas fa-times me-2"></i>Limpar
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Tabela de Abastecimentos -->
+                <div class="card">
+                    <div class="card-header">
+                        <h5 class="card-title mb-0">
+                            <i class="fas fa-list me-2"></i>Histórico de Abastecimentos
+                        </h5>
+                    </div>
+                    <div class="card-body">
+                        <div class="table-responsive">
+                            <table class="table table-hover">
+                                <thead>
+                                    <tr>
+                                        <th>Data</th>
+                                        <th>Equipamento</th>
+                                        <th>Combustível</th>
+                                        <th>Quantidade</th>
+                                        <th>Horímetro</th>
+                                        <th>Custo Total</th>
+                                        <th>Operador</th>
+                                        <th>Ações</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="fuelingsTableBody">
+                                    <!-- Dados serão carregados via JavaScript -->
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            </main>
+        </div>
+    </div>
+
+    <!-- Modal para Novo Abastecimento -->
+    <div class="modal fade" id="fuelingModal" tabindex="-1">
+        <div class="modal-dialog modal-lg">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">
+                        <i class="fas fa-gas-pump me-2"></i>Novo Abastecimento
+                    </h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <form id="fuelingForm">
+                        <div class="row">
+                            <div class="col-md-6">
+                                <label for="equipmentSelect" class="form-label">Equipamento *</label>
+                                <select class="form-select" id="equipmentSelect" required>
+                                    <option value="">Selecione um equipamento</option>
+                                </select>
+                            </div>
+                            <div class="col-md-6">
+                                <label for="fuelSelect" class="form-label">Combustível *</label>
+                                <select class="form-select" id="fuelSelect" required>
+                                    <option value="">Selecione o combustível</option>
+                                </select>
+                            </div>
+                        </div>
+                        
+                        <div class="row mt-3">
+                            <div class="col-md-6">
+                                <label for="fuelingDate" class="form-label">Data do Abastecimento *</label>
+                                <input type="datetime-local" class="form-control" id="fuelingDate" required>
+                            </div>
+                            <div class="col-md-6">
+                                <label for="quantity" class="form-label">Quantidade (L) *</label>
+                                <input type="number" class="form-control" id="quantity" step="0.01" min="0" required>
+                            </div>
+                        </div>
+                        
+                        <div class="row mt-3">
+                            <div class="col-md-6">
+                                <label for="horimeter" class="form-label">Horímetro Atual *</label>
+                                <input type="number" class="form-control" id="horimeter" step="0.1" min="0" required>
+                                <div class="form-text">
+                                    <span id="currentHorimeterInfo"></span>
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <label for="unitCost" class="form-label">Custo Unitário (R$)</label>
+                                <input type="number" class="form-control" id="unitCost" step="0.01" min="0">
+                            </div>
+                        </div>
+                        
+                        <div class="row mt-3">
+                            <div class="col-md-6">
+                                <label for="operator" class="form-label">Operador</label>
+                                <input type="text" class="form-control" id="operator" maxlength="100">
+                            </div>
+                            <div class="col-md-6">
+                                <label for="totalCost" class="form-label">Custo Total (R$)</label>
+                                <input type="number" class="form-control" id="totalCost" step="0.01" readonly>
+                            </div>
+                        </div>
+                        
+                        <div class="row mt-3">
+                            <div class="col-12">
+                                <label for="notes" class="form-label">Observações</label>
+                                <textarea class="form-control" id="notes" rows="3"></textarea>
+                            </div>
+                        </div>
+                        
+                        <div class="alert alert-info mt-3" id="maintenanceAlert" style="display: none;">
+                            <i class="fas fa-info-circle me-2"></i>
+                            <span id="maintenanceAlertText"></span>
+                        </div>
+                    </form>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                    <button type="button" class="btn btn-primary" onclick="saveFueling()">
+                        <i class="fas fa-save me-2"></i>Salvar
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Scripts -->
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/js/bootstrap.bundle.min.js"></script>
+    <script>
+        let equipments = [];
+        let fuels = [];
+        let fuelings = [];
+
+        // Carregar dados iniciais
+        document.addEventListener('DOMContentLoaded', function() {
+            loadEquipments();
+            loadFuels();
+            loadFuelings();
+            
+            // Definir data atual
+            const now = new Date();
+            now.setMinutes(now.getMinutes() - now.getTimezoneOffset());
+            document.getElementById('fuelingDate').value = now.toISOString().slice(0, 16);
+            
+            // Calcular custo total automaticamente
+            document.getElementById('quantity').addEventListener('input', calculateTotalCost);
+            document.getElementById('unitCost').addEventListener('input', calculateTotalCost);
+            
+            // Mostrar horímetro atual ao selecionar equipamento
+            document.getElementById('equipmentSelect').addEventListener('change', showCurrentHorimeter);
+        });
+
+        async function loadEquipments() {
+            try {
+                const response = await fetch('/api/warehouse/equipment/for-fueling');
+                const data = await response.json();
+                equipments = data.equipments;
+                
+                const select = document.getElementById('equipmentSelect');
+                const filterSelect = document.getElementById('filterEquipment');
+                
+                select.innerHTML = '<option value="">Selecione um equipamento</option>';
+                filterSelect.innerHTML = '<option value="">Todos os equipamentos</option>';
+                
+                equipments.forEach(equipment => {
+                    const option = `<option value="${equipment.id}">${equipment.prefix} - ${equipment.name}</option>`;
+                    select.innerHTML += option;
+                    filterSelect.innerHTML += option;
+                });
+            } catch (error) {
+                console.error('Erro ao carregar equipamentos:', error);
+                alert('Erro ao carregar equipamentos');
+            }
+        }
+
+        async function loadFuels() {
+            try {
+                const response = await fetch('/api/warehouse/fuels');
+                const data = await response.json();
+                fuels = data.fuels;
+                
+                const select = document.getElementById('fuelSelect');
+                select.innerHTML = '<option value="">Selecione o combustível</option>';
+                
+                fuels.forEach(fuel => {
+                    const avgPriceText = fuel.average_price > 0 ? ` - Preço médio: R$ ${fuel.average_price.toFixed(2)}` : '';
+                    select.innerHTML += `<option value="${fuel.id}" data-avg-price="${fuel.average_price}">${fuel.description} (${fuel.current_stock} ${fuel.unit})${avgPriceText}</option>`;
+                });
+                
+                // Adicionar evento para preenchimento automático do custo unitário
+                select.addEventListener('change', fillUnitCostAutomatically);
+            } catch (error) {
+                console.error('Erro ao carregar combustíveis:', error);
+                alert('Erro ao carregar combustíveis');
+            }
+        }
+
+        function fillUnitCostAutomatically() {
+            const fuelSelect = document.getElementById('fuelSelect');
+            const unitCostInput = document.getElementById('unitCost');
+            
+            if (fuelSelect.value) {
+                const selectedOption = fuelSelect.options[fuelSelect.selectedIndex];
+                const avgPrice = parseFloat(selectedOption.getAttribute('data-avg-price')) || 0;
+                
+                if (avgPrice > 0) {
+                    unitCostInput.value = avgPrice.toFixed(2);
+                    // Recalcular o custo total automaticamente
+                    calculateTotalCost();
+                }
+            } else {
+                unitCostInput.value = '';
+                document.getElementById('totalCost').value = '';
+            }
+        }
+
+        async function loadFuelings() {
+            try {
+                const response = await fetch('/api/warehouse/fueling/list');
+                const data = await response.json();
+                fuelings = data.fuelings;
+                
+                displayFuelings(fuelings);
+            } catch (error) {
+                console.error('Erro ao carregar abastecimentos:', error);
+                alert('Erro ao carregar abastecimentos');
+            }
+        }
+
+        function displayFuelings(fuelingsToShow) {
+            const tbody = document.getElementById('fuelingsTableBody');
+            tbody.innerHTML = '';
+            
+            if (fuelingsToShow.length === 0) {
+                tbody.innerHTML = '<tr><td colspan="8" class="text-center">Nenhum abastecimento encontrado</td></tr>';
+                return;
+            }
+            
+            fuelingsToShow.forEach(fueling => {
+                const row = `
+                    <tr>
+                        <td>${new Date(fueling.date).toLocaleDateString('pt-BR')}</td>
+                        <td>
+                            <strong>${fueling.equipment_prefix}</strong><br>
+                            <small class="text-muted">${fueling.equipment_name}</small>
+                        </td>
+                        <td>${fueling.fuel_type}</td>
+                        <td>${fueling.quantity} L</td>
+                        <td>${fueling.horimeter}</td>
+                        <td>${fueling.total_cost ? 'R$ ' + fueling.total_cost.toFixed(2) : '-'}</td>
+                        <td>${fueling.operator || '-'}</td>
+                        <td>
+                            <button class="btn btn-sm btn-outline-primary" onclick="viewFueling(${fueling.id})">
+                                <i class="fas fa-eye"></i>
+                            </button>
+                        </td>
+                    </tr>
+                `;
+                tbody.innerHTML += row;
+            });
+        }
+
+        function showCurrentHorimeter() {
+            const equipmentId = document.getElementById('equipmentSelect').value;
+            const infoSpan = document.getElementById('currentHorimeterInfo');
+            
+            if (equipmentId) {
+                const equipment = equipments.find(e => e.id == equipmentId);
+                if (equipment) {
+                    infoSpan.textContent = `Horímetro atual: ${equipment.current_horimeter}`;
+                    document.getElementById('horimeter').min = equipment.current_horimeter;
+                }
+            } else {
+                infoSpan.textContent = '';
+                document.getElementById('horimeter').min = 0;
+            }
+        }
+
+        function calculateTotalCost() {
+            const quantity = parseFloat(document.getElementById('quantity').value) || 0;
+            const unitCost = parseFloat(document.getElementById('unitCost').value) || 0;
+            const totalCost = quantity * unitCost;
+            
+            document.getElementById('totalCost').value = totalCost.toFixed(2);
+        }
+
+        async function saveFueling() {
+            const form = document.getElementById('fuelingForm');
+            if (!form.checkValidity()) {
+                form.reportValidity();
+                return;
+            }
+            
+            const fuelingData = {
+                equipment_id: parseInt(document.getElementById('equipmentSelect').value),
+                material_id: parseInt(document.getElementById('fuelSelect').value),
+                date: document.getElementById('fuelingDate').value,
+                quantity: parseFloat(document.getElementById('quantity').value),
+                horimeter: parseFloat(document.getElementById('horimeter').value),
+                unit_cost: parseFloat(document.getElementById('unitCost').value) || null,
+                operator: document.getElementById('operator').value || null,
+                notes: document.getElementById('notes').value || null
+            };
+            
+            try {
+                const response = await fetch('/api/warehouse/fueling', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify(fuelingData)
+                });
+                
+                const result = await response.json();
+                
+                if (response.ok) {
+                    alert('Abastecimento registrado com sucesso!');
+                    bootstrap.Modal.getInstance(document.getElementById('fuelingModal')).hide();
+                    form.reset();
+                    loadFuelings();
+                } else {
+                    alert('Erro: ' + result.detail);
+                }
+            } catch (error) {
+                console.error('Erro ao salvar abastecimento:', error);
+                alert('Erro ao salvar abastecimento');
+            }
+        }
+
+        function applyFilters() {
+            const equipmentFilter = document.getElementById('filterEquipment').value;
+            const dateFromFilter = document.getElementById('filterDateFrom').value;
+            const dateToFilter = document.getElementById('filterDateTo').value;
+            
+            let filteredFuelings = fuelings;
+            
+            if (equipmentFilter) {
+                filteredFuelings = filteredFuelings.filter(f => f.equipment_id == equipmentFilter);
+            }
+            
+            if (dateFromFilter) {
+                filteredFuelings = filteredFuelings.filter(f => new Date(f.date) >= new Date(dateFromFilter));
+            }
+            
+            if (dateToFilter) {
+                filteredFuelings = filteredFuelings.filter(f => new Date(f.date) <= new Date(dateToFilter + 'T23:59:59'));
+            }
+            
+            displayFuelings(filteredFuelings);
+        }
+
+        function clearFilters() {
+            document.getElementById('filterEquipment').value = '';
+            document.getElementById('filterDateFrom').value = '';
+            document.getElementById('filterDateTo').value = '';
+            displayFuelings(fuelings);
+        }
+
+        async function viewFueling(fuelingId) {
+            try {
+                const response = await fetch(`/api/warehouse/fueling/${fuelingId}`);
+                const fueling = await response.json();
+                
+                let details = `
+                    <strong>Data:</strong> ${new Date(fueling.date).toLocaleString('pt-BR')}<br>
+                    <strong>Equipamento:</strong> ${fueling.equipment_prefix} - ${fueling.equipment_name}<br>
+                    <strong>Combustível:</strong> ${fueling.fuel_type}<br>
+                    <strong>Quantidade:</strong> ${fueling.quantity} L<br>
+                    <strong>Horímetro:</strong> ${fueling.horimeter}<br>
+                `;
+                
+                if (fueling.unit_cost) {
+                    details += `<strong>Custo Unitário:</strong> R$ ${fueling.unit_cost.toFixed(2)}<br>`;
+                }
+                
+                if (fueling.total_cost) {
+                    details += `<strong>Custo Total:</strong> R$ ${fueling.total_cost.toFixed(2)}<br>`;
+                }
+                
+                if (fueling.operator) {
+                    details += `<strong>Operador:</strong> ${fueling.operator}<br>`;
+                }
+                
+                if (fueling.notes) {
+                    details += `<strong>Observações:</strong> ${fueling.notes}`;
+                }
+                
+                alert(details);
+            } catch (error) {
+                console.error('Erro ao carregar detalhes:', error);
+                alert('Erro ao carregar detalhes do abastecimento');
+            }
+        }
+    </script>
+</body>
+</html>

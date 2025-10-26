@@ -1,0 +1,105 @@
+version: '3.8'
+
+services:
+  # Aplicação MTDL-PCM
+  app:
+    build: .
+    container_name: mtdl-pcm-app
+    ports:
+      - "8000:8000"
+    environment:
+      - DATABASE_URL=postgresql://mtdl_user:mtdl_password@db:5432/mtdl_pcm
+      - DEBUG=False
+      - HOST=0.0.0.0
+      - PORT=8000
+    volumes:
+      - ./data:/app/data
+      - ./logs:/app/logs
+      - ./backups:/app/backups
+      - ./reports:/app/reports
+    depends_on:
+      - db
+      - redis
+    restart: unless-stopped
+    networks:
+      - mtdl-network
+
+  # Banco de Dados PostgreSQL
+  db:
+    image: postgres:15-alpine
+    container_name: mtdl-pcm-db
+    environment:
+      - POSTGRES_DB=mtdl_pcm
+      - POSTGRES_USER=mtdl_user
+      - POSTGRES_PASSWORD=mtdl_password
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./backups:/backups
+    ports:
+      - "5432:5432"
+    restart: unless-stopped
+    networks:
+      - mtdl-network
+
+  # Redis para Cache (opcional)
+  redis:
+    image: redis:7-alpine
+    container_name: mtdl-pcm-redis
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    restart: unless-stopped
+    networks:
+      - mtdl-network
+
+  # Nginx como Proxy Reverso (opcional)
+  nginx:
+    image: nginx:alpine
+    container_name: mtdl-pcm-nginx
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./nginx.conf:/etc/nginx/nginx.conf:ro
+      - ./ssl:/etc/nginx/ssl:ro
+    depends_on:
+      - app
+    restart: unless-stopped
+    networks:
+      - mtdl-network
+
+  # Backup automático (opcional)
+  backup:
+    image: postgres:15-alpine
+    container_name: mtdl-pcm-backup
+    environment:
+      - PGPASSWORD=mtdl_password
+    volumes:
+      - ./backups:/backups
+      - ./scripts:/scripts
+    command: >
+      sh -c "
+        while true; do
+          echo 'Iniciando backup...'
+          pg_dump -h db -U mtdl_user -d mtdl_pcm > /backups/backup_$$(date +%Y%m%d_%H%M%S).sql
+          echo 'Backup concluído'
+          find /backups -name '*.sql' -mtime +30 -delete
+          sleep 86400
+        done
+      "
+    depends_on:
+      - db
+    restart: unless-stopped
+    networks:
+      - mtdl-network
+
+volumes:
+  postgres_data:
+    driver: local
+  redis_data:
+    driver: local
+
+networks:
+  mtdl-network:
+    driver: bridge

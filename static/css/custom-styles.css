@@ -1,0 +1,135 @@
+/* Custom CSS Classes - Substituindo estilos inline */
+
+/* Tamanhos de fonte */
+.error-icon-large {
+    font-size: 5rem;
+}
+
+/* Decoração de texto */
+.no-text-decoration {
+    text-decoration: none;
+}
+
+/* Transformações */
+.chevron-collapsed {
+    transform: rotate(-90deg);
+}
+
+/* Alturas */
+.progress-height-12 {
+    height: 12px;
+}
+
+/* Larguras */
+.width-30 {
+    width: 30px;
+}
+
+.width-60 {
+    width: 60px;
+}
+
+.width-80 {
+    width: 80px;
+}
+
+.width-100 {
+    width: 100px;
+}
+
+.width-150 {
+    width: 150px;
+}
+
+.width-200 {
+    width: 200px;
+}
+
+.width-250 {
+    width: 250px;
+}
+
+.width-300 {
+    width: 300px;
+}
+
+.width-400 {
+    width: 400px;
+}
+
+/* Larguras em porcentagem */
+.width-0-percent {
+    width: 0%;
+}
+
+.width-60-percent {
+    width: 60%;
+}
+
+.width-75-percent {
+    width: 75%;
+}
+
+.width-85-percent {
+    width: 85%;
+}
+
+.width-90-percent {
+    width: 90%;
+}
+
+.width-100-percent {
+    width: 100%;
+}
+
+/* Margens esquerdas */
+.margin-left-30 {
+    margin-left: 30px;
+}
+
+.margin-left-50 {
+    margin-left: 50px;
+}
+
+.margin-left-100 {
+    margin-left: 100px;
+}
+
+/* Margens superiores */
+.margin-top-10 {
+    margin-top: 10px;
+}
+
+/* Larguras máximas */
+.max-width-250 {
+    max-width: 250px;
+}
+
+/* Display */
+.hidden {
+    display: none;
+}
+
+/* Estilos para assinaturas no work_order_print */
+.signature-title {
+    font-weight: bold;
+    text-align: center;
+}
+
+.signature-date {
+    text-align: center;
+    margin-top: 5px;
+}
+
+/* JavaScript - Aplicar larguras dinamicamente */
+.progress-bar[data-width] {
+    width: var(--progress-width, 0%);
+}
+
+/* Tabela de Ordens de Serviço: reduzir altura das linhas em ~30% */
+#work-orders-table thead th,
+#work-orders-table tbody td,
+#work-orders-table tfoot td {
+    padding-top: 0.7rem !important; /* padrão py-3 = 1.0rem */
+    padding-bottom: 0.7rem !important;
+}

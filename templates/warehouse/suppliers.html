@@ -1,0 +1,301 @@
+{% extends "base.html" %}
+
+{% block page_title %}Fornecedores{% endblock %}
+{% block breadcrumb_title %}Fornecedores{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <!-- Filters and Actions -->
+    <div class="row mb-3">
+        <div class="col-md-8">
+            <div class="d-flex gap-3 align-items-end">
+                <div>
+                    <label for="statusFilter" class="form-label">Status</label>
+                    <select class="form-select" id="statusFilter">
+                        <option value="">Todos</option>
+                        <option value="ativo">Ativo</option>
+                        <option value="inativo">Inativo</option>
+                    </select>
+                </div>
+                <div class="flex-grow-1">
+                    <label for="searchInput" class="form-label">Buscar</label>
+                    <input type="text" class="form-control" id="searchInput" placeholder="Buscar por nome, CNPJ ou contato...">
+                </div>
+            </div>
+        </div>
+        <div class="col-md-4">
+            <div class="d-flex gap-2 align-items-end justify-content-end">
+                <button type="button" class="btn btn-outline-secondary" onclick="clearFilters()">
+                    <i class="bi bi-x-circle"></i> Limpar
+                </button>
+                <button type="button" class="btn btn-primary" onclick="applyFilters()">
+                    <i class="bi bi-funnel"></i> Filtrar
+                </button>
+                <button type="button" class="btn btn-success" onclick="showAddSupplierModal()">
+                    <i class="bi bi-plus-circle"></i> Novo Fornecedor
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Suppliers Table -->
+    <div class="card border-0 shadow-sm">
+        <div class="card-body p-0">
+            <div class="table-responsive">
+                <table class="table table-light border-0 mb-0" id="suppliersTable">
+                    <thead class="table-dark">
+                        <tr>
+                            <th>Fornecedor</th>
+                            <th>Contato</th>
+                            <th>Status</th>
+                            <th>Ações</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <!-- Dados carregados via JavaScript -->
+                    </tbody>
+                </table>
+            </div>
+            
+            <!-- Pagination -->
+            <div class="d-flex justify-content-between align-items-center p-3 border-top">
+                <div class="text-muted">
+                    Mostrando <span id="itemsCount">0</span> fornecedores
+                </div>
+                <nav>
+                    <ul class="pagination pagination-sm mb-0">
+                        <li class="page-item disabled">
+                            <a class="page-link" href="#" tabindex="-1">Anterior</a>
+                        </li>
+                        <li class="page-item active">
+                            <a class="page-link" href="#">1</a>
+                        </li>
+                        <li class="page-item disabled">
+                            <a class="page-link" href="#">Próximo</a>
+                        </li>
+                    </ul>
+                </nav>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Modal para adicionar/editar fornecedor -->
+<div class="modal fade" id="supplierModal" tabindex="-1">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Fornecedor</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <form id="supplierForm">
+                    <div class="row">
+                        <div class="col-md-8">
+                            <div class="mb-3">
+                                <label for="supplierName" class="form-label">Nome da Empresa</label>
+                                <input type="text" class="form-control" id="supplierName" required>
+                            </div>
+                        </div>
+                        <div class="col-md-4">
+                            <div class="mb-3">
+                                <label for="supplierCnpj" class="form-label">CNPJ</label>
+                                <input type="text" class="form-control" id="supplierCnpj" placeholder="00.000.000/0000-00">
+                            </div>
+                        </div>
+                    </div>
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label for="supplierContact" class="form-label">Pessoa de Contato</label>
+                                <input type="text" class="form-control" id="supplierContact">
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label for="supplierEmail" class="form-label">Email</label>
+                                <input type="email" class="form-control" id="supplierEmail">
+                            </div>
+                        </div>
+                    </div>
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label for="supplierPhone" class="form-label">Telefone</label>
+                                <input type="tel" class="form-control" id="supplierPhone" placeholder="(00) 0000-0000">
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label for="supplierStatus" class="form-label">Status</label>
+                                <select class="form-select" id="supplierStatus">
+                                    <option value="true">Ativo</option>
+                                    <option value="false">Inativo</option>
+                                </select>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="mb-3">
+                        <label for="supplierAddress" class="form-label">Endereço</label>
+                        <textarea class="form-control" id="supplierAddress" rows="2" placeholder="Endereço completo"></textarea>
+                    </div>
+                    <div class="mb-3">
+                        <label for="supplierNotes" class="form-label">Observações</label>
+                        <textarea class="form-control" id="supplierNotes" rows="2" placeholder="Observações adicionais"></textarea>
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                <button type="button" class="btn btn-primary" onclick="saveSupplier()">Salvar</button>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+let currentSupplierId = null;
+
+document.addEventListener('DOMContentLoaded', function() {
+    loadSuppliers();
+    
+    // Add event listeners for filters
+    document.getElementById('statusFilter').addEventListener('change', renderSuppliersTable);
+    document.getElementById('searchInput').addEventListener('input', renderSuppliersTable);
+});
+
+let suppliersData = [];
+
+async function loadSuppliers() {
+    try {
+        const response = await axios.get('/api/warehouse/suppliers');
+        suppliersData = response.data;
+        renderSuppliersTable();
+    } catch (error) {
+        console.error('Erro ao carregar fornecedores:', error);
+        showAlert('Erro ao carregar fornecedores', 'error');
+    }
+}
+
+function renderSuppliersTable() {
+    const tbody = document.querySelector('#suppliersTable tbody');
+    tbody.innerHTML = '';
+    
+    // Apply filters
+    let filteredData = suppliersData;
+    
+    // Status filter
+    const statusFilter = document.getElementById('statusFilter').value;
+    if (statusFilter === 'ativo') {
+        filteredData = filteredData.filter(supplier => supplier.is_active);
+    } else if (statusFilter === 'inativo') {
+        filteredData = filteredData.filter(supplier => !supplier.is_active);
+    }
+    
+    // Search filter
+    const searchTerm = document.getElementById('searchInput').value.toLowerCase();
+    if (searchTerm) {
+        filteredData = filteredData.filter(supplier => 
+            (supplier.name || '').toLowerCase().includes(searchTerm) ||
+            (supplier.cnpj || '').toLowerCase().includes(searchTerm) ||
+            (supplier.contact_person || '').toLowerCase().includes(searchTerm) ||
+            (supplier.email || '').toLowerCase().includes(searchTerm)
+        );
+    }
+    
+    // Update items count
+    document.getElementById('itemsCount').textContent = filteredData.length;
+    
+    if (filteredData.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="4" class="text-center text-muted py-4">Nenhum fornecedor encontrado</td></tr>';
+        return;
+    }
+    
+    filteredData.forEach(supplier => {
+        const row = tbody.insertRow();
+        row.innerHTML = `
+            <td>
+                <div class="fw-bold">${supplier.name || 'N/A'}</div>
+                <small class="text-muted">${supplier.cnpj || 'CNPJ não informado'}</small>
+            </td>
+            <td>
+                <div>${supplier.contact_person || 'N/A'}</div>
+                <small class="text-muted">${supplier.email || ''}</small>
+                <div><small class="text-muted">${supplier.phone || ''}</small></div>
+            </td>
+            <td><span class="badge bg-${supplier.is_active ? 'success' : 'secondary'}">${supplier.is_active ? 'Ativo' : 'Inativo'}</span></td>
+            <td>
+                <button class="btn btn-sm btn-outline-primary" onclick="editSupplier(${supplier.id})" title="Editar" aria-label="Editar fornecedor">
+                    <i class="bi bi-pencil"></i>
+                </button>
+                <button class="btn btn-sm btn-outline-info" onclick="viewSupplierDetails(${supplier.id})" title="Visualizar" aria-label="Visualizar fornecedor">
+                    <i class="bi bi-eye"></i>
+                </button>
+                <button class="btn btn-sm btn-outline-danger" onclick="deleteSupplier(${supplier.id})" title="Excluir" aria-label="Excluir fornecedor">
+                    <i class="bi bi-trash"></i>
+                </button>
+            </td>
+        `;
+    });
+}
+
+function clearFilters() {
+    document.getElementById('statusFilter').value = '';
+    document.getElementById('searchInput').value = '';
+    renderSuppliersTable();
+}
+
+function applyFilters() {
+    renderSuppliersTable();
+}
+
+function showAddSupplierModal() {
+    currentSupplierId = null;
+    document.getElementById('supplierForm').reset();
+    document.querySelector('#supplierModal .modal-title').textContent = 'Novo Fornecedor';
+    new bootstrap.Modal(document.getElementById('supplierModal')).show();
+}
+
+function editSupplier(id) {
+    // Implementar edição
+    showAlert('Funcionalidade em desenvolvimento', 'info');
+}
+
+function viewSupplierDetails(id) {
+    // Implementar visualização de detalhes
+    showAlert('Funcionalidade em desenvolvimento', 'info');
+}
+
+function deleteSupplier(id) {
+    if (confirm('Tem certeza que deseja excluir este fornecedor?')) {
+        // Implementar exclusão
+        showAlert('Funcionalidade em desenvolvimento', 'info');
+    }
+}
+
+function saveSupplier() {
+    // Implementar salvamento
+    showAlert('Funcionalidade em desenvolvimento', 'info');
+}
+
+// Máscara para CNPJ
+document.getElementById('supplierCnpj').addEventListener('input', function(e) {
+    let value = e.target.value.replace(/\D/g, '');
+    value = value.replace(/^(\d{2})(\d)/, '$1.$2');
+    value = value.replace(/^(\d{2})\.(\d{3})(\d)/, '$1.$2.$3');
+    value = value.replace(/\.(\d{3})(\d)/, '.$1/$2');
+    value = value.replace(/(\d{4})(\d)/, '$1-$2');
+    e.target.value = value;
+});
+
+// Máscara para telefone
+document.getElementById('supplierPhone').addEventListener('input', function(e) {
+    let value = e.target.value.replace(/\D/g, '');
+    value = value.replace(/^(\d{2})(\d)/, '($1) $2');
+    value = value.replace(/(\d{4})(\d)/, '$1-$2');
+    e.target.value = value;
+});
+</script>
+{% endblock %}

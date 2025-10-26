@@ -1,0 +1,963 @@
+{% extends "base.html" %}
+
+{% block title %}Dashboard - MTDL-PCM{% endblock %}
+
+{% block page_title %}Dashboard{% endblock %}
+{% block breadcrumb_title %}Dashboard{% endblock %}
+
+{% block content %}
+<!-- Cards de Métricas -->
+<div class="row g-4 mb-4">
+    <div class="col-xl-3 col-md-6">
+        <div class="card border-left-primary shadow h-100">
+            <div class="card-body py-3">
+                <div class="row no-gutters align-items-center">
+                    <div class="col me-2">
+                        <div class="text-xs font-weight-bold text-primary text-uppercase mb-1">
+                            Manutenções Pendentes
+                        </div>
+                        <div class="h4 mb-0 font-weight-bold text-gray-800" id="pending-maintenance">0</div>
+                        <div class="text-xs text-muted">
+                            <span id="overdue-maintenance">0</span> em atraso
+                        </div>
+                    </div>
+                    <div class="col-auto">
+                        <i class="bi bi-wrench-adjustable fa-2x text-gray-300"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-xl-3 col-md-6">
+        <div class="card border-left-success shadow h-100">
+            <div class="card-body py-3">
+                <div class="row no-gutters align-items-center">
+                    <div class="col me-2">
+                        <div class="text-xs font-weight-bold text-success text-uppercase mb-1">
+                            Materiais em Estoque
+                        </div>
+                        <div class="h4 mb-0 font-weight-bold text-gray-800" id="materials-stock">0</div>
+                        <div class="text-xs text-muted">
+                            <span id="low-stock">0</span> baixo estoque
+                        </div>
+                    </div>
+                    <div class="col-auto">
+                        <i class="bi bi-box fa-2x text-gray-300"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-xl-3 col-md-6">
+        <div class="card border-left-info shadow h-100">
+            <div class="card-body py-3">
+                <div class="row no-gutters align-items-center">
+                    <div class="col me-2">
+                        <div class="text-xs font-weight-bold text-info text-uppercase mb-1">
+                            Eficiência Operacional
+                        </div>
+                        <div class="row no-gutters align-items-center">
+                            <div class="col-auto">
+                                <div class="h4 mb-0 me-3 font-weight-bold text-gray-800" id="operational-efficiency">0%</div>
+                            </div>
+                            <div class="col">
+                                <div class="progress progress-sm me-2">
+                                    <div class="progress-bar bg-info width-0-percent" role="progressbar" aria-valuenow="0" aria-valuemin="0" aria-valuemax="100"></div>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="text-xs text-success">+2.5% este mês</div>
+                    </div>
+                    <div class="col-auto">
+                        <i class="bi bi-graph-up fa-2x text-gray-300"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-xl-3 col-md-6">
+        <div class="card border-left-warning shadow h-100">
+            <div class="card-body py-3">
+                <div class="row no-gutters align-items-center">
+                    <div class="col me-2">
+                        <div class="text-xs font-weight-bold text-warning text-uppercase mb-1">
+                            Equipamentos Ativos
+                        </div>
+                        <div class="h4 mb-0 font-weight-bold text-gray-800" id="active-equipment">0</div>
+                        <div class="text-xs text-muted">
+                            <span id="total-equipment">0</span> total
+                        </div>
+                    </div>
+                    <div class="col-auto">
+                        <i class="bi bi-gear fa-2x text-gray-300"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Alertas e Notificações -->
+<div class="row mb-4">
+    <div class="col-12">
+        <div class="card shadow">
+            <div class="card-header bg-light d-flex align-items-center">
+                <i class="bi bi-bell text-warning me-2"></i>
+                <h5 class="mb-0">Alertas e Notificações</h5>
+            </div>
+            <div class="card-body">
+                <div class="alert alert-warning d-flex align-items-center" role="alert">
+                    <i class="bi bi-exclamation-triangle-fill me-2"></i>
+                    <div class="flex-grow-1">
+                        <strong>Sistema Online!</strong> Todos os sistemas estão funcionando normalmente.
+                    </div>
+                    <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+                </div>
+                
+                <div id="dynamic-alerts">
+                    <!-- Alertas dinâmicos serão inseridos aqui via JavaScript -->
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Equipamentos Críticos e Gráficos -->
+<div class="row">
+    <!-- Equipamentos Críticos -->
+    <div class="col-lg-8 mb-4">
+        <div class="card shadow">
+            <div class="card-header bg-light d-flex align-items-center justify-content-between">
+                <div class="d-flex align-items-center">
+                    <i class="bi bi-gear text-danger me-2"></i>
+                    <h5 class="mb-0">Equipamentos Críticos</h5>
+                </div>
+                <button class="btn btn-sm btn-outline-primary" onclick="refreshEquipmentData()" aria-label="Atualizar dados dos equipamentos">
+                    <i class="bi bi-arrow-clockwise me-1"></i>Atualizar
+                </button>
+            </div>
+            <div class="card-body">
+                <p class="text-muted mb-3">Status dos equipamentos mais funcionalmente necessários</p>
+                
+                <!-- Gráfico de barras -->
+                <div class="equipment-chart" id="equipment-chart">
+                    <div class="chart-row mb-3">
+                        <div class="d-flex justify-content-between align-items-center mb-2">
+                            <span class="chart-label fw-medium">Compressor Principal</span>
+                            <span class="chart-value">Operacional</span>
+                        </div>
+                        <div class="progress progress-height-12">
+                            <div class="progress-bar bg-success" style="width: 100%" role="progressbar" aria-valuenow="100" aria-valuemin="0" aria-valuemax="100"></div>
+                        </div>
+                    </div>
+                    
+                    <div class="chart-row mb-3">
+                        <div class="d-flex justify-content-between align-items-center mb-2">
+                            <span class="chart-label fw-medium">Bomba Hidráulica</span>
+                            <span class="chart-value">Manutenção</span>
+                        </div>
+                        <div class="progress progress-height-12">
+                            <div class="progress-bar bg-warning" style="width: 75%" role="progressbar" aria-valuenow="75" aria-valuemin="0" aria-valuemax="100"></div>
+                        </div>
+                    </div>
+                    
+                    <div class="chart-row mb-3">
+                        <div class="d-flex justify-content-between align-items-center mb-2">
+                            <span class="chart-label fw-medium">Gerador de Emergência</span>
+                            <span class="chart-value">Operacional</span>
+                        </div>
+                        <div class="progress progress-height-12">
+                            <div class="progress-bar bg-info" style="width: 90%" role="progressbar" aria-valuenow="90" aria-valuemin="0" aria-valuemax="100"></div>
+                        </div>
+                    </div>
+                    
+                    <div class="chart-row mb-3">
+                        <div class="d-flex justify-content-between align-items-center mb-2">
+                            <span class="chart-label fw-medium">Sistema de Ventilação</span>
+                            <span class="chart-value">Atenção</span>
+                        </div>
+                        <div class="progress progress-height-12">
+                            <div class="progress-bar bg-danger" style="width: 60%" role="progressbar" aria-valuenow="60" aria-valuemin="0" aria-valuemax="100"></div>
+                        </div>
+                    </div>
+                    
+                    <div class="chart-row">
+                        <div class="d-flex justify-content-between align-items-center mb-2">
+                            <span class="chart-label fw-medium">Esteira Transportadora</span>
+                            <span class="chart-value">Operacional</span>
+                        </div>
+                        <div class="progress progress-height-12">
+                            <div class="progress-bar bg-primary" style="width: 85%" role="progressbar" aria-valuenow="85" aria-valuemin="0" aria-valuemax="100"></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Atividades Recentes -->
+    <div class="col-lg-4 mb-4">
+        <div class="card shadow">
+            <div class="card-header bg-light d-flex align-items-center justify-content-between">
+                <div class="d-flex align-items-center">
+                    <i class="bi bi-clock-history text-info me-2"></i>
+                    <h5 class="mb-0">Atividades Recentes</h5>
+                </div>
+                <div class="d-flex align-items-center">
+                    <button id="refresh-activities" class="btn btn-sm btn-outline-secondary me-2" onclick="loadRecentActivities()" title="Atualizar agora">
+                        <i class="bi bi-arrow-clockwise"></i>
+                    </button>
+                    <div class="form-check form-switch">
+                        <input class="form-check-input" type="checkbox" id="auto-update-toggle" checked onchange="toggleAutoUpdate()">
+                        <label class="form-check-label small" for="auto-update-toggle">Auto</label>
+                    </div>
+                </div>
+            </div>
+            <div class="card-body">
+                <div class="timeline" id="recent-activities">
+                    <div class="timeline-item mb-3">
+                        <div class="timeline-marker bg-success"></div>
+                        <div class="timeline-content">
+                            <h6 class="mb-1">Manutenção Concluída</h6>
+                            <p class="mb-1 small text-muted">Compressor Principal - Troca de filtros</p>
+                            <small class="text-muted">Há 2 horas</small>
+                        </div>
+                    </div>
+                    
+                    <div class="timeline-item mb-3">
+                        <div class="timeline-marker bg-warning"></div>
+                        <div class="timeline-content">
+                            <h6 class="mb-1">Alerta de Estoque</h6>
+                            <p class="mb-1 small text-muted">Óleo lubrificante abaixo do mínimo</p>
+                            <small class="text-muted">Há 4 horas</small>
+                        </div>
+                    </div>
+                    
+                    <div class="timeline-item mb-3">
+                        <div class="timeline-marker bg-info"></div>
+                        <div class="timeline-content">
+                            <h6 class="mb-1">Nova Ordem de Serviço</h6>
+                            <p class="mb-1 small text-muted">Inspeção preventiva - Bomba Hidráulica</p>
+                            <small class="text-muted">Ontem</small>
+                        </div>
+                    </div>
+                    
+                    <div class="timeline-item">
+                        <div class="timeline-marker bg-primary"></div>
+                        <div class="timeline-content">
+                            <h6 class="mb-1">Equipamento Cadastrado</h6>
+                            <p class="mb-1 small text-muted">Nova esteira transportadora adicionada</p>
+                            <small class="text-muted">2 dias atrás</small>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="text-center mt-3">
+                    <a href="/maintenance/history" class="btn btn-sm btn-outline-primary">
+                        Ver Todas as Atividades
+                    </a>
+                </div>
+                
+                <div class="text-center mt-2">
+                    <small id="last-update" class="text-muted">
+                        <i class="bi bi-clock me-1"></i>Carregando...
+                    </small>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Gráfico de Performance -->
+<div class="row">
+    <div class="col-12">
+        <div class="card shadow">
+            <div class="card-header bg-light d-flex align-items-center justify-content-between">
+                <div class="d-flex align-items-center">
+                    <i class="bi bi-graph-up text-success me-2"></i>
+                    <h5 class="mb-0">Performance Mensal</h5>
+                </div>
+                <div class="btn-group btn-group-sm" role="group">
+                    <input type="radio" class="btn-check" name="period" id="period-week" autocomplete="off">
+                    <label class="btn btn-outline-primary" for="period-week">Semana</label>
+                    
+                    <input type="radio" class="btn-check" name="period" id="period-month" autocomplete="off" checked>
+                    <label class="btn btn-outline-primary" for="period-month">Mês</label>
+                    
+                    <input type="radio" class="btn-check" name="period" id="period-year" autocomplete="off">
+                    <label class="btn btn-outline-primary" for="period-year">Ano</label>
+                </div>
+            </div>
+            <div class="card-body">
+                <canvas id="performanceChart" height="100"></canvas>
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+/* Timeline personalizada */
+.timeline {
+    position: relative;
+    padding-left: 30px;
+}
+
+.timeline::before {
+    content: '';
+    position: absolute;
+    left: 15px;
+    top: 0;
+    bottom: 0;
+    width: 2px;
+    background: #e9ecef;
+}
+
+.timeline-item {
+    position: relative;
+}
+
+.timeline-marker {
+    position: absolute;
+    left: -22px;
+    top: 5px;
+    width: 12px;
+    height: 12px;
+    border-radius: 50%;
+    border: 2px solid white;
+    box-shadow: 0 0 0 2px #e9ecef;
+}
+
+.timeline-content h6 {
+    font-size: 0.9rem;
+    font-weight: 600;
+}
+
+.timeline-content p {
+    font-size: 0.85rem;
+    line-height: 1.4;
+}
+
+/* Melhorias nos cards de métricas */
+.text-gray-800 {
+    color: #2c3e50 !important;
+}
+
+.text-gray-300 {
+    color: #6c757d !important;
+}
+
+.progress-sm {
+    height: 8px;
+}
+
+/* Responsividade para gráficos */
+@media (max-width: 768px) {
+    .equipment-chart .chart-row {
+        margin-bottom: 1rem;
+    }
+    
+    .timeline {
+        padding-left: 20px;
+    }
+    
+    .timeline-marker {
+        left: -17px;
+        width: 10px;
+        height: 10px;
+    }
+}
+</style>
+
+{% endblock %}
+
+{% block extra_js %}
+<script>
+// Função para atualizar dados dos equipamentos
+function refreshEquipmentData() {
+    // Simular carregamento
+    const button = event.target.closest('button');
+    const originalText = button.innerHTML;
+    button.innerHTML = '<i class="bi bi-arrow-clockwise me-1 spin"></i>Atualizando...';
+    button.disabled = true;
+    
+    setTimeout(() => {
+        button.innerHTML = originalText;
+        button.disabled = false;
+        // Aqui você pode adicionar a lógica para atualizar os dados reais
+    }, 2000);
+}
+
+// Gráfico de Performance
+const ctx = document.getElementById('performanceChart').getContext('2d');
+const performanceChart = new Chart(ctx, {
+    type: 'line',
+    data: {
+        labels: ['Jan', 'Fev', 'Mar', 'Abr', 'Mai', 'Jun', 'Jul', 'Ago', 'Set', 'Out', 'Nov', 'Dez'],
+        datasets: [{
+            label: 'Eficiência (%)',
+            data: [85, 88, 92, 89, 95, 93, 96, 94, 97, 95, 98, 95],
+            borderColor: '#3498db',
+            backgroundColor: 'rgba(52, 152, 219, 0.1)',
+            borderWidth: 3,
+            fill: true,
+            tension: 0.4
+        }, {
+            label: 'Disponibilidade (%)',
+            data: [92, 94, 96, 93, 97, 95, 98, 96, 99, 97, 99, 98],
+            borderColor: '#27ae60',
+            backgroundColor: 'rgba(39, 174, 96, 0.1)',
+            borderWidth: 3,
+            fill: true,
+            tension: 0.4
+        }]
+    },
+    options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        plugins: {
+            legend: {
+                position: 'top',
+            }
+        },
+        scales: {
+            y: {
+                beginAtZero: true,
+                max: 100,
+                ticks: {
+                    callback: function(value) {
+                        return value + '%';
+                    }
+                }
+            }
+        }
+    }
+});
+// Tornar o gráfico acessível globalmente usando um nome que não conflita com o id do canvas
+window.performanceChartInstance = performanceChart;
+
+// Animação de rotação para o ícone de atualização
+const style = document.createElement('style');
+style.textContent = `
+    .spin {
+        animation: spin 1s linear infinite;
+    }
+    
+    @keyframes spin {
+        from { transform: rotate(0deg); }
+        to { transform: rotate(360deg); }
+    }
+`;
+document.head.appendChild(style);
+
+// Carregar dados dinâmicos ao carregar a página
+document.addEventListener('DOMContentLoaded', function() {
+    loadDashboardData();
+});
+
+// Parar atualização automática quando sair da página
+window.addEventListener('beforeunload', function() {
+    stopAutoUpdate();
+});
+
+// Pausar atualização quando a página não estiver visível
+document.addEventListener('visibilitychange', function() {
+    if (document.hidden) {
+        stopAutoUpdate();
+    } else {
+        const toggle = document.getElementById('auto-update-toggle');
+        if (toggle && toggle.checked) {
+            startAutoUpdate();
+        }
+    }
+});
+
+async function loadDashboardData() {
+    try {
+        // Carregar métricas do dashboard
+        const metricsResponse = await fetch('/api/dashboard/metrics');
+        const metricsResult = await metricsResponse.json();
+        
+        if (metricsResult.success) {
+            updateMetricCards(metricsResult.data);
+        }
+        
+        // Carregar status dos equipamentos
+        const equipmentResponse = await fetch('/api/dashboard/equipment-status');
+        const equipmentResult = await equipmentResponse.json();
+        
+        if (equipmentResult.success) {
+            updateEquipmentChart(equipmentResult.data);
+        }
+        
+        // Carregar atividades recentes uma vez
+        loadRecentActivities();
+        
+        // Carregar alertas
+        const alertsResponse = await fetch('/api/dashboard/alerts');
+        const alertsResult = await alertsResponse.json();
+        
+        if (alertsResult.success) {
+            updateDynamicAlerts(alertsResult.data);
+        }
+        
+        // Carregar dados de performance
+        const performanceResponse = await fetch('/api/dashboard/performance-data');
+        const performanceResult = await performanceResponse.json();
+        
+        if (performanceResult.success) {
+            updatePerformanceChart(performanceResult.data);
+        }
+        
+    } catch (error) {
+        console.log('Erro ao carregar dados:', error);
+        console.log('Usando valores padrão');
+    }
+}
+
+function updateMetricCards(data) {
+    // Atualizar contadores com dados reais da API
+    document.getElementById('pending-maintenance').textContent = data.pending_maintenance || 0;
+    document.getElementById('overdue-maintenance').textContent = data.overdue_maintenance || 0;
+    document.getElementById('materials-stock').textContent = data.materials_stock || 0;
+    document.getElementById('low-stock').textContent = data.low_stock || 0;
+    document.getElementById('operational-efficiency').textContent = (data.operational_efficiency || 0) + '%';
+    document.getElementById('active-equipment').textContent = data.active_equipment || 0;
+    document.getElementById('total-equipment').textContent = data.total_equipment || 0;
+    
+    // Atualizar barra de progresso da eficiência
+    const efficiencyBar = document.querySelector('.progress-bar.bg-info');
+    if (efficiencyBar) {
+        const efficiency = data.operational_efficiency || 0;
+        efficiencyBar.style.width = efficiency + '%';
+        efficiencyBar.setAttribute('aria-valuenow', efficiency);
+    }
+}
+
+function updateEquipmentChart(equipmentData) {
+    const chartContainer = document.getElementById('equipment-chart');
+    if (!chartContainer) return;
+    
+    // Limpar conteúdo atual
+    chartContainer.innerHTML = '';
+    
+    // Adicionar novos dados
+    equipmentData.forEach(equipment => {
+        const chartRow = document.createElement('div');
+        chartRow.className = 'chart-row mb-3';
+        
+        const colorClass = equipment.color === 'success' ? 'bg-success' :
+                          equipment.color === 'warning' ? 'bg-warning' :
+                          equipment.color === 'danger' ? 'bg-danger' :
+                          equipment.color === 'info' ? 'bg-info' : 'bg-primary';
+        
+        chartRow.innerHTML = `
+            <div class="d-flex justify-content-between align-items-center mb-2">
+                <span class="chart-label fw-medium">${equipment.name}</span>
+                <span class="chart-value">${equipment.status}</span>
+            </div>
+            <div class="progress progress-height-12">
+                <div class="progress-bar ${colorClass}" data-width="${equipment.efficiency}" 
+                     role="progressbar" aria-valuenow="${equipment.efficiency}" 
+                     aria-valuemin="0" aria-valuemax="100"></div>
+            </div>
+        `;
+        
+        chartContainer.appendChild(chartRow);
+    });
+}
+
+function updateRecentActivities(activities) {
+    const container = document.getElementById('recent-activities');
+    if (!container) return;
+    
+    container.innerHTML = '';
+    
+    if (!activities || activities.length === 0) {
+        container.innerHTML = `
+            <div class="text-center text-muted py-4">
+                <i class="bi bi-clock fa-2x mb-2"></i>
+                <p>Nenhuma atividade recente encontrada</p>
+            </div>
+        `;
+        return;
+    }
+    
+    activities.forEach(activity => {
+        const activityElement = document.createElement('div');
+        activityElement.className = 'timeline-item mb-3';
+        
+        activityElement.innerHTML = `
+            <div class="timeline-marker bg-${activity.type}"></div>
+            <div class="timeline-content">
+                <h6 class="timeline-title mb-1">${activity.title}</h6>
+                <p class="mb-1 small text-muted">${activity.description}</p>
+                <small class="text-muted">
+                    <i class="bi bi-clock me-1"></i>${activity.time}
+                </small>
+            </div>
+        `;
+        
+        container.appendChild(activityElement);
+    });
+    
+    // Adicionar botão "Ver Todas as Atividades"
+    const viewAllButton = document.createElement('div');
+    viewAllButton.className = 'text-center mt-3';
+    viewAllButton.innerHTML = `
+        <a href="/maintenance/history" class="btn btn-outline-primary btn-sm">
+            Ver Todas as Atividades
+        </a>
+    `;
+    container.appendChild(viewAllButton);
+}
+
+// Função de teste simples
+function testApiConnection() {
+    console.log('Testando conexão com API...');
+    
+    const xhr = new XMLHttpRequest();
+    xhr.open('GET', '/api/dashboard/metrics', true);
+    
+    xhr.onreadystatechange = function() {
+        if (xhr.readyState === 4) {
+            console.log('Test API Response status:', xhr.status);
+            if (xhr.status === 200) {
+                console.log('API connection working!');
+                // Agora tentar carregar atividades
+                loadRecentActivitiesReal();
+            } else {
+                console.error('API connection failed:', xhr.status);
+            }
+        }
+    };
+    
+    xhr.send();
+}
+
+// Função para carregar atividades recentes
+function loadRecentActivitiesReal() {
+    console.log('Carregando atividades recentes...');
+    
+    const xhr = new XMLHttpRequest();
+    xhr.open('GET', '/api/dashboard/recent-activities', true);
+    
+    xhr.onreadystatechange = function() {
+        if (xhr.readyState === 4) {
+            console.log('Activities Response status:', xhr.status);
+            
+            if (xhr.status === 200) {
+                try {
+                    const result = JSON.parse(xhr.responseText);
+                    console.log('Activities Response data:', result);
+                    
+                    if (result.success) {
+                        updateRecentActivities(result.data);
+                        
+                        // Atualizar timestamp da última atualização
+                        const lastUpdate = document.getElementById('last-update');
+                        if (lastUpdate) {
+                            lastUpdate.textContent = `Última atualização: ${new Date().toLocaleTimeString('pt-BR')}`;
+                            lastUpdate.style.color = 'inherit';
+                        }
+                    } else {
+                        console.error('Erro ao carregar atividades recentes:', result.message);
+                    }
+                } catch (error) {
+                    console.error('Erro ao fazer parse do JSON:', error);
+                    
+                    // Mostrar erro na interface
+                    const lastUpdate = document.getElementById('last-update');
+                    if (lastUpdate) {
+                        lastUpdate.textContent = `Erro ao processar dados: ${error.message}`;
+                        lastUpdate.style.color = 'red';
+                    }
+                }
+            } else {
+                console.error('Erro HTTP:', xhr.status, xhr.statusText);
+                
+                // Mostrar erro na interface
+                const lastUpdate = document.getElementById('last-update');
+                if (lastUpdate) {
+                    lastUpdate.textContent = `Erro HTTP: ${xhr.status} ${xhr.statusText}`;
+                    lastUpdate.style.color = 'red';
+                }
+            }
+        }
+    };
+    
+    xhr.onerror = function() {
+        console.error('Erro de rede ao carregar atividades recentes');
+        
+        // Mostrar erro na interface
+        const lastUpdate = document.getElementById('last-update');
+        if (lastUpdate) {
+            lastUpdate.textContent = 'Erro de rede ao carregar atividades';
+            lastUpdate.style.color = 'red';
+        }
+    };
+    
+    xhr.send();
+}
+
+// Função wrapper para compatibilidade
+let dashboardActivitiesController;
+function loadRecentActivities() {
+            console.log('Iniciando carregamento de atividades recentes...');
+            // Abortar requisição anterior para evitar ERR_ABORTED em navegação
+            if (dashboardActivitiesController) {
+                try { dashboardActivitiesController.abort(); } catch (e) {}
+            }
+            dashboardActivitiesController = new AbortController();
+            // Tentar carregar dados da API primeiro
+            fetch('/api/dashboard/recent-activities', { signal: dashboardActivitiesController.signal })
+                .then(response => {
+                    console.log('Resposta da API recebida:', response.status);
+                    if (!response.ok) {
+                        throw new Error(`HTTP error! status: ${response.status}`);
+                    }
+                    return response.json();
+                })
+                .then(result => {
+                    // Adaptar formato do retorno (array direto ou objeto { success, data })
+                    const activities = Array.isArray(result) ? result : (result && result.data) ? result.data : [];
+                    console.log('Dados da API carregados com sucesso:', Array.isArray(activities) ? activities.length : 0, 'atividades');
+                    displayActivities(activities, false);
+                })
+                .catch(error => {
+                    // Ignorar abort/navegação
+                    if (error && (error.name === 'AbortError' || (error.message && error.message.toLowerCase().includes('abort')))) {
+                        return;
+                    }
+                    console.warn('Erro ao carregar atividades da API, usando dados estáticos:', error);
+                    // Fallback para dados estáticos
+                    const staticActivities = [
+                        {
+                            id: 1,
+                            type: 'maintenance_completed',
+                            title: 'Manutenção Concluída',
+                            description: 'Compressor Principal - Troca de filtros',
+                            timestamp: new Date(Date.now() - 2 * 60 * 60 * 1000).toISOString(),
+                            status: 'completed'
+                        },
+                        {
+                            id: 2,
+                            type: 'stock_alert',
+                            title: 'Alerta de Estoque',
+                            description: 'Óleo lubrificante abaixo do mínimo',
+                            timestamp: new Date(Date.now() - 4 * 60 * 60 * 1000).toISOString(),
+                            status: 'warning'
+                        },
+                        {
+                            id: 3,
+                            type: 'work_order_created',
+                            title: 'Nova Ordem de Serviço',
+                            description: 'Inspeção preventiva - Bomba Hidráulica',
+                            timestamp: new Date(Date.now() - 1 * 60 * 60 * 1000).toISOString(),
+                            status: 'pending'
+                        },
+                        {
+                            id: 4,
+                            type: 'equipment_registered',
+                            title: 'Equipamento Cadastrado',
+                            description: 'Nova esteira transportadora adicionada',
+                            timestamp: new Date(Date.now() - 2 * 24 * 60 * 60 * 1000).toISOString(),
+                            status: 'info'
+                        }
+                    ];
+                    displayActivities(staticActivities, true);
+                });
+        }
+
+        function displayActivities(activities, isStatic = false) {
+            const activitiesContainer = document.getElementById('recent-activities');
+            if (!activitiesContainer) return;
+
+            let html = '';
+            // Limitar a apenas 2 atividades (garantir que seja array)
+            const limitedActivities = Array.isArray(activities) ? activities.slice(0, 2) : [];
+            
+            limitedActivities.forEach(activity => {
+                const timestamp = activity.timestamp || activity.date || null;
+                const timeAgo = timestamp ? getTimeAgo(timestamp) : (activity.time || '');
+                const statusClass = getStatusClass(activity.type);
+                const statusIcon = getStatusIcon(activity.type);
+                
+                html += `
+                    <div class="activity-item d-flex align-items-start mb-3">
+                        <div class="activity-icon me-3">
+                            <i class="${statusIcon} ${statusClass}"></i>
+                        </div>
+                        <div class="activity-content flex-grow-1">
+                            <h6 class="activity-title mb-1">${activity.title}</h6>
+                            <p class="activity-description text-muted mb-1">${activity.description}</p>
+                            <small class="activity-time text-muted">${timeAgo}</small>
+                        </div>
+                    </div>
+                `;
+            });
+
+            activitiesContainer.innerHTML = html;
+            
+            // Atualizar timestamp de última atualização
+            const lastUpdateElement = document.getElementById('last-update');
+            if (lastUpdateElement) {
+                const statusText = isStatic ? ' (dados de teste)' : '';
+                const statusColor = isStatic ? '#007bff' : '#28a745';
+                lastUpdateElement.innerHTML = `<span style="color: ${statusColor};">Última atualização: ${new Date().toLocaleTimeString()}${statusText}</span>`;
+            }
+        }
+
+// Funções auxiliares para formatação
+function getTimeAgo(timestamp) {
+    const now = new Date();
+    const time = new Date(timestamp);
+    const diffInMinutes = Math.floor((now - time) / (1000 * 60));
+    
+    if (diffInMinutes < 60) {
+        return `Há ${diffInMinutes} minutos`;
+    } else if (diffInMinutes < 1440) {
+        const hours = Math.floor(diffInMinutes / 60);
+        return `Há ${hours} hora${hours > 1 ? 's' : ''}`;
+    } else {
+        const days = Math.floor(diffInMinutes / 1440);
+        return `${days} dia${days > 1 ? 's' : ''} atrás`;
+    }
+}
+
+function getStatusClass(type) {
+    switch (type) {
+        // Tipos usados pelo fallback estático
+        case 'maintenance_completed':
+            return 'text-success';
+        case 'stock_alert':
+            return 'text-warning';
+        case 'work_order_created':
+            return 'text-info';
+        case 'equipment_registered':
+            return 'text-primary';
+        // Tipos usados pela API (/recent-activities)
+        case 'success':
+            return 'text-success';
+        case 'warning':
+            return 'text-warning';
+        case 'info':
+            return 'text-info';
+        case 'primary':
+            return 'text-primary';
+        default:
+            return 'text-secondary';
+    }
+}
+
+function getStatusIcon(type) {
+    switch (type) {
+        // Tipos usados pelo fallback estático
+        case 'maintenance_completed':
+            return 'fas fa-check-circle';
+        case 'stock_alert':
+            return 'fas fa-exclamation-triangle';
+        case 'work_order_created':
+            return 'fas fa-clipboard-list';
+        case 'equipment_registered':
+            return 'fas fa-plus-circle';
+        // Tipos usados pela API (/recent-activities)
+        case 'success':
+            return 'fas fa-check-circle';
+        case 'warning':
+            return 'fas fa-exclamation-triangle';
+        case 'info':
+            return 'fas fa-info-circle';
+        case 'primary':
+            return 'fas fa-info-circle';
+        default:
+            return 'fas fa-info-circle';
+    }
+}
+
+// Variável para controlar o intervalo de atualização
+let activitiesUpdateInterval;
+
+// Função para iniciar atualização automática
+function startAutoUpdate() {
+    // Carregar imediatamente
+    loadRecentActivities();
+    
+    // Configurar atualização automática a cada 30 segundos
+    activitiesUpdateInterval = setInterval(loadRecentActivities, 30000);
+}
+
+// Função para parar atualização automática
+    function stopAutoUpdate() {
+        if (activitiesUpdateInterval) {
+            clearInterval(activitiesUpdateInterval);
+            activitiesUpdateInterval = null;
+        }
+    }
+
+    // Função para controlar o toggle de atualização automática
+    function toggleAutoUpdate() {
+        const toggle = document.getElementById('auto-update-toggle');
+        
+        if (toggle.checked) {
+            startAutoUpdate();
+        } else {
+            stopAutoUpdate();
+        }
+    }
+
+function updateDynamicAlerts(alerts) {
+    const alertsContainer = document.getElementById('dynamic-alerts');
+    if (!alertsContainer) return;
+    
+    // Limpar alertas anteriores
+    alertsContainer.innerHTML = '';
+    
+    // Adicionar novos alertas
+    alerts.forEach(alert => {
+        const alertDiv = document.createElement('div');
+        alertDiv.className = `alert alert-${alert.type} d-flex align-items-center`;
+        alertDiv.setAttribute('role', 'alert');
+        
+        const iconClass = alert.type === 'warning' ? 'bi-exclamation-triangle-fill' :
+                         alert.type === 'danger' ? 'bi-x-circle-fill' :
+                         alert.type === 'info' ? 'bi-info-circle-fill' : 'bi-check-circle-fill';
+        
+        alertDiv.innerHTML = `
+            <i class="bi ${iconClass} me-2"></i>
+            <div class="flex-grow-1">
+                <strong>${alert.title}</strong> ${alert.message}
+            </div>
+            <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+        `;
+        
+        alertsContainer.appendChild(alertDiv);
+    });
+}
+
+function updatePerformanceChart(performanceData) {
+    // Atualizar o gráfico existente com novos dados
+    if (window.performanceChartInstance) {
+        window.performanceChartInstance.data = performanceData;
+        window.performanceChartInstance.update();
+    } else {
+        console.warn('performanceChartInstance não encontrado, pulando atualização');
+    }
+}
+
+// Atualizar dados a cada 30 segundos
+setInterval(loadDashboardData, 30000);
+
+// Aplicar larguras dinamicamente para barras de progresso
+document.addEventListener('DOMContentLoaded', function() {
+    const progressBars = document.querySelectorAll('.progress-bar[data-width]');
+    progressBars.forEach(bar => {
+        const width = bar.getAttribute('data-width');
+        bar.style.setProperty('--progress-width', width + '%');
+        bar.style.width = width + '%';
+    });
+});
+</script>
+{% endblock %}

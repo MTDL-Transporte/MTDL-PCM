@@ -1,0 +1,413 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Debug - Validação de Campos de Saída</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.0/font/bootstrap-icons.css" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/axios/dist/axios.min.js"></script>
+    <style>
+        .hidden { display: none !important; }
+        .debug-info {
+            background: #f8f9fa;
+            border: 1px solid #dee2e6;
+            border-radius: 0.375rem;
+            padding: 1rem;
+            margin: 1rem 0;
+            font-family: monospace;
+            white-space: pre-wrap;
+        }
+        .field-status {
+            padding: 0.25rem 0.5rem;
+            border-radius: 0.25rem;
+            font-size: 0.875rem;
+            font-weight: bold;
+        }
+        .field-valid { background: #d1e7dd; color: #0f5132; }
+        .field-invalid { background: #f8d7da; color: #842029; }
+        .field-hidden { background: #e2e3e5; color: #41464b; }
+    </style>
+</head>
+<body>
+    <div class="container mt-4">
+        <h1>Debug - Validação de Campos de Saída</h1>
+        
+        <div class="row">
+            <div class="col-md-6">
+                <div class="card">
+                    <div class="card-header">
+                        <h5>Modal de Movimentação</h5>
+                    </div>
+                    <div class="card-body">
+                        <!-- Material selecionado (simulado) -->
+                        <input type="hidden" id="selected-material-id" value="1">
+                        
+                        <!-- Tipo de movimentação -->
+                        <div class="mb-3">
+                            <label for="movement-type" class="form-label">Tipo de Movimentação *</label>
+                            <select class="form-select" id="movement-type" onchange="toggleMovementFields()">
+                                <option value="">Selecione</option>
+                                <option value="Entrada">Entrada</option>
+                                <option value="Saída">Saída</option>
+                            </select>
+                        </div>
+                        
+                        <!-- Quantidade -->
+                        <div class="mb-3">
+                            <label for="movement-quantity" class="form-label">Quantidade *</label>
+                            <input type="number" class="form-control" id="movement-quantity" 
+                                   min="0.01" step="0.01" value="5">
+                        </div>
+                        
+                        <!-- Campos específicos para ENTRADA -->
+                        <div id="entry-fields" class="hidden">
+                            <div class="mb-3">
+                                <label for="entry-reason" class="form-label">Motivo da Entrada *</label>
+                                <select class="form-select" id="entry-reason">
+                                    <option value="">Selecione o motivo</option>
+                                    <option value="Compra">Compra</option>
+                                    <option value="Devolução">Devolução</option>
+                                    <option value="Transferência">Transferência</option>
+                                    <option value="Ajuste de Inventário">Ajuste de Inventário</option>
+                                </select>
+                            </div>
+                            
+                            <div class="mb-3">
+                                <label for="invoice-number" class="form-label">Número da Nota Fiscal *</label>
+                                <input type="text" class="form-control" id="invoice-number" 
+                                       placeholder="Ex: NF 123456">
+                            </div>
+                            
+                            <div class="mb-3">
+                                <label for="entry-unit-price" class="form-label">Preço Unitário *</label>
+                                <input type="number" class="form-control" id="entry-unit-price" 
+                                       min="0.01" step="0.01" placeholder="0,00">
+                            </div>
+                        </div>
+                        
+                        <!-- Campos específicos para SAÍDA -->
+                        <div id="exit-fields" class="hidden">
+                            <div class="mb-3">
+                                <label for="exit-reason" class="form-label">Motivo da Saída *</label>
+                                <select class="form-select" id="exit-reason">
+                                    <option value="">Selecione o motivo</option>
+                                    <option value="Uso em Manutenção">Uso em Manutenção</option>
+                                    <option value="Transferência">Transferência</option>
+                                    <option value="Perda">Perda</option>
+                                    <option value="Venda">Venda</option>
+                                    <option value="Descarte">Descarte</option>
+                                    <option value="Ajuste de Inventário">Ajuste de Inventário</option>
+                                </select>
+                            </div>
+                            
+                            <div class="mb-3">
+                                <label for="requisition-number" class="form-label">Número da Requisição *</label>
+                                <input type="text" class="form-control" id="requisition-number" 
+                                       placeholder="Ex: REQ 123456">
+                            </div>
+                        </div>
+                        
+                        <!-- Observações -->
+                        <div class="mb-3">
+                            <label for="movement-notes" class="form-label">Observações</label>
+                            <textarea class="form-control" id="movement-notes" rows="3" 
+                                      placeholder="Observações adicionais (opcional)"></textarea>
+                        </div>
+                        
+                        <div class="d-flex gap-2">
+                            <button type="button" class="btn btn-primary" onclick="debugValidation()">
+                                Debug Validação
+                            </button>
+                            <button type="button" class="btn btn-success" onclick="saveStockMovement()">
+                                Confirmar Movimentação
+                            </button>
+                            <button type="button" class="btn btn-secondary" onclick="fillExitFields()">
+                                Preencher Campos de Saída
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="col-md-6">
+                <div class="card">
+                    <div class="card-header">
+                        <h5>Status dos Campos</h5>
+                    </div>
+                    <div class="card-body">
+                        <div id="field-status"></div>
+                    </div>
+                </div>
+                
+                <div class="card mt-3">
+                    <div class="card-header">
+                        <h5>Log de Debug</h5>
+                    </div>
+                    <div class="card-body">
+                        <div id="debug-log" class="debug-info" style="max-height: 400px; overflow-y: auto;"></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script>
+        function log(message) {
+            const logDiv = document.getElementById('debug-log');
+            const timestamp = new Date().toLocaleTimeString();
+            logDiv.textContent += `[${timestamp}] ${message}\n`;
+            logDiv.scrollTop = logDiv.scrollHeight;
+            console.log(message);
+        }
+
+        function showAlert(message, type = 'info') {
+            log(`ALERT [${type}]: ${message}`);
+            alert(message);
+        }
+
+        // Alternar campos baseado no tipo de movimentação
+        function toggleMovementFields() {
+            log('toggleMovementFields() chamada');
+            
+            const movementType = document.getElementById('movement-type').value;
+            log(`Tipo de movimentação selecionado: "${movementType}"`);
+            
+            const entryFields = document.getElementById('entry-fields');
+            const exitFields = document.getElementById('exit-fields');
+            
+            // Esconder todos os campos primeiro
+            entryFields.style.display = 'none';
+            exitFields.style.display = 'none';
+            log('Campos de entrada e saída ocultados');
+            
+            // Remover atributo required de todos os campos condicionais
+            const conditionalFields = [
+                'entry-reason', 'invoice-number', 'entry-unit-price',
+                'exit-reason', 'requisition-number'
+            ];
+            
+            conditionalFields.forEach(fieldId => {
+                const field = document.getElementById(fieldId);
+                if (field) {
+                    field.removeAttribute('required');
+                    field.value = ''; // Limpar valor
+                    log(`Campo ${fieldId}: required removido, valor limpo`);
+                }
+            });
+            
+            // Mostrar campos específicos baseado no tipo
+            if (movementType === 'Entrada') {
+                entryFields.style.display = 'block';
+                document.getElementById('entry-reason').setAttribute('required', 'required');
+                document.getElementById('invoice-number').setAttribute('required', 'required');
+                document.getElementById('entry-unit-price').setAttribute('required', 'required');
+                log('Campos de entrada exibidos e marcados como obrigatórios');
+            } else if (movementType === 'Saída') {
+                exitFields.style.display = 'block';
+                document.getElementById('exit-reason').setAttribute('required', 'required');
+                document.getElementById('requisition-number').setAttribute('required', 'required');
+                log('Campos de saída exibidos e marcados como obrigatórios');
+            }
+            
+            updateFieldStatus();
+        }
+
+        function updateFieldStatus() {
+            const statusDiv = document.getElementById('field-status');
+            const fields = [
+                'movement-type', 'movement-quantity', 
+                'exit-reason', 'requisition-number',
+                'entry-reason', 'invoice-number', 'entry-unit-price'
+            ];
+            
+            let html = '';
+            fields.forEach(fieldId => {
+                const field = document.getElementById(fieldId);
+                const parent = field.closest('.mb-3') || field.closest('div');
+                const isVisible = parent && !parent.classList.contains('hidden') && 
+                                 parent.style.display !== 'none';
+                const isRequired = field.hasAttribute('required');
+                const hasValue = field.value.trim() !== '';
+                
+                let statusClass = 'field-hidden';
+                let statusText = 'Oculto';
+                
+                if (isVisible) {
+                    if (isRequired) {
+                        statusClass = hasValue ? 'field-valid' : 'field-invalid';
+                        statusText = hasValue ? 'Válido' : 'Obrigatório (vazio)';
+                    } else {
+                        statusClass = 'field-valid';
+                        statusText = 'Opcional';
+                    }
+                }
+                
+                html += `
+                    <div class="d-flex justify-content-between align-items-center mb-2">
+                        <span><strong>${fieldId}:</strong></span>
+                        <span class="field-status ${statusClass}">${statusText}</span>
+                    </div>
+                `;
+            });
+            
+            statusDiv.innerHTML = html;
+        }
+
+        function fillExitFields() {
+            log('Preenchendo campos de saída automaticamente...');
+            
+            // Selecionar tipo de movimentação como Saída
+            document.getElementById('movement-type').value = 'Saída';
+            toggleMovementFields();
+            
+            // Preencher campos de saída
+            document.getElementById('exit-reason').value = 'Uso em Manutenção';
+            document.getElementById('requisition-number').value = 'REQ123456';
+            
+            log('Campos preenchidos:');
+            log('- Tipo: Saída');
+            log('- Motivo: Uso em Manutenção');
+            log('- Requisição: REQ123456');
+            
+            updateFieldStatus();
+        }
+
+        function debugValidation() {
+            log('=== INÍCIO DEBUG VALIDAÇÃO ===');
+            
+            // Validação customizada para campos visíveis
+            const materialId = document.getElementById('selected-material-id').value;
+            log(`Material ID: "${materialId}"`);
+            if (!materialId) {
+                log('❌ Material ID inválido');
+                showAlert('Por favor, selecione um material válido', 'warning');
+                return;
+            }
+            
+            const movementType = document.getElementById('movement-type').value;
+            log(`Tipo de movimentação: "${movementType}"`);
+            if (!movementType) {
+                log('❌ Tipo de movimentação não selecionado');
+                showAlert('Por favor, selecione o tipo de movimentação', 'warning');
+                return;
+            }
+            
+            const quantity = parseFloat(document.getElementById('movement-quantity').value);
+            log(`Quantidade: ${quantity}`);
+            if (!quantity || quantity <= 0) {
+                log('❌ Quantidade inválida');
+                showAlert('Por favor, informe uma quantidade válida', 'warning');
+                return;
+            }
+            
+            let movementData = {
+                material_id: parseInt(materialId),
+                movement_type: movementType,
+                quantity: quantity,
+                notes: document.getElementById('movement-notes').value
+            };
+            
+            log('Dados básicos válidos, verificando campos específicos...');
+            
+            // Adicionar campos específicos baseado no tipo
+            if (movementType === 'Entrada') {
+                log('Validando campos de ENTRADA...');
+                const entryReason = document.getElementById('entry-reason').value;
+                const invoiceNumber = document.getElementById('invoice-number').value;
+                const unitPrice = parseFloat(document.getElementById('entry-unit-price').value);
+                
+                log(`- Motivo da entrada: "${entryReason}"`);
+                log(`- Número da nota fiscal: "${invoiceNumber}"`);
+                log(`- Preço unitário: ${unitPrice}`);
+                
+                if (!entryReason || !invoiceNumber || !unitPrice) {
+                    log('❌ Campos de entrada incompletos');
+                    showAlert('Por favor, preencha todos os campos obrigatórios para entrada', 'warning');
+                    return;
+                }
+                
+                movementData.reason = entryReason;
+                movementData.reference_document = invoiceNumber;
+                movementData.unit_price = unitPrice;
+                
+            } else if (movementType === 'Saída') {
+                log('Validando campos de SAÍDA...');
+                const exitReason = document.getElementById('exit-reason').value;
+                const requisitionNumber = document.getElementById('requisition-number').value;
+                
+                log(`- Motivo da saída: "${exitReason}"`);
+                log(`- Número da requisição: "${requisitionNumber}"`);
+                
+                // Debug adicional dos elementos
+                const exitReasonElement = document.getElementById('exit-reason');
+                const requisitionNumberElement = document.getElementById('requisition-number');
+                
+                log(`- Elemento exit-reason existe: ${!!exitReasonElement}`);
+                log(`- Elemento requisition-number existe: ${!!requisitionNumberElement}`);
+                
+                if (exitReasonElement) {
+                    log(`- exit-reason visível: ${exitReasonElement.offsetParent !== null}`);
+                    log(`- exit-reason required: ${exitReasonElement.hasAttribute('required')}`);
+                    log(`- exit-reason valor: "${exitReasonElement.value}"`);
+                }
+                
+                if (requisitionNumberElement) {
+                    log(`- requisition-number visível: ${requisitionNumberElement.offsetParent !== null}`);
+                    log(`- requisition-number required: ${requisitionNumberElement.hasAttribute('required')}`);
+                    log(`- requisition-number valor: "${requisitionNumberElement.value}"`);
+                }
+                
+                if (!exitReason || !requisitionNumber) {
+                    log('❌ Campos de saída incompletos');
+                    log(`exitReason vazio: ${!exitReason}`);
+                    log(`requisitionNumber vazio: ${!requisitionNumber}`);
+                    showAlert('Por favor, preencha todos os campos obrigatórios para saída', 'warning');
+                    return;
+                }
+                
+                movementData.reason = exitReason;
+                movementData.reference_document = requisitionNumber;
+            }
+            
+            log('✅ Todos os campos validados com sucesso!');
+            log('Dados finais da movimentação:');
+            log(JSON.stringify(movementData, null, 2));
+            log('=== FIM DEBUG VALIDAÇÃO ===');
+            
+            updateFieldStatus();
+        }
+
+        // Salvar movimentação de estoque (versão debug)
+        async function saveStockMovement() {
+            log('=== SALVANDO MOVIMENTAÇÃO ===');
+            
+            // Executar a mesma validação
+            debugValidation();
+            
+            // Se chegou até aqui, a validação passou
+            log('Validação passou, tentando salvar...');
+            
+            // Simular salvamento (não fazer requisição real)
+            showAlert('Movimentação validada com sucesso! (Simulação)', 'success');
+        }
+
+        // Inicializar
+        document.addEventListener('DOMContentLoaded', function() {
+            log('Sistema de debug carregado');
+            updateFieldStatus();
+            
+            // Adicionar listeners para atualizar status em tempo real
+            const fields = ['movement-type', 'movement-quantity', 'exit-reason', 'requisition-number'];
+            fields.forEach(fieldId => {
+                const field = document.getElementById(fieldId);
+                if (field) {
+                    field.addEventListener('input', updateFieldStatus);
+                    field.addEventListener('change', updateFieldStatus);
+                }
+            });
+        });
+    </script>
+</body>
+</html>

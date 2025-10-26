@@ -1,0 +1,343 @@
+{% extends "base.html" %}
+{% block title %}Escalas e Jornadas{% endblock %}
+{% block page_title %}Recursos Humanos{% endblock %}
+{% block breadcrumb_title %}Escalas e Jornadas{% endblock %}
+
+{% block content %}
+<div class="row">
+  <!-- Turnos/Escalas -->
+  <div class="col-xl-6 col-lg-6">
+    <div class="card shadow-sm mb-4">
+      <div class="card-header d-flex justify-content-between align-items-center">
+        <h5 class="mb-0">Turnos/Escalas</h5>
+        <button class="btn btn-primary" id="btnNewShift">
+          <i class="bi bi-calendar-plus"></i> Novo Turno
+        </button>
+      </div>
+      <div class="card-body">
+        <div class="table-responsive">
+          <table class="table table-striped table-hover">
+            <thead>
+              <tr>
+                <th>Nome</th>
+                <th>Inicio</th>
+                <th>Fim</th>
+                <th>Pausa (min)</th>
+                <th class="text-end">Ações</th>
+              </tr>
+            </thead>
+            <tbody id="shiftsTableBody"></tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Escalas de Funcionários -->
+  <div class="col-xl-6 col-lg-6">
+    <div class="card shadow-sm mb-4">
+      <div class="card-header d-flex justify-content-between align-items-center">
+        <h5 class="mb-0">Escalas de Funcionários</h5>
+        <div class="d-flex align-items-center gap-2">
+          <input type="number" class="form-control" style="width: 140px" id="filterEmployeeId" placeholder="ID Funcionário">
+          <button class="btn btn-outline-secondary" id="btnFilterSchedules"><i class="bi bi-search"></i></button>
+          <button class="btn btn-primary" id="btnNewSchedule"><i class="bi bi-plus-circle"></i> Nova Escala</button>
+        </div>
+      </div>
+      <div class="card-body">
+        <div class="table-responsive">
+          <table class="table table-striped table-hover">
+            <thead>
+              <tr>
+                <th>Func.</th>
+                <th>Turno</th>
+                <th>Válido de</th>
+                <th>Válido até</th>
+                <th>Horas/sem</th>
+                <th class="text-end">Ações</th>
+              </tr>
+            </thead>
+            <tbody id="schedulesTableBody"></tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Modal Turno -->
+<div class="modal fade" id="shiftModal" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title">Novo Turno</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+      </div>
+      <div class="modal-body">
+        <form id="shiftForm">
+          <div class="row g-3">
+            <div class="col-12">
+              <label class="form-label">Nome</label>
+              <input type="text" id="shift_name" class="form-control" required>
+            </div>
+            <div class="col-6">
+              <label class="form-label">Início</label>
+              <input type="time" id="shift_start" class="form-control" required>
+            </div>
+            <div class="col-6">
+              <label class="form-label">Fim</label>
+              <input type="time" id="shift_end" class="form-control" required>
+            </div>
+            <div class="col-6">
+              <label class="form-label">Pausa (minutos)</label>
+              <input type="number" id="shift_break" class="form-control" min="0" value="0">
+            </div>
+          </div>
+        </form>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+        <button type="button" class="btn btn-primary" id="saveShiftBtn">Salvar</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Modal Escala -->
+<div class="modal fade" id="scheduleModal" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title">Nova Escala</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+      </div>
+      <div class="modal-body">
+        <form id="scheduleForm">
+          <div class="row g-3">
+            <div class="col-6">
+              <label class="form-label">ID Funcionário</label>
+              <input type="number" id="sch_employee_id" class="form-control" required>
+            </div>
+            <div class="col-6">
+              <label class="form-label">Turno</label>
+              <select id="sch_shift_id" class="form-select" required></select>
+            </div>
+            <div class="col-6">
+              <label class="form-label">Válido de</label>
+              <input type="date" id="sch_valid_from" class="form-control" required>
+            </div>
+            <div class="col-6">
+              <label class="form-label">Válido até</label>
+              <input type="date" id="sch_valid_to" class="form-control">
+            </div>
+            <div class="col-6">
+              <label class="form-label">Horas/semana</label>
+              <input type="number" step="0.1" id="sch_weekly_hours" class="form-control" value="44">
+            </div>
+          </div>
+        </form>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+        <button type="button" class="btn btn-primary" id="saveScheduleBtn">Salvar</button>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+const apiHr = '/api/hr';
+let currentShiftId = null;
+let currentScheduleId = null;
+
+function idempotencyHeaders() {
+  return { 'X-Idempotency-Key': `${Date.now()}-${Math.random().toString(36).slice(2)}` };
+}
+
+// ---- Shifts ----
+async function loadShifts() {
+  try {
+    const res = await axios.get(`${apiHr}/shifts`, { headers: { Accept: 'application/json' } });
+    const tbody = document.getElementById('shiftsTableBody');
+    tbody.innerHTML = '';
+    (res.data || []).forEach(s => {
+      const tr = document.createElement('tr');
+      tr.innerHTML = `
+        <td>${s.name}</td>
+        <td>${s.start_time}</td>
+        <td>${s.end_time}</td>
+        <td>${s.break_minutes || 0}</td>
+        <td class="text-end">
+          <button class="btn btn-sm btn-outline-secondary me-2" onclick="editShift(${s.id})"><i class="bi bi-pencil"></i></button>
+          <button class="btn btn-sm btn-outline-danger" onclick="deleteShift(${s.id})"><i class="bi bi-trash"></i></button>
+        </td>
+      `;
+      tbody.appendChild(tr);
+    });
+    // Preencher select de turnos para a escala
+    await populateShiftSelect(res.data || []);
+  } catch (e) {
+    console.error(e);
+  }
+}
+
+async function populateShiftSelect(shifts) {
+  const sel = document.getElementById('sch_shift_id');
+  sel.innerHTML = '';
+  (shifts || []).forEach(s => {
+    const opt = document.createElement('option');
+    opt.value = s.id; opt.textContent = `${s.name} (${s.start_time}-${s.end_time})`;
+    sel.appendChild(opt);
+  });
+}
+
+function resetShiftForm() {
+  document.getElementById('shift_name').value = '';
+  document.getElementById('shift_start').value = '';
+  document.getElementById('shift_end').value = '';
+  document.getElementById('shift_break').value = '0';
+}
+
+function showShiftModal(mode) {
+  const el = document.getElementById('shiftModal');
+  el.querySelector('.modal-title').textContent = mode === 'edit' ? 'Editar Turno' : 'Novo Turno';
+  bootstrap.Modal.getOrCreateInstance(el).show();
+}
+
+async function saveShift() {
+  try {
+    const payload = {
+      name: document.getElementById('shift_name').value,
+      start_time: document.getElementById('shift_start').value,
+      end_time: document.getElementById('shift_end').value,
+      break_minutes: parseInt(document.getElementById('shift_break').value || '0')
+    };
+    const headers = Object.assign({ 'Content-Type': 'application/json', Accept: 'application/json' }, idempotencyHeaders());
+    if (currentShiftId) {
+      await axios.put(`${apiHr}/shifts/${currentShiftId}`, payload, { headers });
+    } else {
+      await axios.post(`${apiHr}/shifts`, payload, { headers });
+    }
+    bootstrap.Modal.getInstance(document.getElementById('shiftModal')).hide();
+    currentShiftId = null;
+    resetShiftForm();
+    await loadShifts();
+    if (typeof showAlert === 'function') showAlert('Turno salvo com sucesso!', 'success', 3000);
+  } catch (e) {
+    console.error(e);
+    alert('Erro ao salvar turno');
+  }
+}
+
+async function editShift(id) {
+  try {
+    const res = await axios.get(`${apiHr}/shifts`, { headers: { Accept: 'application/json' } });
+    const s = (res.data || []).find(x => x.id === id);
+    if (!s) return;
+    currentShiftId = id;
+    document.getElementById('shift_name').value = s.name || '';
+    document.getElementById('shift_start').value = s.start_time || '';
+    document.getElementById('shift_end').value = s.end_time || '';
+    document.getElementById('shift_break').value = s.break_minutes || 0;
+    showShiftModal('edit');
+  } catch (e) { console.error(e); }
+}
+
+async function deleteShift(id) {
+  if (!confirm('Excluir este turno?')) return;
+  try {
+    const headers = idempotencyHeaders();
+    await axios.delete(`${apiHr}/shifts/${id}`, { headers });
+    await loadShifts();
+  } catch (e) { console.error(e); }
+}
+
+// ---- Schedules ----
+function resetScheduleForm() {
+  document.getElementById('sch_employee_id').value = '';
+  document.getElementById('sch_shift_id').value = '';
+  document.getElementById('sch_valid_from').value = '';
+  document.getElementById('sch_valid_to').value = '';
+  document.getElementById('sch_weekly_hours').value = '44';
+}
+
+function showScheduleModal() {
+  const el = document.getElementById('scheduleModal');
+  bootstrap.Modal.getOrCreateInstance(el).show();
+}
+
+async function loadSchedules() {
+  try {
+    const empId = document.getElementById('filterEmployeeId').value || undefined;
+    const res = await axios.get(`${apiHr}/schedules`, { params: { employee_id: empId }, headers: { Accept: 'application/json' } });
+    const tbody = document.getElementById('schedulesTableBody');
+    tbody.innerHTML = '';
+    (res.data || []).forEach(s => {
+      const tr = document.createElement('tr');
+      tr.innerHTML = `
+        <td>${s.employee_id}</td>
+        <td>${s.shift_id}</td>
+        <td>${s.valid_from || ''}</td>
+        <td>${s.valid_to || ''}</td>
+        <td>${s.weekly_hours || 44}</td>
+        <td class="text-end">
+          <button class="btn btn-sm btn-outline-danger" onclick="deleteSchedule(${s.id})"><i class="bi bi-trash"></i></button>
+        </td>
+      `;
+      tbody.appendChild(tr);
+    });
+  } catch (e) { console.error(e); }
+}
+
+async function saveSchedule() {
+  try {
+    const payload = {
+      employee_id: parseInt(document.getElementById('sch_employee_id').value),
+      shift_id: parseInt(document.getElementById('sch_shift_id').value),
+      valid_from: document.getElementById('sch_valid_from').value,
+      valid_to: document.getElementById('sch_valid_to').value || null,
+      weekly_hours: parseFloat(document.getElementById('sch_weekly_hours').value || '44')
+    };
+    const headers = Object.assign({ 'Content-Type': 'application/json', Accept: 'application/json' }, idempotencyHeaders());
+    await axios.post(`${apiHr}/schedules`, payload, { headers });
+    bootstrap.Modal.getInstance(document.getElementById('scheduleModal')).hide();
+    resetScheduleForm();
+    await loadSchedules();
+    if (typeof showAlert === 'function') showAlert('Escala criada com sucesso!', 'success', 3000);
+  } catch (e) { console.error(e); alert('Erro ao criar escala'); }
+}
+
+async function deleteSchedule(id) {
+  if (!confirm('Excluir esta escala?')) return;
+  try {
+    const headers = idempotencyHeaders();
+    await axios.delete(`${apiHr}/schedules/${id}`, { headers });
+    await loadSchedules();
+  } catch (e) { console.error(e); }
+}
+
+// Eventos
+
+document.getElementById('btnNewShift').addEventListener('click', () => {
+  currentShiftId = null;
+  resetShiftForm();
+  showShiftModal('new');
+});
+
+document.getElementById('saveShiftBtn').addEventListener('click', saveShift);
+
+// Schedules
+
+document.getElementById('btnNewSchedule').addEventListener('click', showScheduleModal);
+
+document.getElementById('saveScheduleBtn').addEventListener('click', saveSchedule);
+
+document.getElementById('btnFilterSchedules').addEventListener('click', loadSchedules);
+
+// Inicialização
+loadShifts();
+loadSchedules();
+</script>
+{% endblock %}

@@ -1,0 +1,234 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Logs de Erros</title>
+  <style>
+    body { font-family: system-ui, -apple-system, Segoe UI, Roboto, Ubuntu, Cantarell, 'Open Sans', 'Helvetica Neue', sans-serif; background: #f7f7fb; }
+    .container { max-width: 1100px; margin: 24px auto; background: #fff; border-radius: 8px; box-shadow: 0 2px 8px rgba(0,0,0,0.06); padding: 20px; }
+    h1 { font-size: 20px; margin: 0 0 16px 0; }
+    .filters { display: grid; grid-template-columns: repeat(6, 1fr); gap: 10px; margin-bottom: 12px; }
+    .filters label { display: block; font-size: 12px; color: #444; margin-bottom: 4px; }
+    .filters input, .filters select { width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 6px; }
+    .actions { display: flex; gap: 10px; margin: 10px 0 18px; }
+    .btn { padding: 9px 14px; border: none; border-radius: 6px; cursor: pointer; }
+    .btn-primary { background: #2684ff; color: #fff; }
+    .btn-outline { background: #fff; color: #2684ff; border: 1px solid #2684ff; }
+    .summary { font-size: 13px; color: #666; margin-bottom: 8px; }
+    table { width: 100%; border-collapse: collapse; }
+    th, td { border-bottom: 1px solid #eee; padding: 10px; text-align: left; font-size: 13px; vertical-align: top; }
+    th { background: #fafafa; font-weight: 600; }
+    .status-pill { display: inline-block; padding: 4px 8px; border-radius: 12px; font-size: 12px; }
+    .status-open { background: #fde4e4; color: #a12626; }
+    .status-resolved { background: #e8f6e8; color: #2d7a2d; }
+    .stack-modal { position: fixed; inset: 0; display: none; align-items: center; justify-content: center; background: rgba(0,0,0,0.5); }
+    .stack-card { width: min(800px, 92vw); max-height: 80vh; overflow: auto; background: #fff; border-radius: 8px; box-shadow: 0 2px 10px rgba(0,0,0,0.2); }
+    .stack-header { display:flex; justify-content: space-between; align-items:center; padding: 10px 12px; border-bottom: 1px solid #eee; }
+    .stack-body { padding: 12px; }
+    pre { background: #f4f6f8; padding: 12px; border-radius: 6px; overflow: auto; }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1>Logs de Erros</h1>
+
+    <div class="filters">
+      <div>
+        <label>Módulo</label>
+        <input id="f-module" placeholder="ex.: admin, reports" />
+      </div>
+      <div>
+        <label>Tipo</label>
+        <input id="f-type" placeholder="ex.: HTTPError, DBError" />
+      </div>
+      <div>
+        <label>Status</label>
+        <select id="f-status">
+          <option value="">Todos</option>
+          <option value="open">Aberto</option>
+          <option value="resolved">Resolvido</option>
+        </select>
+      </div>
+      <div>
+        <label>Início</label>
+        <input id="f-start" type="datetime-local" />
+      </div>
+      <div>
+        <label>Fim</label>
+        <input id="f-end" type="datetime-local" />
+      </div>
+      <div>
+        <label>Busca</label>
+        <input id="f-search" placeholder="texto em mensagem/stack/context" />
+      </div>
+    </div>
+
+    <div class="actions">
+      <button class="btn btn-primary" id="btn-load">Buscar</button>
+      <button class="btn btn-outline" id="btn-export">Exportar CSV</button>
+    </div>
+
+    <div class="summary" id="summary">0 registros</div>
+
+    <table>
+      <thead>
+        <tr>
+          <th>ID</th>
+          <th>Data</th>
+          <th>Módulo</th>
+          <th>Tipo</th>
+          <th>Mensagem</th>
+          <th>Status</th>
+          <th>Ações</th>
+        </tr>
+      </thead>
+      <tbody id="grid"></tbody>
+    </table>
+  </div>
+
+  <div class="stack-modal" id="stackModal" aria-hidden="true">
+    <div class="stack-card">
+      <div class="stack-header">
+        <strong>Detalhes do Erro</strong>
+        <button class="btn btn-outline" id="closeModal">Fechar</button>
+      </div>
+      <div class="stack-body">
+        <div style="margin-bottom:8px; font-size:13px; color:#555" id="meta"></div>
+        <pre id="stack"></pre>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    function getToken() {
+      const ls = (typeof localStorage !== 'undefined') ? localStorage.getItem('auth_token') : null;
+      if (ls) return ls;
+      const m = document.cookie.match(/(?:^|; )auth_token=([^;]+)/);
+      return m ? decodeURIComponent(m[1]) : null;
+    }
+
+    function qs(params) {
+      const esc = encodeURIComponent;
+      return Object.entries(params)
+        .filter(([,v]) => v !== undefined && v !== null && String(v).trim() !== '')
+        .map(([k,v]) => `${esc(k)}=${esc(v)}`)
+        .join('&');
+    }
+
+    async function fetchLogs() {
+      const token = getToken();
+      if (!token) {
+        alert('Sessão não encontrada. Faça login novamente.');
+        window.location.href = '/admin/login';
+        return;
+      }
+      const params = {
+        module: document.getElementById('f-module').value.trim(),
+        error_type: document.getElementById('f-type').value.trim(),
+        status: document.getElementById('f-status').value,
+        start_date: document.getElementById('f-start').value,
+        end_date: document.getElementById('f-end').value,
+        search: document.getElementById('f-search').value.trim(),
+      };
+      const url = `/api/admin/error-logs?${qs(params)}`;
+      const res = await fetch(url, { headers: { Authorization: `Bearer ${token}` } });
+      if (!res.ok) {
+        const txt = await res.text();
+        alert('Falha ao carregar: ' + txt);
+        return;
+      }
+      const data = await res.json();
+      renderGrid(data.items || []);
+      document.getElementById('summary').textContent = `${data.total || 0} registros`;
+    }
+
+    async function exportCsv() {
+      const token = getToken();
+      const params = {
+        module: document.getElementById('f-module').value.trim(),
+        error_type: document.getElementById('f-type').value.trim(),
+        status: document.getElementById('f-status').value,
+        start_date: document.getElementById('f-start').value,
+        end_date: document.getElementById('f-end').value,
+        search: document.getElementById('f-search').value.trim(),
+        format: 'csv'
+      };
+      const url = `/api/admin/error-logs?${qs(params)}`;
+      const res = await fetch(url, { headers: { Authorization: `Bearer ${token}` } });
+      if (!res.ok) { alert('Falha ao exportar CSV'); return; }
+      const blob = await res.blob();
+      const link = document.createElement('a');
+      link.href = URL.createObjectURL(blob);
+      link.download = 'error_logs.csv';
+      document.body.appendChild(link);
+      link.click();
+      setTimeout(() => { URL.revokeObjectURL(link.href); link.remove(); }, 0);
+    }
+
+    function renderGrid(items) {
+      const tbody = document.getElementById('grid');
+      tbody.innerHTML = '';
+      for (const it of items) {
+        const tr = document.createElement('tr');
+        const dt = it.created_at ? new Date(it.created_at).toLocaleString() : '';
+        tr.innerHTML = `
+          <td>${it.id}</td>
+          <td>${dt}</td>
+          <td>${escapeHtml(it.module || '')}</td>
+          <td>${escapeHtml(it.error_type || '')}</td>
+          <td>${escapeHtml((it.message || '').slice(0, 200))}</td>
+          <td>
+            <span class="status-pill ${it.status === 'resolved' ? 'status-resolved' : 'status-open'}">${it.status || 'open'}</span>
+          </td>
+          <td>
+            <button class="btn btn-outline" data-action="view" data-id="${it.id}">Ver stack</button>
+            ${it.status === 'resolved' 
+              ? `<button class="btn btn-outline" data-action="status" data-id="${it.id}" data-next="open">Reabrir</button>`
+              : `<button class="btn btn-primary" data-action="status" data-id="${it.id}" data-next="resolved">Resolver</button>`}
+          </td>
+        `;
+        tr.querySelector('[data-action="view"]').addEventListener('click', () => openStack(it));
+        const stBtn = tr.querySelector('[data-action="status"]');
+        stBtn.addEventListener('click', () => updateStatus(it.id, stBtn.getAttribute('data-next')));
+        tbody.appendChild(tr);
+      }
+    }
+
+    function escapeHtml(s) {
+      return String(s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;','\'':'&#39;'}[c]));
+    }
+
+    function openStack(it) {
+      document.getElementById('meta').textContent = `${it.module || ''} • ${it.error_type || ''} • ID ${it.id}`;
+      document.getElementById('stack').textContent = it.stack || '(sem stack)';
+      const modal = document.getElementById('stackModal');
+      modal.style.display = 'flex';
+      modal.setAttribute('aria-hidden', 'false');
+    }
+
+    document.getElementById('closeModal').addEventListener('click', () => {
+      const modal = document.getElementById('stackModal');
+      modal.style.display = 'none';
+      modal.setAttribute('aria-hidden', 'true');
+    });
+
+    async function updateStatus(id, next) {
+      const token = getToken();
+      const res = await fetch(`/api/admin/error-logs/${id}/status`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+        body: JSON.stringify({ status: next })
+      });
+      if (!res.ok) { alert('Falha ao atualizar status'); return; }
+      await fetchLogs();
+    }
+
+    document.getElementById('btn-load').addEventListener('click', fetchLogs);
+    document.getElementById('btn-export').addEventListener('click', exportCsv);
+
+    // Auto-carregar na chegada
+    fetchLogs().catch(() => {});
+  </script>
+</body>
+</html>

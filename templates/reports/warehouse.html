@@ -1,0 +1,263 @@
+{% extends "base.html" %}
+
+{% block title %}Relatórios - Almoxarifado{% endblock %}
+
+{% block extra_css %}
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<style>
+    .report-card { border: none; box-shadow: 0 2px 4px rgba(0,0,0,0.1); transition: transform 0.2s; }
+    .report-card:hover { transform: translateY(-2px); box-shadow: 0 4px 8px rgba(0,0,0,0.15); }
+    .metric-card { background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; border-radius: 10px; padding: 20px; margin-bottom: 20px; }
+    .metric-value { font-size: 2.5rem; font-weight: bold; margin-bottom: 5px; }
+    .metric-label { font-size: 0.9rem; opacity: 0.9; }
+    .chart-container { position: relative; height: 320px; margin-bottom: 10px; }
+    .kpi-card { border-radius: 10px; box-shadow: 0 2px 8px rgba(0,0,0,0.1); }
+    .kpi-desc { font-size: 0.9rem; color: #6c757d; }
+    .tab-content { padding-top: 1rem; }
+    .formula { font-family: monospace; background: #f8f9fa; padding: 8px 12px; border-radius: 6px; display: inline-block; }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <!-- Cabeçalho -->
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="d-flex justify-content-between align-items-center">
+                <div>
+                    <h2><i class="fas fa-chart-bar me-2"></i>Relatórios - Almoxarifado</h2>
+                    <p class="text-muted">Análise de performance e indicadores do almoxarifado</p>
+                </div>
+                <div>
+                    <button class="btn btn-outline-primary" onclick="refreshReports()">
+                        <i class="fas fa-sync-alt me-2"></i>Atualizar
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Métricas Principais (ocultas nesta página) -->
+    <div class="row mb-4 d-none">
+        <div class="col-md-3">
+            <div class="metric-card">
+                <div class="metric-value" id="totalMaterials">--</div>
+                <div class="metric-label">Total de Materiais</div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="metric-card" style="background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);">
+                <div class="metric-value" id="lowStockMaterials">--</div>
+                <div class="metric-label">Estoque Baixo</div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="metric-card" style="background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);">
+                <div class="metric-value" id="totalStockValue">--</div>
+                <div class="metric-label">Valor Total do Estoque</div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="metric-card" style="background: linear-gradient(135deg, #43e97b 0%, #38f9d7 100%);">
+                <div class="metric-value" id="monthlyMovements">--</div>
+                <div class="metric-label">Movimentações do Mês</div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Abas de KPIs do Almoxarifado -->
+    <ul class="nav nav-tabs" id="warehouseTabs" role="tablist">
+        <li class="nav-item" role="presentation">
+            <button class="nav-link active" id="turnover-tab" data-bs-toggle="tab" data-bs-target="#turnover" type="button" role="tab">Giro de Estoque</button>
+        </li>
+        <li class="nav-item" role="presentation">
+            <button class="nav-link" id="coverage-tab" data-bs-toggle="tab" data-bs-target="#coverage" type="button" role="tab">Cobertura de Estoque</button>
+        </li>
+        <li class="nav-item" role="presentation">
+            <button class="nav-link" id="stockout-tab" data-bs-toggle="tab" data-bs-target="#stockout" type="button" role="tab">Ruptura de Estoque</button>
+        </li>
+        <li class="nav-item" role="presentation">
+            <button class="nav-link" id="accuracy-tab" data-bs-toggle="tab" data-bs-target="#accuracy" type="button" role="tab">Acuracidade do Inventário</button>
+        </li>
+        <li class="nav-item" role="presentation">
+            <button class="nav-link" id="service-tab" data-bs-toggle="tab" data-bs-target="#service" type="button" role="tab">Tempo de Atendimento</button>
+        </li>
+        <li class="nav-item" role="presentation">
+            <button class="nav-link" id="storage-tab" data-bs-toggle="tab" data-bs-target="#storage" type="button" role="tab">Custo de Armazenagem</button>
+        </li>
+    </ul>
+    <div class="tab-content" id="warehouseTabsContent">
+        <!-- Giro de Estoque -->
+        <div class="tab-pane fade show active" id="turnover" role="tabpanel">
+            <div class="card kpi-card">
+                <div class="card-header">Giro de Estoque por Categoria</div>
+                <div class="card-body">
+                    <div class="chart-container"><canvas id="chartTurnoverCategory"></canvas></div>
+                    <div class="kpi-desc">
+                        <span class="formula">Giro = Consumo no período / Estoque médio</span>
+                        <span class="ms-3">Interpretação: quanto maior, mais eficiente o uso do estoque.</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <!-- Cobertura de Estoque -->
+        <div class="tab-pane fade" id="coverage" role="tabpanel">
+            <div class="card kpi-card">
+                <div class="card-header">Cobertura de Estoque (dias) por Categoria</div>
+                <div class="card-body">
+                    <div class="chart-container"><canvas id="chartCoverageCategory"></canvas></div>
+                    <div class="kpi-desc">
+                        <span class="formula">Cobertura (dias) = Estoque atual / Consumo diário médio</span>
+                        <span class="ms-3">Indica por quantos dias o estoque sustenta a operação.</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <!-- Ruptura de Estoque -->
+        <div class="tab-pane fade" id="stockout" role="tabpanel">
+            <div class="card kpi-card">
+                <div class="card-header">Taxa de Ruptura por Categoria</div>
+                <div class="card-body">
+                    <div class="chart-container"><canvas id="chartStockoutCategory"></canvas></div>
+                    <div class="kpi-desc">
+                        <span class="formula">Ruptura (%) = Pedidos não atendidos / Total de pedidos × 100</span>
+                        <span class="ms-3">Quanto menor, melhor. Alta taxa indica falhas de planejamento.</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <!-- Acuracidade do Inventário -->
+        <div class="tab-pane fade" id="accuracy" role="tabpanel">
+            <div class="card kpi-card">
+                <div class="card-header">Acuracidade do Inventário por Categoria</div>
+                <div class="card-body">
+                    <div class="chart-container"><canvas id="chartAccuracyCategory"></canvas></div>
+                    <div class="kpi-desc">
+                        <span class="formula">Acuracidade (%) = Itens corretos / Total verificados × 100</span>
+                        <span class="ms-3">Alta acuracidade garante confiabilidade nos dados.</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <!-- Tempo de Atendimento -->
+        <div class="tab-pane fade" id="service" role="tabpanel">
+            <div class="card kpi-card">
+                <div class="card-header">Tempo Médio de Atendimento por Categoria</div>
+                <div class="card-body">
+                    <div class="chart-container"><canvas id="chartServiceCategory"></canvas></div>
+                    <div class="kpi-desc">
+                        <span class="formula">Tempo médio = Σ Tempos de atendimento / Nº de requisições</span>
+                        <span class="ms-3">Quanto menor, mais eficiente o processo.</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <!-- Custo de Armazenagem -->
+        <div class="tab-pane fade" id="storage" role="tabpanel">
+            <div class="card kpi-card">
+                <div class="card-header">Custo de Armazenagem por Categoria</div>
+                <div class="card-body">
+                    <div class="chart-container"><canvas id="chartStorageCategory"></canvas></div>
+                    <div class="kpi-desc">
+                        <span class="formula">Custo = Custos totais do almoxarifado / Valor médio do estoque</span>
+                        <span class="ms-3">Ajuda a identificar oportunidades de redução de custos.</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+function fetchJSON(url) {
+    return fetch(url, { headers: { 'Accept': 'application/json' } }).then(async r => {
+        if (!r.ok) { const text = await r.text(); throw new Error(`HTTP ${r.status} - ${r.statusText}: ${text}`); }
+        return r.json();
+    });
+}
+function toBarChart(ctx, labels, data, label, color='#0d6efd') {
+    return new Chart(ctx, {
+        type: 'bar',
+        data: { labels, datasets: [{ label, data, backgroundColor: color }] },
+        options: {
+            responsive: true,
+            plugins: {
+                legend: { display: true },
+                datalabels: {
+                    display: true,
+                    anchor: 'end',
+                    align: 'top',
+                    rotation: -90,
+                    font: { size: 10 },
+                    formatter: (v) => Number(v).toLocaleString('pt-BR', { maximumFractionDigits: 0 })
+                }
+            },
+            scales: { x: { ticks: { font: { size: 11 } } } }
+        }
+    });
+}
+
+async function refreshReports() { await loadWarehouseReports(); }
+
+async function loadTopMetrics() {
+    try {
+        const data = await fetchJSON('/api/reports/warehouse');
+        const elTotal = document.getElementById('totalMaterials'); if (elTotal) elTotal.textContent = data.total_materials ?? '--';
+        const elLow = document.getElementById('lowStockMaterials'); if (elLow) elLow.textContent = data.low_stock_materials ?? '--';
+        const elValue = document.getElementById('totalStockValue'); if (elValue) elValue.textContent = (data.total_stock_value ?? 0).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
+        const elMov = document.getElementById('monthlyMovements'); if (elMov) elMov.textContent = data.monthly_movements ?? '--';
+    } catch (e) { console.error('Erro ao carregar métricas:', e); }
+}
+
+async function renderTurnover() {
+    const res = await fetchJSON('/api/reports/warehouse/stock-turnover-grouped?group_by=category');
+    const labels = res.grouped.map(x=>x.label); const data = res.grouped.map(x=>x.turnover);
+    toBarChart(document.getElementById('chartTurnoverCategory').getContext('2d'), labels, data, 'Giro');
+}
+
+async function renderCoverage() {
+    const res = await fetchJSON('/api/reports/warehouse/stock-coverage?group_by=category');
+    const labels = res.grouped.map(x=>x.label); const data = res.grouped.map(x=>x.coverage_days);
+    toBarChart(document.getElementById('chartCoverageCategory').getContext('2d'), labels, data, 'Dias', '#198754');
+}
+
+async function renderStockout() {
+    const res = await fetchJSON('/api/reports/warehouse/stockout-rate?group_by=category');
+    const labels = res.grouped.map(x=>x.label); const data = res.grouped.map(x=>x.stockout_rate);
+    toBarChart(document.getElementById('chartStockoutCategory').getContext('2d'), labels, data, '%', '#dc3545');
+}
+
+async function renderAccuracy() {
+    const res = await fetchJSON('/api/reports/warehouse/inventory-accuracy-grouped?group_by=category');
+    const labels = res.grouped.map(x=>x.label); const data = res.grouped.map(x=>x.accuracy_percent);
+    toBarChart(document.getElementById('chartAccuracyCategory').getContext('2d'), labels, data, '%', '#0dcaf0');
+}
+
+async function renderServiceTime() {
+    const res = await fetchJSON('/api/reports/warehouse/request-service-time?group_by=category');
+    const labels = res.grouped.map(x=>x.label); const data = res.grouped.map(x=>x.avg_days);
+    toBarChart(document.getElementById('chartServiceCategory').getContext('2d'), labels, data, 'Dias', '#6f42c1');
+}
+
+async function renderStorageCost() {
+    const res = await fetchJSON('/api/reports/warehouse/storage-cost?group_by=category');
+    const labels = res.grouped.map(x=>x.label); const data = res.grouped.map(x=>x.storage_cost_ratio);
+    toBarChart(document.getElementById('chartStorageCategory').getContext('2d'), labels, data, 'Custo/Valor', '#fd7e14');
+}
+
+async function loadWarehouseReports() {
+    // Métricas do topo ocultas: não requisitar para evitar chamadas desnecessárias
+    await renderTurnover();
+    await renderCoverage();
+    await renderStockout();
+    await renderAccuracy();
+    await renderServiceTime();
+    await renderStorageCost();
+}
+
+window.addEventListener('DOMContentLoaded', () => { loadWarehouseReports(); });
+</script>
+{% endblock %}
+
+{% block extra_js %}
+{% endblock %}

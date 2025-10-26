@@ -1,0 +1,2035 @@
+{% extends "base.html" %}
+
+{% block page_title %}Planos de Manutenção{% endblock %}
+{% block breadcrumb_title %}Planos de Manutenção{% endblock %}
+
+{% block page_actions %}
+<button type="button" class="btn btn-primary" onclick="showAddPlanModal()">
+    <i class="bi bi-plus-circle"></i> Novo Plano
+</button>
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <!-- Filtros e Ações -->
+    <div class="row mb-4">
+        <div class="col-md-6">
+            <div class="d-flex gap-2">
+                <select class="form-select flex-grow-1" id="typeFilter">
+                    <option value="">Todos os tipos</option>
+                    <option value="Preventiva">Preventiva</option>
+                    <option value="Preditiva">Preditiva</option>
+                    <option value="Corretiva">Corretiva</option>
+                </select>
+                <input type="text" class="form-control flex-grow-1" id="searchPlan" placeholder="Buscar plano...">
+            </div>
+        </div>
+        <div class="col-md-6">
+            <div class="d-flex gap-2 justify-content-end">
+                <button type="button" class="btn btn-outline-secondary" onclick="clearFilters()">
+                    <i class="bi bi-arrow-clockwise"></i> Limpar
+                </button>
+                <button type="button" class="btn btn-outline-primary" onclick="filterPlans()">
+                    <i class="bi bi-funnel"></i> Filtrar
+                </button>
+                <button type="button" class="btn btn-success" onclick="showAddPlanModal()">
+                    <i class="bi bi-plus-circle"></i> Novo Plano
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Lista de Planos -->
+    <div class="card shadow-sm">
+        <div class="card-body p-0">
+            <div class="table-responsive">
+                <table class="table table-light border-0 mb-0" id="plansTable">
+                    <thead class="table-light">
+                        <tr>
+                            <th class="border-0 fw-semibold text-muted">PLANO</th>
+                            <th class="border-0 fw-semibold text-muted">EQUIPAMENTO</th>
+                            <th class="border-0 fw-semibold text-muted">TIPO / INTERVALO</th>
+                            <th class="border-0 fw-semibold text-muted">PRIORIDADE</th>
+                            <th class="border-0 fw-semibold text-muted">STATUS</th>
+                            <th class="border-0 fw-semibold text-muted">PRÓXIMA EXECUÇÃO</th>
+                            <th class="border-0 fw-semibold text-muted">AÇÕES</th>
+                        </tr>
+                    </thead>
+                    <tbody id="plansTableBody">
+                        <tr>
+                            <td colspan="7" class="text-center py-5 text-muted">
+                                <i class="bi bi-calendar-event fs-1 d-block mb-2"></i>
+                                Nenhum plano de manutenção encontrado
+                            </td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+        
+        <!-- Paginação -->
+        <div class="d-flex justify-content-between align-items-center p-3 border-top">
+            <small class="text-muted">Mostrando 0 de 0 planos</small>
+            <nav>
+                <ul class="pagination pagination-sm mb-0">
+                    <li class="page-item disabled">
+                        <a class="page-link" href="#" tabindex="-1">Anterior</a>
+                    </li>
+                    <li class="page-item active">
+                        <a class="page-link" href="#">1</a>
+                    </li>
+                    <li class="page-item disabled">
+                        <a class="page-link" href="#">Próximo</a>
+                    </li>
+                </ul>
+            </nav>
+        </div>
+    </div>
+</div>
+
+<!-- Modal para adicionar/editar plano -->
+<div class="modal fade" id="planModal" tabindex="-1">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Plano de Manutenção</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <form id="planForm">
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label for="planName" class="form-label">Nome do Plano</label>
+                                <input type="text" class="form-control" id="planName" required>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label for="planType" class="form-label">Tipo</label>
+                                <select class="form-select" id="planType" required>
+                                    <option value="">Selecione...</option>
+                                    <option value="Preventiva">Preventiva</option>
+                                    <option value="Preditiva">Preditiva</option>
+                                    <option value="Corretiva">Corretiva</option>
+                                </select>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label for="planIntervalType" class="form-label">Tipo de Intervalo</label>
+                                <select class="form-select" id="planIntervalType" required onchange="toggleIntervalFields()">
+                                    <option value="">Selecione...</option>
+                                    <option value="Horímetro">Por Horímetro</option>
+                                    <option value="Quilometragem">Por Quilometragem</option>
+                                    <option value="Dias">Por Tempo (Dias)</option>
+                                    <option value="Semanas">Por Tempo (Semanas)</option>
+                                    <option value="Meses">Por Tempo (Meses)</option>
+                                </select>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label for="planIntervalValue" class="form-label">Intervalo</label>
+                                <div class="input-group">
+                                    <input type="number" class="form-control" id="planIntervalValue" required min="1" step="0.1">
+                                    <span class="input-group-text" id="intervalUnit">unidades</span>
+                                </div>
+                                <div class="form-text" id="intervalHelp">Ex: 250 horas, 500 km, 30 dias</div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label for="planEquipment" class="form-label">Equipamento</label>
+                                <select class="form-select" id="planEquipment" required>
+                                    <option value="">Selecione...</option>
+                                    <!-- Opções carregadas via JavaScript -->
+                                </select>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label for="planPriority" class="form-label">Prioridade</label>
+                                <select class="form-select" id="planPriority" required>
+                                    <option value="">Selecione...</option>
+                                    <option value="Baixa">Baixa</option>
+                                    <option value="Média">Média</option>
+                                    <option value="Alta">Alta</option>
+                                    <option value="Crítica">Crítica</option>
+                                </select>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label for="planEstimatedHours" class="form-label">Horas Estimadas</label>
+                                <input type="number" class="form-control" id="planEstimatedHours" step="0.5" min="0">
+                                <div class="form-text">Tempo estimado para execução</div>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label for="planIsActive" class="form-label">Status</label>
+                                <select class="form-select" id="planIsActive">
+                                    <option value="true">Ativo</option>
+                                    <option value="false">Inativo</option>
+                                </select>
+                            </div>
+                        </div>
+                    </div>
+                    <!-- Categoria e Subcategoria -->
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label for="planCategory" class="form-label">Categoria</label>
+                                <select id="planCategory" class="form-select" required>
+                                    <option value="">Selecione...</option>
+                                    <option>Escavadeira Hidráulica</option>
+                                    <option>Retroescavadeira</option>
+                                    <option>Pá Carregadeira</option>
+                                    <option>Rolo Compactador</option>
+                                    <option>Motoniveladora</option>
+                                    <option>Perfuratriz</option>
+                                    <option>Caminhão Betoneira</option>
+                                    <option>Usina de Asfalto</option>
+                                    <option>Caminhões</option>
+                                    <option>Tratores</option>
+                                    <option>Guindaste</option>
+                                    <option>Geradores</option>
+                                    <option>Outros</option>
+                                </select>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label for="planSubcategory" class="form-label">Subcategoria</label>
+                                <select id="planSubcategory" class="form-select" required>
+                        <option value="">Selecione...</option>
+                        <option>Carroçaria/Cabine</option>
+                        <option>Geral</option>
+                        <option>Material Rodante</option>
+                        <option>Motor Térmico</option>
+                        <option>Sistema de Arrefecimento</option>
+                        <option>Sistema de Direção</option>
+                        <option>Sistema de Suspensão</option>
+                        <option>Sistema de Transmissão</option>
+                        <option>Sistema de Travagem</option>
+                        <option>Sistema Elétrico</option>
+                        <option>Sistema Hidráulico</option>
+                    </select>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Tarefas por Subcategoria -->
+                    <div class="mb-4">
+                        <h6 class="fw-bold mb-2">Tarefas da Subcategoria</h6>
+                        <div class="d-flex justify-content-between align-items-center mb-2">
+                            <small class="text-muted">Selecione as tarefas que farão parte do plano.</small>
+                            <div>
+                                <input class="form-check-input me-2" type="checkbox" id="selectAllTasks" onchange="toggleSelectAllTasks(this)">
+                                <label class="form-check-label" for="selectAllTasks">Selecionar todos</label>
+                                <button type="button" class="btn btn-sm btn-success ms-3" id="saveSubcategoryTasksBtn" onclick="saveCurrentSubcategorySelection()">Salvar</button>
+                            </div>
+                        </div>
+                        <div id="tasksContainer" class="border rounded p-3" style="max-height: 260px; overflow:auto;">
+                            <p class="text-muted mb-0">Selecione uma subcategoria para listar as tarefas.</p>
+                        </div>
+                        <div class="mt-2" id="customTaskControls">
+                            <div class="input-group input-group-sm">
+                                <input type="text" id="customTaskInput" class="form-control" placeholder="Adicionar tarefa personalizada...">
+                                <button type="button" id="addCustomTaskBtn" class="btn btn-outline-primary">Adicionar</button>
+                            </div>
+                            <small class="form-text text-muted" id="customTaskLimitHint">Você pode adicionar até 5 tarefas personalizadas nesta subcategoria.</small>
+                            <div id="customTaskList" class="mt-2"></div>
+                        </div>
+                        <div id="tasksValidation" class="form-text text-danger d-none">Selecione pelo menos uma tarefa.</div>
+                    </div>
+                    
+                    <!-- Materiais Necessários -->
+                    <div class="mb-4">
+                        <h6 class="fw-bold mb-3">Materiais Necessários</h6>
+                        <div id="materialsContainer">
+                            <div class="material-item border rounded p-3 mb-2">
+                                <div class="row">
+                                    <div class="col-md-6">
+                                        <select class="form-select" name="materialId[]">
+                                            <option value="">Selecione o material...</option>
+                                            <!-- Opções carregadas via JavaScript -->
+                                        </select>
+                                    </div>
+                                    <div class="col-md-3">
+                                        <input type="number" class="form-control" placeholder="Quantidade" name="materialQuantity[]" min="0" step="0.1">
+                                    </div>
+                                    <div class="col-md-2">
+                                        <input type="text" class="form-control" placeholder="Unidade" name="materialUnit[]">
+                                    </div>
+                                    <div class="col-md-1">
+                                        <button type="button" class="btn btn-outline-danger btn-sm" onclick="removeMaterial(this)" aria-label="Remover material">
+                                            <i class="fas fa-trash"></i>
+                                        </button>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        <button type="button" class="btn btn-outline-primary btn-sm" onclick="addMaterial()">
+                            <i class="fas fa-plus"></i> Adicionar Material
+                        </button>
+                    </div>
+
+                    <!-- Documentos do Plano -->
+                    <div class="mb-4">
+                        <h6 class="fw-bold mb-3">Documentos do Plano</h6>
+                        <input type="file" class="form-control" id="planDocuments" name="planDocuments" multiple accept=".pdf,.doc,.docx,.txt,.xlsx,.xls,.png,.jpg,.jpeg">
+                        <div class="form-text">Anexe manuais, procedimentos, checklists ou outros documentos relacionados.</div>
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                <button type="button" class="btn btn-primary" onclick="savePlan()">Salvar</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Modal para Detalhes do Plano -->
+<div class="modal fade" id="planDetailsModal" tabindex="-1" aria-labelledby="planDetailsModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-xl">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="planDetailsModalLabel">Detalhes do Plano de Manutenção</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body" id="planDetailsContent">
+                <!-- Conteúdo será carregado dinamicamente -->
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Fechar</button>
+                <button type="button" class="btn btn-primary" id="editFromDetailsBtn" onclick="editFromDetails()">
+                    <i class="bi bi-pencil"></i> Editar
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+let currentPlanId = null;
+let savedTasksBySubcategory = {};
+let currentCategory = '';
+let customTasksBySubcategory = {};
+const CUSTOM_TASK_LIMIT = 5;
+
+document.addEventListener('DOMContentLoaded', function() {
+    loadPlans();
+    loadEquipmentOptions();
+    // Inicializa listeners de subcategoria para renderizar tarefas
+    const subcat = document.getElementById('planSubcategory');
+    if (subcat) {
+        subcat.addEventListener('change', function() {
+            renderTasksForSubcategory(this.value);
+            renderCustomTaskControls(this.value);
+        });
+    }
+    // Listener para Categoria -> popular Subcategorias dinamicamente
+    const cat = document.getElementById('planCategory');
+    if (cat) {
+        cat.addEventListener('change', function() {
+            populateSubcategories(this.value);
+            renderCustomTaskControls('');
+        });
+        // Inicializa subcategorias conforme estado inicial do select
+        populateSubcategories(cat.value || '');
+        renderCustomTaskControls('');
+    }
+});
+
+async function loadPlans() {
+    try {
+            const response = await fetch('/maintenance/plans');
+            const plans = await response.json();
+        
+        const tbody = document.querySelector('#plansTable tbody');
+        tbody.innerHTML = '';
+        
+        if (plans.length === 0) {
+            tbody.innerHTML = '<tr><td colspan="7" class="text-center">Nenhum plano encontrado</td></tr>';
+            return;
+        }
+        
+        plans.forEach(plan => {
+            // Definir cor da prioridade
+            let priorityClass = 'bg-secondary';
+            switch(plan.priority) {
+                case 'Alta': priorityClass = 'bg-danger'; break;
+                case 'Média': priorityClass = 'bg-warning'; break;
+                case 'Baixa': priorityClass = 'bg-success'; break;
+            }
+            
+            const row = tbody.insertRow();
+            row.innerHTML = `
+                <td>
+                    <strong>${plan.name}</strong>
+                    <br><small class="text-muted">${plan.description || ''}</small>
+                </td>
+                <td>
+                    <strong>${plan.equipment_prefix || 'N/A'}</strong>
+                    <br><small class="text-muted">${plan.equipment_name || 'N/A'}</small>
+                </td>
+                <td>
+                    <span class="badge bg-info">${plan.type}</span>
+                    <br><small class="text-muted">${plan.interval_value} ${plan.interval_type}</small>
+                </td>
+                <td>
+                    <span class="badge ${priorityClass}">${plan.priority || 'N/A'}</span>
+                    ${plan.estimated_hours ? `<br><small class="text-muted">${plan.estimated_hours}h estimadas</small>` : ''}
+                </td>
+                <td><span class="badge bg-${plan.is_active ? 'success' : 'secondary'}">${plan.is_active ? 'Ativo' : 'Inativo'}</span></td>
+                <td>${plan.next_execution ? new Date(plan.next_execution).toLocaleDateString('pt-BR') : 'N/A'}</td>
+                <td>
+                    <div class="btn-group" role="group">
+                        <button class="btn btn-sm btn-outline-primary" onclick="editPlan(${plan.id})" title="Editar" aria-label="Editar plano">
+                            <i class="bi bi-pencil"></i>
+                        </button>
+                        <button class="btn btn-sm btn-outline-info" onclick="viewPlanDetails(${plan.id})" title="Ver detalhes" aria-label="Ver detalhes do plano">
+                            <i class="bi bi-eye"></i>
+                        </button>
+                        <button class="btn btn-sm btn-outline-danger" onclick="deletePlan(${plan.id})" title="Excluir" aria-label="Excluir plano">
+                            <i class="bi bi-trash"></i>
+                        </button>
+                    </div>
+                </td>
+            `;
+        });
+    } catch (error) {
+        console.error('Erro ao carregar planos:', error);
+        showAlert('Erro ao carregar planos de manutenção', 'error');
+    }
+}
+
+async function loadEquipmentOptions() {
+    try {
+        const response = await axios.get('/maintenance/equipment/list');
+        const equipment = response.data;
+        
+        const select = document.getElementById('planEquipment');
+        select.innerHTML = '<option value="">Selecione...</option>';
+        
+        equipment.forEach(eq => {
+            const option = document.createElement('option');
+            option.value = eq.id;
+            option.textContent = `${eq.name} (${eq.prefix})`;
+            select.appendChild(option);
+        });
+    } catch (error) {
+        console.error('Erro ao carregar equipamentos:', error);
+    }
+}
+
+function showAddPlanModal() {
+    currentPlanId = null;
+    document.getElementById('planForm').reset();
+    document.querySelector('#planModal .modal-title').textContent = 'Novo Plano de Manutenção';
+    resetTaskControls();
+    // Reinicia mapa de seleções salvas
+    savedTasksBySubcategory = {};
+    currentCategory = '';
+    populateSubcategories('');
+    new bootstrap.Modal(document.getElementById('planModal')).show();
+}
+
+async function editPlan(id) {
+    try {
+        // Buscar dados do plano
+        const response = await fetch(`/api/maintenance/api/plans/${id}`);
+        if (!response.ok) {
+            throw new Error('Erro ao carregar dados do plano');
+        }
+        
+        const plan = await response.json();
+        
+        // Definir modo de edição
+        currentPlanId = id;
+        
+        // Preencher formulário
+        document.getElementById('planName').value = plan.name || '';
+        document.getElementById('planType').value = plan.type || '';
+        document.getElementById('planIntervalType').value = (plan.interval_type === 'Horas' ? 'Horímetro' : plan.interval_type) || '';
+        document.getElementById('planIntervalValue').value = plan.interval_value || '';
+        document.getElementById('planEquipment').value = plan.equipment_id || '';
+        document.getElementById('planPriority').value = plan.priority || '';
+        document.getElementById('planEstimatedHours').value = plan.estimated_hours || '';
+        document.getElementById('planIsActive').value = plan.is_active ? 'true' : 'false';
+        // Campos de Categoria/Subcategoria e tarefas são novos e ainda não persistidos no backend
+        resetTaskControls();
+
+        // Atualizar campos de intervalo
+        toggleIntervalFields();
+        
+        // Alterar título do modal
+        document.querySelector('#planModal .modal-title').textContent = 'Editar Plano de Manutenção';
+        
+        // Abrir modal
+        new bootstrap.Modal(document.getElementById('planModal')).show();
+        
+    } catch (error) {
+        console.error('Erro ao carregar plano:', error);
+        showAlert('Erro ao carregar dados do plano de manutenção', 'danger');
+    }
+}
+
+function deletePlan(id) {
+    if (confirm('Tem certeza que deseja excluir este plano?')) {
+        // Implementar exclusão
+        showAlert('Funcionalidade em desenvolvimento', 'info');
+    }
+}
+
+function toggleIntervalFields() {
+    const intervalType = document.getElementById('planIntervalType').value;
+    const intervalUnit = document.getElementById('intervalUnit');
+    const intervalHelp = document.getElementById('intervalHelp');
+    
+    switch(intervalType) {
+        case 'Horímetro':
+            intervalUnit.textContent = 'horas';
+            intervalHelp.textContent = 'Ex: 250 horas, 500 horas, 1000 horas';
+            break;
+        case 'Quilometragem':
+            intervalUnit.textContent = 'km';
+            intervalHelp.textContent = 'Ex: 5000 km, 10000 km, 15000 km';
+            break;
+        case 'Dias':
+            intervalUnit.textContent = 'dias';
+            intervalHelp.textContent = 'Ex: 30 dias, 60 dias, 90 dias';
+            break;
+        case 'Semanas':
+            intervalUnit.textContent = 'semanas';
+            intervalHelp.textContent = 'Ex: 2 semanas, 4 semanas, 8 semanas';
+            break;
+        case 'Meses':
+            intervalUnit.textContent = 'meses';
+            intervalHelp.textContent = 'Ex: 1 mês, 3 meses, 6 meses';
+            break;
+        default:
+            intervalUnit.textContent = 'unidades';
+            intervalHelp.textContent = 'Selecione o tipo de intervalo';
+    }
+}
+
+// Subcategorias por Categoria (expandido com Retroescavadeira)
+const SUBCATEGORIES_BY_CATEGORY = {
+    'Caminhões': [
+        'Carroçaria/Cabine',
+        'Geral',
+        'Material Rodante',
+        'Motor Térmico',
+        'Sistema de Arrefecimento',
+        'Sistema de Direção',
+        'Sistema de Suspensão',
+        'Sistema de Transmissão',
+        'Sistema de Travagem',
+        'Sistema Elétrico',
+        'Sistema Hidráulico'
+    ],
+    'Retroescavadeira': [
+        'Carroçaria/Cabine',
+        'Geral',
+        'Material Desgaste/Implementos',
+        'Material Rodante',
+        'Motor Elétrico/Gerador',
+        'Motor Térmico',
+        'Sistema de Arrefecimento',
+        'Sistema de Suspensão',
+        'Sistema de Transmissão',
+        'Sistema Elétrico',
+        'Sistema Hidráulico'
+    ],
+    'Escavadeira Hidráulica': [
+        'Carroçaria/Cabine',
+        'Motor',
+        'Sistema de Arrefecimento',
+        'Sistema de Transmissão',
+        'Sistema Elétrico',
+        'Material Rodante',
+        'Implementos',
+        'Sistema de Lubrificação',
+        'Sistema Hidráulico',
+        'Geral'
+    ],
+    'Rolo Compactador': [
+        'Carroçaria/Cabine',
+        'Geral',
+        'Material Rodante',
+        'Motor Térmico',
+        'Sistema de Arrefecimento',
+        'Sistema de Direção',
+        'Sistema de Suspensão',
+        'Sistema de Transmissão',
+        'Sistema Hidráulico'
+    ],
+    'Guindaste': [
+        'Carroçaria/Cabine',
+        'Geral',
+        'Material Rodante',
+        'Motor Térmico',
+        'Sistema de Arrefecimento',
+        'Sistema de Direção',
+        'Sistema de Suspensão',
+        'Sistema de Transmissão',
+        'Sistema Elétrico',
+        'Sistema Hidráulico',
+        'Implementos'
+    ],
+    'Geradores': [
+        'Geral',
+        'Motor Térmico',
+        'Sistema de Arrefecimento',
+        'Sistema Elétrico',
+        'Sistema de Lubrificação',
+        'Sistema de Combustível',
+        'Sistema de Partida'
+    ],
+    'Pá Carregadeira': [
+        'Carroçaria/Cabine',
+        'Geral',
+        'Material Rodante',
+        'Motor Térmico',
+        'Sistema de Arrefecimento',
+        'Sistema de Direção',
+        'Sistema de Transmissão',
+        'Sistema de Travagem',
+        'Sistema Elétrico',
+        'Sistema Hidráulico',
+        'Implementos'
+    ],
+    'Motoniveladora': [
+        'Carroçaria/Cabine',
+        'Geral',
+        'Material Rodante',
+        'Motor Térmico',
+        'Sistema de Arrefecimento',
+        'Sistema de Direção',
+        'Sistema de Transmissão',
+        'Sistema Elétrico',
+        'Sistema Hidráulico',
+        'Sistema de Travagem',
+        'Implementos'
+    ],
+    'Perfuratriz': [
+        'Geral',
+        'Material Rodante',
+        'Motor Térmico',
+        'Sistema de Arrefecimento',
+        'Sistema Elétrico',
+        'Sistema Hidráulico',
+        'Implementos'
+    ],
+    'Caminhão Betoneira': [
+        'Carroçaria/Cabine',
+        'Geral',
+        'Material Rodante',
+        'Motor Térmico',
+        'Sistema de Arrefecimento',
+        'Sistema de Direção',
+        'Sistema de Transmissão',
+        'Sistema Elétrico',
+        'Sistema Hidráulico',
+        'Sistema de Travagem',
+        'Implementos'
+    ],
+    'Usina de Asfalto': [
+        'Geral',
+        'Sistema Elétrico',
+        'Sistema de Combustível',
+        'Sistema de Lubrificação',
+        'Sistema de Aquecimento',
+        'Sistema de Mistura',
+        'Sistema de Transporte',
+        'Sistema de Filtragem'
+    ],
+    'Tratores': [
+        'Carroçaria/Cabine',
+        'Geral',
+        'Material Rodante',
+        'Motor Térmico',
+        'Sistema de Arrefecimento',
+        'Sistema de Direção',
+        'Sistema de Suspensão',
+        'Sistema de Transmissão',
+        'Sistema de Travagem',
+        'Sistema Elétrico',
+        'Sistema Hidráulico',
+        'Implementos'
+    ],
+    'Outros': [
+        'Geral',
+        'Motor Térmico',
+        'Sistema de Arrefecimento',
+        'Sistema Elétrico',
+        'Sistema Hidráulico',
+        'Material Rodante'
+    ]
+};
+
+function populateSubcategories(category) {
+    const select = document.getElementById('planSubcategory');
+    if (!select) return;
+    // Se a categoria mudou, limpamos as seleções salvas
+    if (currentCategory !== category) {
+        savedTasksBySubcategory = {};
+        customTasksBySubcategory = {};
+        currentCategory = category;
+    }
+    const list = SUBCATEGORIES_BY_CATEGORY[category] || [];
+    // Recria opções
+    let html = '<option value="">Selecione...</option>';
+    html += list.map(sc => `<option>${sc}</option>`).join('');
+    select.innerHTML = html;
+    select.value = '';
+    // Limpa tarefas ao trocar categoria
+    renderTasksForSubcategory('');
+}
+
+// Catálogo de tarefas por subcategoria (inicial)
+const TASKS_BY_SUBCATEGORY = {
+    'Carroçaria/Cabine': [
+        'Lubrificar coluna da direção',
+        'Lubrificar trava da cabine',
+        'Substituir elemento do filtro de ar',
+        'Verificar funcionamento fechaduras, dobradiças, maçanetas, limitadores e trincos das portas',
+        'Verificar furos de dreno das portas'
+    ],
+    'Geral': [
+        'Código de falha. Verificar se há falhas ativas',
+        'Drenar reservatório de ar',
+        'Executar lubrificação conforme formulário anexo ao pmp',
+        'Substituir filtro secador do sistema de ar condicionado',
+        'Substituir o filtro de ar fresco do ar condicionado',
+        'Verificar carga do extintor de incêndio',
+        'Verificar carregamento e ruído do compressor de ar',
+        'Verificar fixação junta universal inferior da coluna de direção',
+        'Verificar necessidade de manutenção dos filtros de ar através da luz indicadora no painel',
+        'Verificar nível e limpar respiro',
+        'Verificar pressão de pilotagem válvula sensível',
+        'Verificar torque das porcas das rodas',
+        'Verificar torque dos amortecedores, jumelos, olhais das molas e barras estabilizadoras',
+        'Verificar últimos resultados das análises de óleo e tomar as providências recomendadas'
+    ],
+    'Material Rodante': [
+        'Calibrar pneus',
+        'Verificar quanto a desgaste dos pneus'
+    ],
+    'Motor Térmico': [
+        'Coletar MT para análise',
+        'Correia e tensor verificar estado, tensão e fixação',
+        'Drenar a água do filtro separador água-combustível',
+        'Lavar internamente e limpar tela do pescador do tanque de combustível',
+        'Reapertar as cintas de fixação do tanque de combustível',
+        'Reapertar coxins',
+        'Substituir elemento do filtro principal do sistema de alimentação',
+        'Substituir elemento do filtro separador água do sistema de alimentação',
+        'Substituir filtro do óleo lubrificante motor',
+        'Substituir filtro separador água-combustível',
+        'Substituir filtro separador de água-combustível',
+        'Substituir o filtro de combustível',
+        'Substituir o filtro do óleo do motor',
+        'Substituir o filtro do óleo lubrificante do motor',
+        'Substituir o filtro lubrificante',
+        'Substituir o óleo lubrificante do motor',
+        'Verificar curso da haste de acionamento da embreagem',
+        'Verificar estado e fixação da tubulação entre o filtro de ar e o motor',
+        'Verificar estado e funcionamento no coletor de escape do freio motor',
+        'Verificar o nível de óleo lubrificante do motor',
+        'Verificar quanto a danos e vazamentos do sistema de escapamento',
+        'Verificar quanto a vazamentos e estado do sistema de alimentação de combustível'
+    ],
+    'Sistema de Arrefecimento': [
+        'Coletar SA para análise',
+        'Substituir líquido de arrefecimento',
+        'Verificar estado das aletas do radiador',
+        'Verificar ligação dos sensores de nível do sistema de arrefecimento',
+        'Verificar o nível do líquido arrefecedor',
+        'Verificar quanto a vazamentos e estado das mangueiras e tubulações'
+    ],
+    'Sistema de Direção': [
+        'Terminais esféricos e coifas da direção, verificar estado, folga e fixação'
+    ],
+    'Sistema de Suspensão': [
+        'Amortecedores da cabine, verificar estado e fixação',
+        'Amortecedores, verificar estado e fixação',
+        'Lubrificar feixes de mola dianteira',
+        'Lubrificar feixes de mola traseira',
+        'Verificar a fixação das barras tensoras longitudinais e desgaste das buchas das barras tensoras',
+        'Verificar alinhamento da suspensão',
+        'Verificar desgaste dos batentes do eixo, bucha de borracha e placas de desgaste da suspensão DT/TS',
+        'Verificar o balancim e chapa de atrito quanto a desgaste',
+        'Verificar torque dos grampos e suportes das molas'
+    ],
+    'Sistema de Transmissão': [
+        'Coletar DFTA para análise',
+        'Coletar DFTP para análise',
+        'Coletar TM para análise',
+        'Desmontar cubos de roda, substituir a graxa e regular folga',
+        'Lubrificar juntas universais e luva deslizante',
+        'Lubrificar pinos-metre do eixo dianteiro/traseiro',
+        'Resfriador de óleo, verificar obstrução, se disponível',
+        'Substituir o óleo lubrificante da transmissão',
+        'Substituir óleo do diferencial',
+        'Substituir óleo Transmissão',
+        'Verificar fixação da caixa de direção no chassi',
+        'Verificar funcionamento e vedações dos cabos de mudança',
+        'Verificar nível e limpar respiro',
+        'Verificar nível e limpar respiro do diferencial',
+        'Verificar o suspensor do eixo e regular folga',
+        'Verificar quanto a folga e desgaste das juntas e mancal central',
+        'Verificar quanto a vazamentos da transmissão',
+        'Verificar quanto a vazamentos no cubo de roda'
+    ],
+    'Sistema de Travagem': [
+        'Lubrificar eixos came e ajustadores dos freios dianteiros e traseiros',
+        'Verificar desgaste e regular folga (ajustador manual) ou funcionamento do ajustador (com ajustador automático) do sistema de freios'
+    ],
+    'Sistema Elétrico': [
+        'Testar trava de segurança da cabine e alarme',
+        'Verificar fixações, integridade da tampa e interferências em pontos que possam causar curto circuito',
+        'Verificar funcionamento da iluminação externa/ Interna',
+        'Verificar visualmente sensores do sistema obd'
+    ],
+    'Sistema Hidráulico': [
+        'Substituir óleo da direção',
+        'Substituir óleo do sistema de direção',
+        'Verificar estado e vazamentos das mangueiras, tubos e conexões do sistema de direção',
+        'Verificar nível do fluido direção',
+        'Verificar nível do fluido embreagem',
+        'Verificar quanto a vazamentos e estado da embreagem',
+        'Verificar vazamento da bascula e da cabine'
+    ]
+};
+
+// Catálogo de tarefas por categoria+subcategoria
+const TASKS_BY_CATEGORY = {
+    'Caminhões': TASKS_BY_SUBCATEGORY,
+    'Retroescavadeira': {
+        'Carroçaria/Cabine': [
+            'Completar o nível de fluido de lavagem dos vidros',
+            'Inspecionar mola à gás (sustentação das tampas)'
+        ],
+        'Geral': [
+            'Efetuar limpeza do ar condicionado com jato de ar comprimido e lavagem com água pressurizada',
+            'Inspecionar a tensão da correia do compressor do ar condicionado (Trocar se necessário)',
+            'Inspecionar e efetuar limpeza do filtro do ar condicionado e cabine (Trocar se necessário)',
+            'Inspecionar e limpar aletas do condensador do ar condicionado',
+            'Inspecionar ar condicionado',
+            'Testar funcionamento do ar condicionado',
+            'Inspecionar filtro secador de linha do ar condicionado',
+            'Testar o condensador em sua máxima capacidade e verificar a tubulação de sucção e descarga',
+            'Verificar condição de operação do compressor de ar',
+            'Verificar mangueiras e abraçadeiras',
+            'Verificar todos os pontos de aperto dos grampos do tubo de escapamento do motor'
+        ],
+        'Material Desgaste/Implementos': [
+            'Verificar desgastes nas placas de desgaste da lança telescópica',
+            'Verificar desgaste e folga dos Implementos anexos'
+        ],
+        'Material Rodante': [
+            'Inspecionar e apertar parafusos das porcas das rodas',
+            'Verificar calibragem dos pneus'
+        ],
+        'Motor Elétrico/Gerador': [
+            'Verificar correto funcionamento do alternador (Trocar se necessário)',
+            'Verificar correto funcionamento do motor de partida (Trocar se necessário)',
+            'Verificar e ajustar a tensão da correia de acionamento do alternador e ventilador'
+        ],
+        'Motor Térmico': [
+            'Verificar folga da válvula do motor',
+            'Inspecionar as correias em V (Trocar se necessário)',
+            'Verificar silenciador do escape',
+            'Substituir respiro do cárter',
+            'Testar e substituir injetores se necessário',
+            'Substituir filtro do óleo lubrificante',
+            'Substituir o óleo lubrificante do motor',
+            'Substituir os dois filtros de combustível do sistema de alimentação',
+            'Verificar suportes do motor ( aperte ou substitua )',
+            'Verificar folga e endurecimento da borracha da braçadeira da tubulação de alta pressão de combustível',
+            'Verificar nível do fluido arrefecedor',
+            'Substituir fluido arrefecedor',
+            'Verificar o ajuste da folga das válvulas do motor',
+            'Limpar ou substituir filtros de ar se necessário'
+        ],
+        'Sistema de Arrefecimento': [
+            'Inspecionar e limpar aletas do radiador',
+            'Verificar o líquido do sistema de arrefecimento',
+            'Substituir o líquido do sistema de arrefecimento'
+        ],
+        'Sistema de Suspensão': [
+            'Inspecionar rachaduras ou cascas na superfície externa de borracha dos amortecedores'
+        ],
+        'Sistema de Transmissão': [
+            'Substituir filtro da transmissão',
+            'Verificar conversor de torque',
+            'Verificar bomba de óleo',
+            'Inspecionar acoplamentos, torque de aperto e conectores elétricos e orifícios do resfriador de óleo',
+            'Verificar nível de óleo da transmissão (Completar se necessário)',
+            'Lubrificar eixo dianteiro e traseiro',
+            'Substituir fluido do eixo dianteiro e traseiro'
+        ],
+        'Sistema Elétrico': [
+            'Verificar baterias e conectores dos cabos ( verificar voltagem )',
+            'Verificar funcionamento do alarme de ré',
+            'Inspecionar cabos (fixação, adequação e terminais), chave geral e baterias'
+        ],
+        'Sistema Hidráulico': [
+            'Limpar filtro-tela do reservatório',
+            'Substituir elemento do respiro do reservatório hidráulico',
+            'Substituir o tanque de óleo hidráulico',
+            'Substituir o elemento do filtro de óleo hidráulico',
+            'Substituir o óleo do reservatório hidráulico'
+        ]
+    },
+    'Escavadeira Hidráulica': {
+        'Carroçaria/Cabine': [
+            'Verificar Nível do fluido do lavador de janelas',
+            'Inspecionar Sistema de ar condicionado',
+            'Inspecionar Amortecedor a gás da janela do teto',
+            'Limpar Filtro de ar fresco/recirculação do ar condicionado'
+        ],
+        'Motor': [
+            'Substituir Elemento do filtro de ar primário e secundário',
+            'Substituir Filtro separador de água',
+            'Inspecionar Tensão da correia do compressor',
+            'Substituir elemento filtrante do motor',
+            'Substituir óleo do motor',
+            'Substituir Elemento filtrante primário de combustível',
+            'Substituir Elemento filtrante secundário de combustível',
+            'Verificar Abraçadeiras do tubo de escapamento do motor',
+            'Substituir Kit correias do motor',
+            'Substituir Correias do ar condicionado',
+            'Verificar Tensão da correia das ventoinhas (Trocar se necessário)',
+            'Ajustar Folga da válvula do motor',
+            'Inspecionar Bomba de água',
+            'Inspecionar Condição de trabalho do compressor',
+            'Lubrificar Bomba de refrigerante do motor (eixo da ventoinha)'
+        ],
+        'Sistema de Arrefecimento': [
+            'Inspecionar Radiador e aletas do radiador de óleo',
+            'Limpar Interior do sistema de resfriamento',
+            'Verificar Nível de óleo da transmissão final'
+        ],
+        'Sistema de Transmissão': [
+            'Substituir Óleo da transmissão final',
+            'Trocar óleo da transmissão da bomba',
+            'Trocar filtro de óleo',
+            'Limpar o respiro de ar',
+            'Trocar óleo da Engrenagem de redução de giro',
+            'Trocar óleo da engrenagem de redução de deslocamento'
+        ],
+        'Sistema Elétrico': [
+            'Inspecionar Alternador',
+            'Verificar Motor de partida'
+        ],
+        'Material Rodante': [
+            'Verificar Fim de curso',
+            'Tensão da esteira - inspecionar/ajustar'
+        ],
+        'Implementos': [
+            'Pontas da caçamba (Pino lateral) - substituir',
+            'Folga da caçamba - ajustar'
+        ],
+        'Sistema de Lubrificação': [
+            'Lubrificação',
+            'Inspecionar Nível de graxa do pinhão de giro da plataforma',
+            'Rolamento de giro da plataforma - lubrificar',
+            'Enchimento de graxa lubrificante da engrenagem de redução rotativa'
+        ],
+        'Sistema Hidráulico': [
+            'Verificar Abraçadeiras dos tubos do sistema hidráulico - verificar',
+            'Óleo no tanque hidráulico - trocar',
+            'Substituir Elemento do filtro de retorno de óleo hidráulico',
+            'Substituir elemento do filtro de drenagem de óleo',
+            'Substituir elemento do filtro'
+        ],
+        'Geral': [
+            'Verificar Nível de óleo da unidade de giro',
+            'Substituir Óleo da unidade de giro',
+            'Verificar Pressão de nitrogênio no acumulador (disjuntor)',
+            'Substituir Válvula de respiro',
+            'Substituir Acumulador',
+            'Verificar Abraçadeiras e borrachas dos tubos de alta pressão',
+            'Substituir Abraçadeiras dos tubos de alta pressão',
+            'Verificar Pressão de nitrogênio no acumulador (circuito de óleo de controle)'
+        ]
+    },
+    'Rolo Compactador': {
+        'Carroçaria/Cabine': [
+            'Lubrificar alavanca de acionamento de direção',
+            'Substituir filtro cabine',
+            'Substituir filtro de ar fresco'
+        ],
+        'Geral': [
+            'Efetuar limpeza do ar condicionado com jato de ar comprimido e lavagem com água pressurizada',
+            'Executar lubrificação conforme formulário anexo ao pmp',
+            'Inspecionar e efetuar limpeza do filtro do ar condicionado',
+            'Limpar filtros de ar da cabine com ar comprimido',
+            'Lubrificar mancais articulados inferior e superior',
+            'Realizar a limpeza do parafuso de ventilação do compartimento do cilindro de compactação',
+            'Verificar elemento primário do filtro do sistema de admissão de ar',
+            'Verificar nível do indicador de restrição de ar',
+            'Verificar o nível de óleo da caixa de engrenagens e reservatório do cilindro de compactação',
+            'Verificar últimos resultados das análises de óleo e tomar as providências recomendadas'
+        ],
+        'Material Rodante': [
+            'Verificar a pressão do ar dos pneus e mensurar a profundidade dos pneus. Observar desgastes e se há cortes ou perfurações'
+        ],
+        'Motor Térmico': [
+            'Coletar MT para análise',
+            'Coletar MTR para análise',
+            'Drenar filtro separador de água-combustível',
+            'Substituir filtro de ar primário do motor',
+            'Substituir filtro de combustível',
+            'Substituir filtro separador de água-combustível',
+            'Substituir o filtro de ar secundário do motor',
+            'Substituir o filtro do óleo do motor',
+            'Substituir o óleo lubrificante do motor',
+            'Verificar filtro do sistema de alimentação de combustível',
+            'Verificar o nível do óleo motor'
+        ],
+        'Sistema de Arrefecimento': [
+            'Coletar SA para análise',
+            'Limpar o radiador',
+            'Substituir o líquido do sistema de arrefecimento',
+            'Verificar o nível do líquido arrefecedor',
+            'Verificar se as mangueiras de ar estão em bom estado e se as conexões estão firmes'
+        ],
+        'Sistema de Direção': [
+            'Lubrificar os suportes do cilindro da direção'
+        ],
+        'Sistema de Suspensão': [
+            'Lubrificar a articulação da direção'
+        ],
+        'Sistema de Transmissão': [
+            'Coletar DF para análise',
+            'Coletar PLD para análise',
+            'Coletar PLE para análise',
+            'Substituir óleo da caixa de engrenagens e reservatório',
+            'Substituir óleo da caixa de redução central',
+            'Substituir óleo do engrenamento da planetária',
+            'Verificar o nível de óleo'
+        ],
+        'Sistema Hidráulico': [
+            'Coleta CCD para análise',
+            'Coleta CCE para análise',
+            'Coletar SHP para análise',
+            'Substituir filtro de óleo hidráulico',
+            'Verificar o nível de óleo no reservatório hidráulico'
+        ]
+    },
+    'Guindaste': {
+        'Carroçaria/Cabine': TASKS_BY_SUBCATEGORY['Carroçaria/Cabine'],
+        'Geral': TASKS_BY_SUBCATEGORY['Geral'],
+        'Material Rodante': TASKS_BY_SUBCATEGORY['Material Rodante'],
+        'Motor Térmico': TASKS_BY_SUBCATEGORY['Motor Térmico'],
+        'Sistema de Arrefecimento': TASKS_BY_SUBCATEGORY['Sistema de Arrefecimento'],
+        'Sistema de Direção': TASKS_BY_SUBCATEGORY['Sistema de Direção'],
+        'Sistema de Suspensão': TASKS_BY_SUBCATEGORY['Sistema de Suspensão'],
+        'Sistema de Transmissão': TASKS_BY_SUBCATEGORY['Sistema de Transmissão'],
+        'Sistema Elétrico': TASKS_BY_SUBCATEGORY['Sistema Elétrico'],
+        'Sistema Hidráulico': TASKS_BY_SUBCATEGORY['Sistema Hidráulico'],
+        'Implementos': [
+            'Verificar cabos de aço de içamento quanto a desgaste e fios rompidos',
+            'Verificar e lubrificar roldanas e moitões',
+            'Inspecionar ganchos quanto a deformações e travas de segurança',
+            'Verificar estado e lubrificação de guias e pinos da lança',
+            'Verificar funcionamento e vazamentos do sistema de giro',
+            'Verificar patolas/estabilizadores quanto a travas, vedações e vazamentos'
+        ]
+    },
+    'Geradores': {
+        'Geral': [
+            'Verificar painel de controle e alarmes',
+            'Inspecionar vibrações e ruídos anormais',
+            'Registrar horas de operação e condições de carga'
+        ],
+        'Motor Térmico': [
+            'Coletar MT para análise',
+            'Substituir filtro do óleo do motor',
+            'Substituir filtro de combustível',
+            'Verificar o nível de óleo lubrificante do motor',
+            'Ajustar tensão da correia do alternador',
+            'Verificar quanto a vazamentos e estado do sistema de alimentação de combustível'
+        ],
+        'Sistema de Arrefecimento': [
+            'Coletar SA para análise',
+            'Substituir líquido de arrefecimento',
+            'Verificar estado das aletas do radiador',
+            'Verificar o nível do líquido arrefecedor',
+            'Verificar quanto a vazamentos e estado das mangueiras e tubulações'
+        ],
+        'Sistema Elétrico': [
+            'Verificar tensão e frequência de saída do gerador',
+            'Testar funcionamento do alternador/AVR',
+            'Inspecionar conexões e bornes quanto a aperto e oxidação',
+            'Verificar aterramento e integridade dos cabos de saída',
+            'Testar proteção contra sobrecarga e curto circuito'
+        ],
+        'Sistema de Lubrificação': [
+            'Verificar pressão de óleo do motor',
+            'Substituir óleo lubrificante do motor',
+            'Verificar filtro lubrificante do motor',
+            'Verificar quanto a vazamentos'
+        ],
+        'Sistema de Combustível': [
+            'Drenar água do filtro separador água-combustível',
+            'Limpar pescador do tanque de combustível',
+            'Verificar estado de mangueiras e abraçadeiras do sistema de combustível',
+            'Reapertar as cintas de fixação do tanque de combustível'
+        ],
+        'Sistema de Partida': [
+            'Verificar correto funcionamento do motor de partida (Trocar se necessário)',
+            'Verificar estado e carga da bateria e cabos',
+            'Testar carregamento do alternador'
+        ]
+    },
+    'Pá Carregadeira': {
+        'Carroçaria/Cabine': TASKS_BY_SUBCATEGORY['Carroçaria/Cabine'],
+        'Geral': TASKS_BY_SUBCATEGORY['Geral'],
+        'Material Rodante': TASKS_BY_SUBCATEGORY['Material Rodante'],
+        'Motor Térmico': TASKS_BY_SUBCATEGORY['Motor Térmico'],
+        'Sistema de Arrefecimento': TASKS_BY_SUBCATEGORY['Sistema de Arrefecimento'],
+        'Sistema de Direção': TASKS_BY_SUBCATEGORY['Sistema de Direção'],
+        'Sistema de Transmissão': TASKS_BY_SUBCATEGORY['Sistema de Transmissão'],
+        'Sistema de Travagem': TASKS_BY_SUBCATEGORY['Sistema de Travagem'],
+        'Sistema Elétrico': TASKS_BY_SUBCATEGORY['Sistema Elétrico'],
+        'Sistema Hidráulico': TASKS_BY_SUBCATEGORY['Sistema Hidráulico'],
+        'Implementos': [
+            'Verificar desgaste e fissuras na caçamba',
+            'Inspecionar pinos e buchas de articulação quanto a folga e lubrificação',
+            'Verificar cilindros da caçamba e do braço quanto a vazamentos',
+            'Verificar articulação central quanto a folga e lubrificação',
+            'Verificar lâmina/boquilhas da caçamba quanto a desgaste e fixação'
+        ]
+    },
+    'Motoniveladora': {
+        'Carroçaria/Cabine': TASKS_BY_SUBCATEGORY['Carroçaria/Cabine'],
+        'Geral': TASKS_BY_SUBCATEGORY['Geral'],
+        'Material Rodante': TASKS_BY_SUBCATEGORY['Material Rodante'],
+        'Motor Térmico': TASKS_BY_SUBCATEGORY['Motor Térmico'],
+        'Sistema de Arrefecimento': TASKS_BY_SUBCATEGORY['Sistema de Arrefecimento'],
+        'Sistema de Direção': TASKS_BY_SUBCATEGORY['Sistema de Direção'],
+        'Sistema de Transmissão': TASKS_BY_SUBCATEGORY['Sistema de Transmissão'],
+        'Sistema Elétrico': TASKS_BY_SUBCATEGORY['Sistema Elétrico'],
+        'Sistema Hidráulico': TASKS_BY_SUBCATEGORY['Sistema Hidráulico'],
+        'Sistema de Travagem': TASKS_BY_SUBCATEGORY['Sistema de Travagem'],
+        'Implementos': [
+            'Verificar lâmina (moldboard) quanto a desgaste e fixação',
+            'Inspecionar círculo de giro quanto a folga e lubrificação',
+            'Verificar link-bar e braço da lâmina quanto a trincas e folgas',
+            'Verificar cilindros de inclinação e levantamento quanto a vazamentos',
+            'Verificar escarificador traseiro quanto a travas e desgaste'
+        ]
+    },
+    'Perfuratriz': {
+        'Geral': TASKS_BY_SUBCATEGORY['Geral'],
+        'Material Rodante': TASKS_BY_SUBCATEGORY['Material Rodante'],
+        'Motor Térmico': TASKS_BY_SUBCATEGORY['Motor Térmico'],
+        'Sistema de Arrefecimento': TASKS_BY_SUBCATEGORY['Sistema de Arrefecimento'],
+        'Sistema Elétrico': TASKS_BY_SUBCATEGORY['Sistema Elétrico'],
+        'Sistema Hidráulico': TASKS_BY_SUBCATEGORY['Sistema Hidráulico'],
+        'Implementos': [
+            'Verificar hastes/tubos e ferramentas de perfuração quanto a desgaste e trincas',
+            'Inspecionar cabeça rotativa/martelo quanto a funcionamento e vazamentos',
+            'Verificar torre/mastro quanto a fixações e alinhamento',
+            'Verificar sistema de avanço e rolamentos quanto a lubrificação',
+            'Testar sistema de lavagem/fluido de perfuração'
+        ]
+    },
+    'Caminhão Betoneira': {
+        'Carroçaria/Cabine': TASKS_BY_SUBCATEGORY['Carroçaria/Cabine'],
+        'Geral': TASKS_BY_SUBCATEGORY['Geral'],
+        'Material Rodante': TASKS_BY_SUBCATEGORY['Material Rodante'],
+        'Motor Térmico': TASKS_BY_SUBCATEGORY['Motor Térmico'],
+        'Sistema de Arrefecimento': TASKS_BY_SUBCATEGORY['Sistema de Arrefecimento'],
+        'Sistema de Direção': TASKS_BY_SUBCATEGORY['Sistema de Direção'],
+        'Sistema de Transmissão': TASKS_BY_SUBCATEGORY['Sistema de Transmissão'],
+        'Sistema Elétrico': TASKS_BY_SUBCATEGORY['Sistema Elétrico'],
+        'Sistema Hidráulico': TASKS_BY_SUBCATEGORY['Sistema Hidráulico'],
+        'Sistema de Travagem': TASKS_BY_SUBCATEGORY['Sistema de Travagem'],
+        'Implementos': [
+            'Verificar tambor quanto a resíduos e desgaste interno',
+            'Inspecionar roletes de apoio e anel de giro quanto a desgaste e lubrificação',
+            'Verificar redutor/motor hidráulico do tambor quanto a vazamentos',
+            'Verificar calhas e sistema de água quanto a vazamentos e fixação',
+            'Testar comandos de rotação, aceleração e reversão do tambor'
+        ]
+    },
+    'Usina de Asfalto': {
+        'Geral': [
+            'Inspecionar vibrações e ruídos anormais',
+            'Verificar integridade de estruturas e plataformas',
+            'Registrar horas de operação e condições de processo'
+        ],
+        'Sistema Elétrico': [
+            'Inspecionar conexões e bornes em painéis e motores',
+            'Verificar acionamentos e proteções de motores',
+            'Testar intertravamentos e sensores críticos'
+        ],
+        'Sistema de Combustível': [
+            'Verificar linhas e válvulas quanto a vazamentos',
+            'Limpar filtros de combustível do queimador',
+            'Verificar bomba e pressão de fornecimento'
+        ],
+        'Sistema de Lubrificação': [
+            'Verificar níveis em mancais e redutores',
+            'Lubrificar roletes e pontos críticos conforme plano',
+            'Verificar quanto a vazamentos'
+        ],
+        'Sistema de Aquecimento': [
+            'Inspecionar queimador e bico injetor',
+            'Verificar temperatura de operação e chama',
+            'Limpar câmara/trocadores conforme plano'
+        ],
+        'Sistema de Mistura': [
+            'Verificar pás do misturador quanto a desgaste',
+            'Inspecionar redutor e eixo do misturador',
+            'Verificar alinhamento e fixação do conjunto'
+        ],
+        'Sistema de Transporte': [
+            'Verificar correias transportadoras quanto a desgaste e tensão',
+            'Inspecionar roletes e tambores quanto a alinhamento',
+            'Verificar proteção e limpeza dos chutes'
+        ],
+        'Sistema de Filtragem': [
+            'Verificar mangas do baghouse quanto a desgaste e rasgos',
+            'Inspecionar ventilador/exaustor quanto a vibração',
+            'Checar diferencial de pressão e limpeza'
+        ]
+    },
+    'Tratores': {
+        'Carroçaria/Cabine': TASKS_BY_SUBCATEGORY['Carroçaria/Cabine'],
+        'Geral': TASKS_BY_SUBCATEGORY['Geral'],
+        'Material Rodante': TASKS_BY_SUBCATEGORY['Material Rodante'],
+        'Motor Térmico': TASKS_BY_SUBCATEGORY['Motor Térmico'],
+        'Sistema de Arrefecimento': TASKS_BY_SUBCATEGORY['Sistema de Arrefecimento'],
+        'Sistema de Direção': TASKS_BY_SUBCATEGORY['Sistema de Direção'],
+        'Sistema de Suspensão': TASKS_BY_SUBCATEGORY['Sistema de Suspensão'],
+        'Sistema de Transmissão': TASKS_BY_SUBCATEGORY['Sistema de Transmissão'],
+        'Sistema de Travagem': TASKS_BY_SUBCATEGORY['Sistema de Travagem'],
+        'Sistema Elétrico': TASKS_BY_SUBCATEGORY['Sistema Elétrico'],
+        'Sistema Hidráulico': TASKS_BY_SUBCATEGORY['Sistema Hidráulico'],
+        'Implementos': [
+            'Verificar engate de 3 pontos quanto a travas e folgas',
+            'Inspecionar tomada de força (PTO) quanto a proteção e funcionamento',
+            'Verificar cilindros e válvulas auxiliares quanto a vazamentos',
+            'Verificar braços e tirantes quanto a desgaste e fixação'
+        ]
+    },
+    'Outros': {
+        'Geral': TASKS_BY_SUBCATEGORY['Geral'],
+        'Motor Térmico': TASKS_BY_SUBCATEGORY['Motor Térmico'],
+        'Sistema de Arrefecimento': TASKS_BY_SUBCATEGORY['Sistema de Arrefecimento'],
+        'Sistema Elétrico': TASKS_BY_SUBCATEGORY['Sistema Elétrico'],
+        'Sistema Hidráulico': TASKS_BY_SUBCATEGORY['Sistema Hidráulico'],
+        'Material Rodante': TASKS_BY_SUBCATEGORY['Material Rodante']
+    }
+};
+
+function renderTasksForSubcategory(subcategory) {
+    const container = document.getElementById('tasksContainer');
+    const selectAll = document.getElementById('selectAllTasks');
+    document.getElementById('tasksValidation')?.classList.add('d-none');
+    const category = document.getElementById('planCategory')?.value || '';
+    if (!subcategory) {
+        container.innerHTML = '<p class="text-muted mb-0">Selecione uma subcategoria para listar as tarefas.</p>';
+        if (selectAll) selectAll.checked = false;
+        return;
+    }
+    const defaults = (TASKS_BY_CATEGORY[category] && TASKS_BY_CATEGORY[category][subcategory]) || [];
+    const custom = customTasksBySubcategory[subcategory] || [];
+    const hasCustom = custom.length > 0;
+
+    if (defaults.length === 0 && !hasCustom) {
+        container.innerHTML = '<p class="text-muted mb-0">Nenhuma tarefa cadastrada para esta subcategoria.</p>';
+        if (selectAll) selectAll.checked = false;
+        return;
+    }
+
+    const defaultHtml = defaults.map((t, idx) => `
+        <div class="form-check">
+            <input class="form-check-input" type="checkbox" name="taskItem[]" id="task_${idx}" value="${t}">
+            <label class="form-check-label" for="task_${idx}">${t}</label>
+        </div>
+    `).join('');
+
+    const customHtml = hasCustom ? `
+        <hr class="my-2">
+        <div class="mb-1"><small class="text-muted">Tarefas personalizadas</small></div>
+        ${custom.map((t, idx) => `
+            <div class="d-flex align-items-center justify-content-between">
+                <div class="form-check flex-grow-1">
+                    <input class="form-check-input" type="checkbox" name="taskItem[]" id="custom_task_${idx}" value="${t}">
+                    <label class="form-check-label" for="custom_task_${idx}">${t}</label>
+                </div>
+                <button type="button" class="btn btn-outline-danger btn-sm ms-2 remove-custom-task-btn" data-task="${encodeURIComponent(t)}" aria-label="Remover tarefa personalizada">
+                    <i class="fas fa-trash"></i>
+                </button>
+            </div>
+        `).join('')}
+    ` : '';
+
+    container.innerHTML = defaultHtml + customHtml;
+
+    // Reaplica seleção salva e atualiza o estado do "Selecionar todos"
+    applySavedSelection(subcategory);
+    if (selectAll) {
+        updateSelectAllCheckbox();
+    }
+    // Atualiza estado do select-all ao marcar itens individualmente
+    container.querySelectorAll('input[name="taskItem[]"]').forEach(cb => {
+        cb.addEventListener('change', () => updateSelectAllCheckbox());
+    });
+    // Listeners para remover tarefas personalizadas
+    container.querySelectorAll('.remove-custom-task-btn').forEach(btn => {
+        btn.addEventListener('click', () => {
+            const t = decodeURIComponent(btn.getAttribute('data-task'));
+            removeCustomTask(t);
+        });
+    });
+}
+
+function toggleSelectAllTasks(checkbox) {
+    const items = document.querySelectorAll('input[name="taskItem[]"]');
+    items.forEach(i => i.checked = checkbox.checked);
+    updateSelectAllCheckbox();
+}
+
+function resetTaskControls() {
+    const cat = document.getElementById('planCategory');
+    const sub = document.getElementById('planSubcategory');
+    const selAll = document.getElementById('selectAllTasks');
+    if (cat) cat.value = '';
+    if (sub) sub.value = '';
+    if (selAll) selAll.checked = false;
+    // Limpa seleções salvas
+    savedTasksBySubcategory = {};
+    currentCategory = '';
+    renderTasksForSubcategory('');
+}
+
+function inferActionType(desc) {
+    const d = (desc || '').trim().toLowerCase();
+    if (d.startsWith('lubrificar')) return 'Lubrificação';
+    if (d.startsWith('substituir')) return 'Troca';
+    if (d.startsWith('verificar')) return 'Inspeção';
+    if (d.startsWith('coletar')) return 'Inspeção';
+    if (d.startsWith('testar')) return 'Inspeção';
+    if (d.startsWith('calibrar')) return 'Ajuste';
+    if (d.startsWith('drenar')) return 'Ajuste';
+    if (d.startsWith('executar')) return 'Inspeção';
+    if (d.startsWith('lavar')) return 'Limpeza';
+    if (d.startsWith('reapertar')) return 'Ajuste';
+    if (d.startsWith('desmontar')) return 'Ajuste';
+    return 'Inspeção';
+}
+
+// Utilitários de seleção/salvamento de tarefas por subcategoria
+function getCurrentSubcategory() {
+    const el = document.getElementById('planSubcategory');
+    return el ? el.value : '';
+}
+
+function getCurrentSelectedTasks() {
+    return Array.from(document.querySelectorAll('input[name="taskItem[]"]:checked')).map(el => el.value);
+}
+
+function applySavedSelection(subcategory) {
+    const saved = new Set(savedTasksBySubcategory[subcategory] || []);
+    const items = document.querySelectorAll('input[name="taskItem[]"]');
+    items.forEach(i => i.checked = saved.has(i.value));
+}
+
+function updateSelectAllCheckbox() {
+    const selectAll = document.getElementById('selectAllTasks');
+    const items = document.querySelectorAll('input[name="taskItem[]"]');
+    if (!selectAll) return;
+    if (!items.length) {
+        selectAll.checked = false;
+        return;
+    }
+    const allChecked = Array.from(items).every(i => i.checked);
+    selectAll.checked = allChecked;
+}
+
+function saveCurrentSubcategorySelection() {
+    const category = document.getElementById('planCategory')?.value || '';
+    if (!category) {
+        showAlert('Selecione a Categoria.', 'warning');
+        return;
+    }
+    const subcategory = getCurrentSubcategory();
+    if (!subcategory) {
+        showAlert('Selecione a Subcategoria.', 'warning');
+        return;
+    }
+    const selected = getCurrentSelectedTasks();
+    const customSelected = (customTasksBySubcategory[subcategory] || []).filter(t => selected.includes(t));
+    if (selected.length === 0 && customSelected.length === 0) {
+        const tv = document.getElementById('tasksValidation');
+        tv && tv.classList.remove('d-none');
+        showAlert('Selecione ao menos uma tarefa antes de salvar.', 'warning');
+        return;
+    } else {
+        const tv = document.getElementById('tasksValidation');
+        tv && tv.classList.add('d-none');
+    }
+    savedTasksBySubcategory[subcategory] = selected.slice();
+    showAlert(`Tarefas salvas para "${subcategory}" (${selected.length}).`, 'success');
+    renderCustomTaskControls(subcategory);
+}
+
+// ====== Custom task controls/helpers ======
+function renderCustomTaskControls(subcategory) {
+    const input = document.getElementById('customTaskInput');
+    const addBtn = document.getElementById('addCustomTaskBtn');
+    const list = document.getElementById('customTaskList');
+    const hint = document.getElementById('customTaskLimitHint');
+    if (!input || !addBtn || !list || !hint) return;
+
+    const tasks = (subcategory && customTasksBySubcategory[subcategory]) || [];
+    list.innerHTML = (tasks || []).map(t => `
+        <div class="d-flex align-items-center justify-content-between border rounded px-2 py-1 mb-1">
+            <span class="text-truncate">${t}</span>
+            <button type="button" class="btn btn-outline-danger btn-sm" onclick="removeCustomTask('${encodeURIComponent(t)}')" aria-label="Remover">
+                <i class="fas fa-trash"></i>
+            </button>
+        </div>
+    `).join('');
+
+    const remaining = Math.max(0, CUSTOM_TASK_LIMIT - (tasks?.length || 0));
+    hint.textContent = remaining > 0
+        ? `Você pode adicionar até ${remaining} tarefa(s) personalizada(s) nesta subcategoria.`
+        : `Limite de ${CUSTOM_TASK_LIMIT} tarefas personalizadas atingido nesta subcategoria.`;
+
+    const disabled = !subcategory || remaining === 0;
+    input.disabled = disabled;
+    addBtn.disabled = disabled;
+
+    addBtn.onclick = () => {
+        addCustomTask(subcategory);
+    };
+}
+
+function addCustomTask(subcategory) {
+    const input = document.getElementById('customTaskInput');
+    if (!input) return;
+    const raw = (input.value || '').trim();
+    if (!raw || !subcategory) return;
+
+    const tasks = customTasksBySubcategory[subcategory] || [];
+    if (tasks.length >= CUSTOM_TASK_LIMIT) {
+        showAlert(`Limite de ${CUSTOM_TASK_LIMIT} tarefas personalizadas atingido.`, 'warning');
+        return;
+    }
+    const exists = tasks.some(t => t.toLowerCase() === raw.toLowerCase());
+    if (exists) {
+        showAlert('Tarefa personalizada já adicionada.', 'info');
+        input.value = '';
+        return;
+    }
+    tasks.push(raw);
+    customTasksBySubcategory[subcategory] = tasks;
+    input.value = '';
+    renderTasksForSubcategory(subcategory);
+    renderCustomTaskControls(subcategory);
+}
+
+function removeCustomTask(taskEncoded) {
+    const subcategory = document.getElementById('planSubcategory')?.value || '';
+    if (!subcategory) return;
+    const task = decodeURIComponent(taskEncoded);
+    const tasks = customTasksBySubcategory[subcategory] || [];
+    const idx = tasks.findIndex(t => t === task);
+    if (idx >= 0) {
+        tasks.splice(idx, 1);
+        customTasksBySubcategory[subcategory] = tasks;
+        renderTasksForSubcategory(subcategory);
+        renderCustomTaskControls(subcategory);
+    }
+}
+// ====== End custom task helpers ======
+
+function addAction() {
+    const container = document.getElementById('actionsContainer');
+    const actionItem = document.createElement('div');
+    actionItem.className = 'action-item border rounded p-3 mb-2';
+    actionItem.innerHTML = `
+        <div class="row">
+            <div class="col-md-8">
+                <input type="text" class="form-control" placeholder="Descrição da ação (ex: Trocar filtro de óleo)" name="actionDescription[]">
+            </div>
+            <div class="col-md-3">
+                <select class="form-select" name="actionType[]">
+                    <option value="Inspeção">Inspeção</option>
+                    <option value="Troca">Troca</option>
+                    <option value="Ajuste">Ajuste</option>
+                    <option value="Limpeza">Limpeza</option>
+                    <option value="Lubrificação">Lubrificação</option>
+                </select>
+            </div>
+            <div class="col-md-1">
+                <button type="button" class="btn btn-outline-danger btn-sm" onclick="removeAction(this)">
+                    <i class="fas fa-trash"></i>
+                </button>
+            </div>
+        </div>
+    `;
+    container.appendChild(actionItem);
+}
+
+function removeAction(button) {
+    const actionItem = button.closest('.action-item');
+    actionItem.remove();
+}
+
+function addMaterial() {
+    const container = document.getElementById('materialsContainer');
+    const materialItem = document.createElement('div');
+    materialItem.className = 'material-item border rounded p-3 mb-2';
+    materialItem.innerHTML = `
+        <div class="row">
+            <div class="col-md-6">
+                <select class="form-select" name="materialId[]">
+                    <option value="">Selecione o material...</option>
+                    <!-- Opções carregadas via JavaScript -->
+                </select>
+            </div>
+            <div class="col-md-3">
+                <input type="number" class="form-control" placeholder="Quantidade" name="materialQuantity[]" min="0" step="0.1">
+            </div>
+            <div class="col-md-2">
+                <input type="text" class="form-control" placeholder="Unidade" name="materialUnit[]">
+            </div>
+            <div class="col-md-1">
+                <button type="button" class="btn btn-outline-danger btn-sm" onclick="removeMaterial(this)">
+                    <i class="fas fa-trash"></i>
+                </button>
+            </div>
+        </div>
+    `;
+    container.appendChild(materialItem);
+    
+    // Carregar opções de materiais para o novo select
+    loadMaterialOptions(materialItem.querySelector('select[name="materialId[]"]'));
+}
+
+function removeMaterial(button) {
+    const materialItem = button.closest('.material-item');
+    materialItem.remove();
+}
+
+async function loadMaterialOptions(selectElement = null) {
+    try {
+        const response = await fetch('/warehouse/inventory/materials');
+        const materials = await response.json();
+        
+        const selects = selectElement ? [selectElement] : document.querySelectorAll('select[name="materialId[]"]');
+        
+        selects.forEach(select => {
+            select.innerHTML = '<option value="">Selecione o material...</option>';
+            materials.forEach(material => {
+                const option = document.createElement('option');
+                option.value = material.id;
+                option.textContent = `${material.code} - ${material.name}`;
+                select.appendChild(option);
+            });
+        });
+    } catch (error) {
+        console.error('Erro ao carregar materiais:', error);
+    }
+}
+
+function savePlan() {
+    const form = document.getElementById('planForm');
+    
+    // Coletar dados básicos do plano
+    const category = document.getElementById('planCategory').value;
+    const currentSubcategory = document.getElementById('planSubcategory').value;
+    const domSelected = Array.from(document.querySelectorAll('input[name="taskItem[]"]:checked')).map(el => el.value);
+    const saved = Object.values(savedTasksBySubcategory).flat();
+    const custom = Object.values(customTasksBySubcategory).flat();
+    const selectedTasks = Array.from(new Set([...saved, ...domSelected, ...custom.filter(t => domSelected.includes(t))]));
+
+    // Validações mínimas
+    let hasError = false;
+    if (!category) {
+        showAlert('Selecione a Categoria.', 'warning');
+        hasError = true;
+    }
+    if (selectedTasks.length === 0) {
+        const tv = document.getElementById('tasksValidation');
+        tv && tv.classList.remove('d-none');
+        hasError = true;
+    } else {
+        const tv = document.getElementById('tasksValidation');
+        tv && tv.classList.add('d-none');
+    }
+    if (hasError) return;
+
+    const planData = {
+        name: document.getElementById('planName').value,
+        type: document.getElementById('planType').value,
+        interval_type: document.getElementById('planIntervalType').value,
+        interval_value: parseFloat(document.getElementById('planIntervalValue').value),
+        equipment_id: parseInt(document.getElementById('planEquipment').value),
+        priority: document.getElementById('planPriority').value,
+        estimated_hours: parseFloat(document.getElementById('planEstimatedHours').value) || null,
+        is_active: document.getElementById('planIsActive').value === 'true',
+        // Preenchemos a descrição automaticamente com todas as subcategorias usadas
+        description: (() => {
+            const usedSet = new Set(Object.keys(savedTasksBySubcategory).filter(sc => (savedTasksBySubcategory[sc] || []).length > 0));
+            const hasCustomInSub = (customTasksBySubcategory[currentSubcategory] || []).length > 0;
+            if (currentSubcategory && (domSelected.length > 0 || hasCustomInSub)) usedSet.add(currentSubcategory);
+            const used = Array.from(usedSet);
+            return `Plano de manutenção - ${category}${used.length ? ' / ' + used.join(', ') : ''}`;
+        })()
+    };
+    
+    // Montar ações a partir das tarefas selecionadas
+    const actions = selectedTasks.map(t => ({
+        description: t,
+        action_type: inferActionType(t)
+    }));
+    
+    // Coletar materiais
+    const materials = [];
+    const materialIds = document.querySelectorAll('select[name="materialId[]"]');
+    const materialQuantities = document.querySelectorAll('input[name="materialQuantity[]"]');
+    const materialUnits = document.querySelectorAll('input[name="materialUnit[]"]');
+    
+    for (let i = 0; i < materialIds.length; i++) {
+        if (materialIds[i].value && materialQuantities[i].value) {
+            materials.push({
+                material_id: parseInt(materialIds[i].value),
+                quantity: parseFloat(materialQuantities[i].value),
+                unit: materialUnits[i].value || 'un'
+            });
+        }
+    }
+    
+    planData.actions = actions;
+    planData.materials = materials;
+    
+    // Determinar se é edição ou criação
+    const isEdit = currentPlanId !== null;
+    const fileInput = document.getElementById('planDocuments');
+    const hasFiles = fileInput && fileInput.files && fileInput.files.length > 0;
+
+    let url = '/maintenance/plans';
+    let fetchOptions = {};
+
+    if (isEdit) {
+        url = `/maintenance/api/plans/${currentPlanId}`;
+        fetchOptions = {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(planData)
+        };
+    } else {
+        if (hasFiles) {
+            const formData = new FormData();
+            formData.append('data', JSON.stringify(planData));
+            Array.from(fileInput.files).forEach(file => formData.append('documents', file));
+            fetchOptions = {
+                method: 'POST',
+                body: formData
+            };
+        } else {
+            fetchOptions = {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(planData)
+            };
+        }
+    }
+
+    // Enviar dados
+    fetch(url, fetchOptions)
+        .then(response => {
+            if (!response.ok) {
+                return response.json().then(err => Promise.reject(err));
+            }
+            return response.json();
+        })
+    .then(data => {
+        console.log(isEdit ? 'Plano atualizado:' : 'Plano criado:', data);
+        // Fechar modal
+        const modal = bootstrap.Modal.getInstance(document.getElementById('planModal'));
+        modal.hide();
+        // Recarregar lista
+        loadPlans();
+        // Limpar formulário e resetar modo
+        form.reset();
+        currentPlanId = null;
+        document.querySelector('#planModal .modal-title').textContent = 'Novo Plano de Manutenção';
+        // Mostrar sucesso
+        showAlert(isEdit ? 'Plano de manutenção atualizado com sucesso!' : 'Plano de manutenção criado com sucesso!', 'success');
+    })
+    .catch(error => {
+        console.error(isEdit ? 'Erro ao atualizar plano:' : 'Erro ao criar plano:', error);
+        showAlert(error.detail || (isEdit ? 'Erro ao atualizar plano de manutenção' : 'Erro ao criar plano de manutenção'), 'danger');
+    });
+ }
+
+ function editPlan(planId) {
+     // Implementar edição de plano
+     showAlert('Funcionalidade de edição em desenvolvimento', 'info');
+ }
+
+ function deletePlan(planId) {
+     if (confirm('Tem certeza que deseja excluir este plano de manutenção?')) {
+         fetch(`/maintenance/plans/${planId}`, {
+             method: 'DELETE'
+         })
+         .then(response => {
+             if (response.ok) {
+                 showAlert('Plano excluído com sucesso!', 'success');
+                 loadPlans();
+             } else {
+                 throw new Error('Erro ao excluir plano');
+             }
+         })
+         .catch(error => {
+             console.error('Erro ao excluir plano:', error);
+             showAlert('Erro ao excluir plano de manutenção', 'danger');
+         });
+     }
+ }
+
+async function viewPlanDetails(planId) {
+    try {
+        // Buscar dados do plano
+        const response = await fetch(`/maintenance/api/plans/${planId}`);
+        if (!response.ok) {
+            throw new Error('Erro ao carregar dados do plano');
+        }
+        
+        const plan = await response.json();
+        
+        // Buscar documentos do plano
+        let documents = [];
+        try {
+            const docsRes = await fetch(`/maintenance/plans/${planId}/documents`);
+            if (docsRes.ok) {
+                documents = await docsRes.json();
+            }
+        } catch (e) {
+            console.warn('Não foi possível carregar documentos do plano:', e);
+        }
+        
+        // Armazenar ID para possível edição
+        currentPlanId = planId;
+        
+        // Montar seção de documentos
+        const docsSection = `
+            <div class="row mt-3">
+                <div class="col-12">
+                    <div class="card">
+                        <div class="card-header">
+                            <h6 class="mb-0"><i class="bi bi-paperclip"></i> Documentos Anexados</h6>
+                        </div>
+                        <div class="card-body">
+                            ${documents.length === 0 ? '<p class="text-muted">Nenhum documento anexado.</p>' : `
+                                <ul class="list-unstyled mb-0">
+                                    ${documents.map(d => `<li class="mb-1"><a href="${d.url}" target="_blank"><i class=\"bi bi-file-earmark\"></i> ${d.filename}</a></li>`).join('')}
+                                </ul>
+                            `}
+                        </div>
+                    </div>
+                </div>
+            </div>
+        `;
+
+        // Gerar HTML dos detalhes
+        const detailsHtml = `
+            <div class="row">
+                <div class="col-md-6">
+                    <div class="card h-100">
+                        <div class="card-header">
+                            <h6 class="mb-0"><i class="bi bi-info-circle"></i> Informações Básicas</h6>
+                        </div>
+                        <div class="card-body">
+                            <table class="table table-borderless">
+                                <tr>
+                                    <td><strong>Nome:</strong></td>
+                                    <td>${plan.name || 'N/A'}</td>
+                                </tr>
+                                <tr>
+                                    <td><strong>Tipo:</strong></td>
+                                    <td><span class="badge bg-info">${plan.type || 'N/A'}</span></td>
+                                </tr>
+                                <tr>
+                                    <td><strong>Equipamento:</strong></td>
+                                    <td>
+                                        <strong>${plan.equipment_prefix || 'N/A'}</strong><br>
+                                        <small class="text-muted">${plan.equipment_name || 'N/A'}</small>
+                                    </td>
+                                </tr>
+                                <tr>
+                                    <td><strong>Prioridade:</strong></td>
+                                    <td>
+                                        <span class="badge ${getPriorityBadgeClass(plan.priority)}">${plan.priority || 'N/A'}</span>
+                                    </td>
+                                </tr>
+                                <tr>
+                                    <td><strong>Status:</strong></td>
+                                    <td>
+                                        <span class="badge bg-${plan.is_active ? 'success' : 'secondary'}">${plan.is_active ? 'Ativo' : 'Inativo'}</span>
+                                    </td>
+                                </tr>
+                                <tr>
+                                    <td><strong>Intervalo:</strong></td>
+                                    <td>${plan.interval_value || 'N/A'} ${plan.interval_type || ''}</td>
+                                </tr>
+                                <tr>
+                                    <td><strong>Horas Estimadas:</strong></td>
+                                    <td>${plan.estimated_hours ? plan.estimated_hours + 'h' : 'N/A'}</td>
+                                </tr>
+                                <tr>
+                                    <td><strong>Próxima Execução:</strong></td>
+                                    <td>${plan.next_execution ? new Date(plan.next_execution).toLocaleDateString('pt-BR') : 'N/A'}</td>
+                                </tr>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-6">
+                    <div class="card h-100">
+                        <div class="card-header">
+                            <h6 class="mb-0"><i class="bi bi-file-text"></i> Descrição</h6>
+                        </div>
+                        <div class="card-body">
+                            <p>${plan.description || 'Nenhuma descrição fornecida.'}</p>
+                            ${plan.actions && plan.actions.length > 0 ? `
+                                <hr class="my-2">
+                                <h6 class="text-muted mb-1">Atividades selecionadas</h6>
+                                <ul class="mb-2">
+                                    ${plan.actions.map(a => `
+                                        <li>${a.description}${a.action_type ? ` <small class=\"text-muted\">(${a.action_type})</small>` : ''}</li>
+                                    `).join('')}
+                                </ul>
+                            ` : ''}
+                            ${plan.materials && plan.materials.length > 0 ? `
+                                <h6 class="text-muted mb-1">Materiais selecionados</h6>
+                                <ul class="mb-0">
+                                    ${plan.materials.map(m => `
+                                        <li>${m.material_name || 'Material'} — ${m.quantity} ${m.unit || ''}</li>
+                                    `).join('')}
+                                </ul>
+                            ` : ''}
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            ${docsSection}
+            
+            ${plan.actions && plan.actions.length > 0 ? `
+            <div class="row mt-3">
+                <div class="col-12">
+                    <div class="card">
+                        <div class="card-header">
+                            <h6 class="mb-0"><i class="bi bi-list-check"></i> Ações de Manutenção</h6>
+                        </div>
+                        <div class="card-body">
+                            <div class="table-responsive">
+                                <table class="table table-striped">
+                                    <thead>
+                                        <tr>
+                                            <th>Descrição</th>
+                                            <th>Tipo</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        ${plan.actions.map(action => `
+                                            <tr>
+                                                <td>${action.description}</td>
+                                                <td><span class="badge bg-secondary">${action.action_type}</span></td>
+                                            </tr>
+                                        `).join('')}
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            ` : ''}
+            
+            ${plan.materials && plan.materials.length > 0 ? `
+            <div class="row mt-3">
+                <div class="col-12">
+                    <div class="card">
+                        <div class="card-header">
+                            <h6 class="mb-0"><i class="bi bi-box"></i> Materiais Necessários</h6>
+                        </div>
+                        <div class="card-body">
+                            <div class="table-responsive">
+                                <table class="table table-striped">
+                                    <thead>
+                                        <tr>
+                                            <th>Material</th>
+                                            <th>Quantidade</th>
+                                            <th>Unidade</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        ${plan.materials.map(material => `
+                                            <tr>
+                                                <td>${material.material_name || 'N/A'}</td>
+                                                <td>${material.quantity}</td>
+                                                <td>${material.unit}</td>
+                                            </tr>
+                                        `).join('')}
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            ` : ''}
+        `;
+        
+        // Inserir conteúdo no modal
+        document.getElementById('planDetailsContent').innerHTML = detailsHtml;
+        
+        // Atualizar título do modal
+        document.getElementById('planDetailsModalLabel').textContent = `Detalhes: ${plan.name}`;
+        
+        // Abrir modal
+        new bootstrap.Modal(document.getElementById('planDetailsModal')).show();
+        
+    } catch (error) {
+        console.error('Erro ao carregar detalhes do plano:', error);
+        showAlert('Erro ao carregar detalhes do plano de manutenção', 'danger');
+    }
+}
+
+function getPriorityBadgeClass(priority) {
+    switch(priority) {
+        case 'Alta': return 'bg-danger';
+        case 'Média': return 'bg-warning';
+        case 'Baixa': return 'bg-success';
+        default: return 'bg-secondary';
+    }
+}
+
+function editFromDetails() {
+    // Fechar modal de detalhes
+    const detailsModal = bootstrap.Modal.getInstance(document.getElementById('planDetailsModal'));
+    detailsModal.hide();
+    
+    // Abrir modal de edição
+    editPlan(currentPlanId);
+}
+
+ // Carregar equipamentos
+ async function loadEquipments() {
+     try {
+         const response = await fetch('/maintenance/equipment/list');
+         const equipments = await response.json();
+         
+         const select = document.getElementById('planEquipment');
+         if (select) {
+             // Manter primeira opção
+             const firstOption = select.querySelector('option');
+             select.innerHTML = '';
+             select.appendChild(firstOption);
+             
+             equipments.forEach(equipment => {
+                 const option = document.createElement('option');
+                 option.value = equipment.id;
+                 option.textContent = `${equipment.prefix || 'N/A'} - ${equipment.name || 'N/A'}`;
+                 select.appendChild(option);
+             });
+         }
+     } catch (error) {
+         console.error('Erro ao carregar equipamentos:', error);
+     }
+ }
+
+ // Carregar materiais
+ async function loadMaterialOptions(selectElement = null) {
+     try {
+         const response = await fetch('/warehouse/inventory/materials');
+         const materials = await response.json();
+         
+         const selects = selectElement ? [selectElement] : document.querySelectorAll('select[name="materialId[]"]');
+         
+         selects.forEach(select => {
+             select.innerHTML = '<option value="">Selecione o material...</option>';
+             materials.forEach(material => {
+                 const option = document.createElement('option');
+                 option.value = material.id;
+                 option.textContent = `${material.code} - ${material.name}`;
+                 select.appendChild(option);
+             });
+         });
+     } catch (error) {
+         console.error('Erro ao carregar materiais:', error);
+     }
+ }
+
+ function showAlert(message, type) {
+     // Criar elemento de alerta
+     const alertDiv = document.createElement('div');
+     alertDiv.className = `alert alert-${type} alert-dismissible fade show`;
+     alertDiv.innerHTML = `
+         ${message}
+         <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+     `;
+     
+     // Adicionar ao topo da página
+     const container = document.querySelector('.container-fluid');
+     container.insertBefore(alertDiv, container.firstChild);
+     
+     // Remover automaticamente após 5 segundos
+     setTimeout(() => {
+         if (alertDiv.parentNode) {
+             alertDiv.remove();
+         }
+     }, 5000);
+ }
+
+ // Limpar filtros
+ function clearFilters() {
+     const typeFilterEl = document.getElementById('typeFilter');
+     const searchPlanEl = document.getElementById('searchPlan');
+     
+     if (typeFilterEl) typeFilterEl.value = '';
+     if (searchPlanEl) searchPlanEl.value = '';
+     
+     loadPlans();
+ }
+
+ // Inicializar quando a página carregar
+ document.addEventListener('DOMContentLoaded', function() {
+     loadPlans();
+     loadEquipments();
+     loadMaterialOptions();
+     
+     // Configurar evento do formulário
+     document.getElementById('planForm').addEventListener('submit', function(e) {
+         e.preventDefault();
+         savePlan();
+     });
+ });
+ </script>
+{% endblock %}

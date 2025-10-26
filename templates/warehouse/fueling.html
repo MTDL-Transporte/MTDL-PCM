@@ -1,0 +1,650 @@
+{% extends "base.html" %}
+
+{% block title %}Abastecimento{% endblock %}
+
+{% block page_title %}Abastecimento de Combustível{% endblock %}
+
+{% block breadcrumb_title %}Abastecimento{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <!-- Formulário de Abastecimento -->
+    <div class="row">
+        <div class="col-md-8">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="card-title mb-0">
+                        <i class="bi bi-droplet-fill me-2"></i>
+                        Registrar Abastecimento
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <form id="fuelingForm">
+                        <div class="row">
+                            <div class="col-md-6">
+                                <div class="mb-3">
+                                    <label for="equipmentSelect" class="form-label">Equipamento *</label>
+                                    <select class="form-select" id="equipmentSelect" required>
+                                    
+                                </select>
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="mb-3">
+                                    <label for="fuelSelect" class="form-label">Combustível *</label>
+                                    <select class="form-select" id="fuelSelect" required>
+                                    
+                                </select>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="row">
+                            <div class="col-md-6">
+                                <div class="mb-3">
+                                    <label for="fuelingDate" class="form-label">Data do Abastecimento *</label>
+                                    <input type="datetime-local" class="form-control" id="fuelingDate" required>
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="mb-3">
+                                    <label for="quantity" class="form-label">Quantidade (L) *</label>
+                                    <input type="number" class="form-control" id="quantity" step="0.01" min="0.01" required>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="row">
+                            <div class="col-md-6">
+                                <div class="mb-3">
+                                    <label for="currentHorimeter" class="form-label">Horímetro Atual *</label>
+                                    <input type="number" class="form-control" id="currentHorimeter" step="0.1" min="0" required>
+                                    <div class="form-text" id="horimeterInfo"></div>
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="mb-3">
+                                    <label for="unitCost" class="form-label">Custo Unitário (R$) *</label>
+                                    <input type="number" class="form-control bg-light" id="unitCost" step="0.01" min="0.01" readonly required>
+                                    <div class="form-text text-muted">
+                                        <i class="bi bi-info-circle"></i> Preenchido automaticamente com base no preço médio dos últimos 60 dias
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="row">
+                            <div class="col-md-6">
+                                <div class="mb-3">
+                                    <label for="operator" class="form-label">Operador</label>
+                                    <input type="text" class="form-control" id="operator" maxlength="100">
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="mb-3">
+                                    <label for="totalCost" class="form-label">
+                                        <i class="fas fa-calculator text-info me-1"></i>
+                                        Custo Total (R$)
+                                        <small class="text-muted">(Calculado automaticamente)</small>
+                                    </label>
+                                    <input type="number" class="form-control bg-light" id="totalCost" step="0.01" readonly>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="mb-3">
+                            <label for="observations" class="form-label">Observações</label>
+                            <textarea class="form-control" id="observations" rows="3" maxlength="500"></textarea>
+                        </div>
+
+                        <div class="d-flex justify-content-end">
+                            <button type="button" class="btn btn-secondary me-2" onclick="clearForm()">
+                                <i class="bi bi-x-circle me-1"></i>Limpar
+                            </button>
+                            <button type="submit" class="btn btn-primary">
+                                <i class="bi bi-check-circle me-1"></i>Registrar Abastecimento
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+
+        <!-- Resumo e Informações -->
+        <div class="col-md-4">
+            <div class="card">
+                <div class="card-header">
+                    <h6 class="card-title mb-0">
+                        <i class="bi bi-info-circle me-2"></i>
+                        Informações do Equipamento
+                    </h6>
+                </div>
+                <div class="card-body">
+                    <div id="equipmentInfo">
+                        <p class="text-muted">Selecione um equipamento para ver as informações</p>
+                    </div>
+                </div>
+            </div>
+
+            <div class="card mt-3">
+                <div class="card-header">
+                    <h6 class="card-title mb-0">
+                        <i class="bi bi-clock-history me-2"></i>
+                        Últimos Abastecimentos
+                    </h6>
+                </div>
+                <div class="card-body">
+                    <div id="recentFuelings">
+                        <p class="text-muted">Carregando...</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Tabela de Abastecimentos -->
+    <div class="row mt-4">
+        <div class="col-12">
+            <div class="card">
+                <div class="card-header d-flex justify-content-between align-items-center">
+                    <h5 class="card-title mb-0">
+                        <i class="bi bi-list-ul me-2"></i>
+                        Histórico de Abastecimentos
+                    </h5>
+                    <div class="d-flex gap-2">
+                        <input type="date" class="form-control form-control-sm" id="filterStartDate" style="width: auto;">
+                        <input type="date" class="form-control form-control-sm" id="filterEndDate" style="width: auto;">
+                        <button class="btn btn-sm btn-outline-primary" onclick="filterFuelings()">
+                            <i class="bi bi-funnel"></i>
+                        </button>
+                    </div>
+                </div>
+                <div class="card-body">
+                    <div class="table-responsive">
+                        <table class="table table-striped table-hover" id="fuelingsTable">
+                            <thead>
+                                <tr>
+                                    <th>Data</th>
+                                    <th>Equipamento</th>
+                                    <th>Combustível</th>
+                                    <th>Quantidade (L)</th>
+                                    <th>Horímetro</th>
+                                    <th>Custo Unit.</th>
+                                    <th>Custo Total</th>
+                                    <th>Operador</th>
+                                    <th>Ações</th>
+                                </tr>
+                            </thead>
+                            <tbody id="fuelingsTableBody">
+                                <!-- Dados carregados via JavaScript -->
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Modal de Detalhes -->
+<div class="modal fade" id="fuelingDetailsModal" tabindex="-1">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Detalhes do Abastecimento</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body" id="fuelingDetailsContent">
+                <!-- Conteúdo carregado via JavaScript -->
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+// Variáveis globais
+let equipments = [];
+let fuels = [];
+let fuelings = [];
+
+// Inicialização da página
+document.addEventListener('DOMContentLoaded', function() {
+    loadEquipments();
+    loadFuels();
+    loadFuelings();
+    
+    // Configurar data atual
+    const now = new Date();
+    now.setMinutes(now.getMinutes() - now.getTimezoneOffset());
+    document.getElementById('fuelingDate').value = now.toISOString().slice(0, 16);
+    
+    // Event listeners
+    document.getElementById('equipmentSelect').addEventListener('change', showCurrentHorimeter);
+    document.getElementById('fuelSelect').addEventListener('change', fillUnitCostAutomatically);
+    document.getElementById('quantity').addEventListener('input', calculateTotalCost);
+    document.getElementById('unitCost').addEventListener('input', calculateTotalCost);
+    document.getElementById('fuelingForm').addEventListener('submit', saveFueling);
+});
+
+// Carregar equipamentos
+async function loadEquipments() {
+    try {
+        const response = await fetch('/api/warehouse/equipment/for-fueling');
+        const data = await response.json();
+        equipments = data.equipments || [];
+        
+        const select = document.getElementById('equipmentSelect');
+        select.innerHTML = '';
+        
+        equipments.forEach(equipment => {
+            const option = document.createElement('option');
+            option.value = equipment.id;
+            option.textContent = `${equipment.prefix} - ${equipment.name}`;
+            option.dataset.horimeter = equipment.current_horimeter || 0;
+            select.appendChild(option);
+        });
+    } catch (error) {
+        console.error('Erro ao carregar equipamentos:', error);
+        showAlert('Erro ao carregar equipamentos', 'danger');
+    }
+}
+
+// Carregar combustíveis
+async function loadFuels() {
+    try {
+        const response = await fetch('/api/warehouse/fuels');
+        const data = await response.json();
+        fuels = data.fuels || [];
+        
+        const select = document.getElementById('fuelSelect');
+        select.innerHTML = '';
+        
+        fuels.forEach(fuel => {
+            const option = document.createElement('option');
+            option.value = fuel.id;
+            option.dataset.averagePrice = fuel.average_price || 0;
+            option.dataset.unitPrice = fuel.unit_price || 0;
+            // Use descrição se disponível; caso contrário, caia para nome ou código
+            option.textContent = (fuel.description && fuel.description.trim()) || fuel.name || fuel.code;
+            select.appendChild(option);
+        });
+    } catch (error) {
+        console.error('Erro ao carregar combustíveis:', error);
+        showAlert('Erro ao carregar combustíveis', 'danger');
+    }
+}
+
+// Mostrar horímetro atual
+function showCurrentHorimeter() {
+    const select = document.getElementById('equipmentSelect');
+    const selectedOption = select.options[select.selectedIndex];
+    const horimeterInput = document.getElementById('currentHorimeter');
+    const horimeterInfo = document.getElementById('horimeterInfo');
+    const equipmentInfo = document.getElementById('equipmentInfo');
+    
+    if (selectedOption.value) {
+        const currentHorimeter = parseFloat(selectedOption.dataset.horimeter) || 0;
+        horimeterInput.min = currentHorimeter;
+        horimeterInput.value = currentHorimeter;
+        horimeterInfo.textContent = `Horímetro atual: ${currentHorimeter.toFixed(1)}h`;
+        
+        // Mostrar informações do equipamento
+        const equipment = equipments.find(e => e.id == selectedOption.value);
+        if (equipment) {
+            equipmentInfo.innerHTML = `
+                <div class="mb-2">
+                    <strong>Equipamento:</strong><br>
+                    ${equipment.prefix} - ${equipment.name}
+                </div>
+                <div class="mb-2">
+                    <strong>Horímetro Atual:</strong><br>
+                    ${(equipment.current_horimeter || 0).toFixed(1)} horas
+                </div>
+            `;
+        }
+    } else {
+        horimeterInput.min = 0;
+        horimeterInput.value = '';
+        horimeterInfo.textContent = '';
+        equipmentInfo.innerHTML = '<p class="text-muted">Selecione um equipamento para ver as informações</p>';
+    }
+}
+
+// Calcular custo total
+function calculateTotalCost() {
+    const quantity = parseFloat(document.getElementById('quantity').value) || 0;
+    const unitCost = parseFloat(document.getElementById('unitCost').value) || 0;
+    const totalCost = quantity * unitCost;
+    
+    document.getElementById('totalCost').value = totalCost.toFixed(2);
+}
+
+// Preencher automaticamente o custo unitário baseado no preço médio do combustível
+function fillUnitCostAutomatically() {
+    const select = document.getElementById('fuelSelect');
+    const selectedOption = select.options[select.selectedIndex];
+    const unitCostInput = document.getElementById('unitCost');
+    
+    if (!selectedOption || !selectedOption.value) {
+        unitCostInput.value = '';
+        unitCostInput.readOnly = true;
+        calculateTotalCost();
+        return;
+    }
+
+    const averagePrice = parseFloat(selectedOption.dataset.averagePrice || '0');
+    const unitPrice = parseFloat(selectedOption.dataset.unitPrice || '0');
+
+    if (averagePrice > 0) {
+        unitCostInput.value = averagePrice.toFixed(2);
+        unitCostInput.readOnly = true;
+    } else if (unitPrice > 0) {
+        unitCostInput.value = unitPrice.toFixed(2);
+        unitCostInput.readOnly = true;
+    } else {
+        // Sem referência de preço: permitir edição manual
+        unitCostInput.value = '';
+        unitCostInput.readOnly = false;
+    }
+
+    // Recalcular o custo total automaticamente
+    calculateTotalCost();
+}
+
+// Carregar abastecimentos
+async function loadFuelings() {
+    try {
+        const response = await fetch('/api/warehouse/fueling/list');
+        const data = await response.json();
+        fuelings = data.fuelings || [];
+        renderFuelingsTable();
+        loadRecentFuelings();
+    } catch (error) {
+        console.error('Erro ao carregar abastecimentos:', error);
+        showAlert('Erro ao carregar abastecimentos', 'danger');
+    }
+}
+
+// Renderizar tabela de abastecimentos
+function renderFuelingsTable() {
+    const tbody = document.getElementById('fuelingsTableBody');
+    tbody.innerHTML = '';
+    
+    fuelings.forEach(fueling => {
+        const row = document.createElement('tr');
+        row.innerHTML = `
+            <td>${new Date(fueling.date).toLocaleString('pt-BR')}</td>
+            <td>${fueling.equipment_prefix} - ${fueling.equipment_name}</td>
+            <td>${fueling.fuel_type}</td>
+            <td>${(fueling.quantity || 0).toFixed(2)}</td>
+            <td>${(fueling.horimeter || 0).toFixed(1)}h</td>
+            <td>R$ ${(fueling.unit_cost || 0).toFixed(2)}</td>
+            <td>R$ ${(fueling.total_cost || 0).toFixed(2)}</td>
+            <td>${fueling.operator || '-'}</td>
+            <td>
+                <button class="btn btn-sm btn-outline-primary" onclick="showFuelingDetails(${fueling.id})">
+                    <i class="bi bi-eye"></i>
+                </button>
+            </td>
+        `;
+        tbody.appendChild(row);
+    });
+}
+
+// Carregar abastecimentos recentes
+function loadRecentFuelings() {
+    const recentDiv = document.getElementById('recentFuelings');
+    const recent = fuelings.slice(0, 5);
+    
+    if (recent.length === 0) {
+        recentDiv.innerHTML = '<p class="text-muted">Nenhum abastecimento registrado</p>';
+        return;
+    }
+    
+    recentDiv.innerHTML = recent.map(fueling => `
+        <div class="border-bottom pb-2 mb-2">
+            <small class="text-muted">${new Date(fueling.date).toLocaleDateString('pt-BR')}</small><br>
+            <strong>${fueling.equipment_prefix}</strong><br>
+            ${fueling.fuel_type} - ${(fueling.quantity || 0).toFixed(2)}L<br>
+            R$ ${(fueling.total_cost || 0).toFixed(2)}
+        </div>
+    `).join('');
+}
+
+// Salvar abastecimento
+async function saveFueling(event) {
+    event.preventDefault();
+    
+    const unitCostRaw = parseFloat(document.getElementById('unitCost').value);
+    const payload = {
+        equipment_id: parseInt(document.getElementById('equipmentSelect').value),
+        material_id: parseInt(document.getElementById('fuelSelect').value),
+        date: document.getElementById('fuelingDate').value,
+        quantity: parseFloat(document.getElementById('quantity').value),
+        horimeter: parseFloat(document.getElementById('currentHorimeter').value),
+        unit_cost: isNaN(unitCostRaw) ? null : unitCostRaw,
+        operator: document.getElementById('operator').value || null,
+        notes: document.getElementById('observations').value || null
+    };
+    
+    try {
+        const response = await fetch('/api/warehouse/fueling', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify(payload)
+        });
+        
+        if (response.ok) {
+            showAlert('Abastecimento registrado com sucesso!', 'success');
+            clearForm();
+            loadFuelings();
+            loadEquipments(); // Recarregar para atualizar horímetros
+        } else {
+            const error = await response.json();
+            showAlert(error.detail || 'Erro ao registrar abastecimento', 'danger');
+        }
+    } catch (error) {
+        console.error('Erro ao salvar abastecimento:', error);
+        showAlert('Erro ao registrar abastecimento', 'danger');
+    }
+}
+
+// Limpar formulário
+function clearForm() {
+    document.getElementById('fuelingForm').reset();
+    document.getElementById('totalCost').value = '';
+    document.getElementById('horimeterInfo').textContent = '';
+    document.getElementById('equipmentInfo').innerHTML = '<p class="text-muted">Selecione um equipamento para ver as informações</p>';
+    
+    // Configurar data atual
+    const now = new Date();
+    now.setMinutes(now.getMinutes() - now.getTimezoneOffset());
+    document.getElementById('fuelingDate').value = now.toISOString().slice(0, 16);
+}
+
+// Mostrar detalhes do abastecimento
+async function showFuelingDetails(fuelingId) {
+    try {
+        const response = await fetch(`/api/warehouse/fueling/${fuelingId}`);
+        const fueling = await response.json();
+        
+        const content = document.getElementById('fuelingDetailsContent');
+        content.innerHTML = `
+            <div class="row">
+                <div class="col-md-6">
+                    <h6>Informações Gerais</h6>
+                    <p><strong>Data:</strong> ${new Date(fueling.date).toLocaleString('pt-BR')}</p>
+                    <p><strong>Equipamento:</strong> ${fueling.equipment_prefix} - ${fueling.equipment_name}</p>
+                    <p><strong>Combustível:</strong> ${fueling.fuel_type}</p>
+                    <p><strong>Operador:</strong> ${fueling.operator || 'Não informado'}</p>
+                </div>
+                <div class="col-md-6">
+                    <h6>Valores</h6>
+                    <p><strong>Quantidade:</strong> ${fueling.quantity.toFixed(2)} L</p>
+                    <p><strong>Horímetro:</strong> ${fueling.horimeter.toFixed(1)} h</p>
+                    <p><strong>Custo Unitário:</strong> R$ ${(fueling.unit_cost || 0).toFixed(2)}</p>
+                    <p><strong>Custo Total:</strong> R$ ${(fueling.total_cost || 0).toFixed(2)}</p>
+                </div>
+            </div>
+            ${fueling.notes ? `
+                <div class="row mt-3">
+                    <div class="col-12">
+                        <h6>Observações</h6>
+                        <p>${fueling.notes}</p>
+                    </div>
+                </div>
+            ` : ''}`;
+        
+        new bootstrap.Modal(document.getElementById('fuelingDetailsModal')).show();
+    } catch (error) {
+        console.error('Erro ao carregar detalhes:', error);
+        showAlert('Erro ao carregar detalhes do abastecimento', 'danger');
+    }
+}
+
+// Filtrar abastecimentos
+function filterFuelings() {
+    const startDate = document.getElementById('filterStartDate').value;
+    const endDate = document.getElementById('filterEndDate').value;
+    
+    let filteredFuelings = [...fuelings];
+    
+    if (startDate) {
+        filteredFuelings = filteredFuelings.filter(f => 
+            new Date(f.date) >= new Date(startDate)
+        );
+    }
+    
+    if (endDate) {
+        filteredFuelings = filteredFuelings.filter(f => 
+            new Date(f.date) <= new Date(endDate + 'T23:59:59')
+        );
+    }
+    
+    const tbody = document.getElementById('fuelingsTableBody');
+    tbody.innerHTML = '';
+    
+    filteredFuelings.forEach(fueling => {
+        const row = document.createElement('tr');
+        row.innerHTML = `
+            <td>${new Date(fueling.date).toLocaleString('pt-BR')}</td>
+            <td>${fueling.equipment_prefix} - ${fueling.equipment_name}</td>
+            <td>${fueling.fuel_type}</td>
+            <td>${fueling.quantity.toFixed(2)}</td>
+            <td>${fueling.horimeter.toFixed(1)}h</td>
+            <td>R$ ${(fueling.unit_cost || 0).toFixed(2)}</td>
+            <td>R$ ${(fueling.total_cost || 0).toFixed(2)}</td>
+            <td>${fueling.operator || '-'}</td>
+            <td>
+                <button class="btn btn-sm btn-outline-primary" onclick="showFuelingDetails(${fueling.id})">
+                    <i class="bi bi-eye"></i>
+                </button>
+            </td>
+        `;
+        tbody.appendChild(row);
+    });
+}
+
+// Função para mostrar alertas
+function showAlert(message, type) {
+    const alertDiv = document.createElement('div');
+    alertDiv.className = `alert alert-${type} alert-dismissible fade show position-fixed`;
+    alertDiv.style.cssText = 'top: 20px; right: 20px; z-index: 9999; min-width: 300px;';
+    alertDiv.innerHTML = `
+        ${message}
+        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+    `;
+    
+    document.body.appendChild(alertDiv);
+    
+    // Auto-remover após 5 segundos
+    setTimeout(() => {
+        if (alertDiv.parentNode) {
+            alertDiv.remove();
+        }
+    }, 5000);
+}
+</script>
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/choices.js/public/assets/styles/choices.min.css">
+<style>
+/* Garantir contraste adequado para dropdown customizado */
+#fuelingForm .choices,
+#fuelingForm .choices__list,
+#fuelingForm .choices__item { color: #000 !important; }
+#fuelingForm .choices__list--dropdown { background-color: #fff !important; }
+#fuelingForm .choices__list--dropdown .choices__item { background-color: #fff !important; color: #000 !important; }
+
+/* Ocultar selects nativos quando Choices estiver ativo */
+#fuelingForm select.form-select.choices-activated { display: none !important; }
+
+/* Destaque ao passar o mouse nas opções */
+#fuelingForm .choices__list--dropdown .choices__item--selectable.is-highlighted { background-color: #f0f4ff !important; color: #000 !important; }
+</style>
+{% endblock %}
+
+{% block extra_js %}
+<script src="https://cdn.jsdelivr.net/npm/choices.js/public/assets/scripts/choices.min.js"></script>
+<script>
+(function() {
+  // Fallback para garantir cores nos options nativos (caso Choices não carregue)
+  const applyOptionColors = () => {
+    const fuelSelect = document.getElementById('fuelSelect');
+    if (!fuelSelect) return;
+    [...fuelSelect.options].forEach(opt => {
+      opt.style.color = '#000';
+      opt.style.backgroundColor = '#fff';
+    });
+  };
+
+  // Inicializar Choices para substituir selects nativos e controlar o estilo do dropdown
+  const initChoices = () => {
+    const fuelEl = document.getElementById('fuelSelect');
+    const equipEl = document.getElementById('equipmentSelect');
+    if (!fuelEl || !equipEl || typeof Choices === 'undefined') return;
+
+    // Destruir instâncias anteriores caso existam
+    if (fuelEl._choicesInstance) fuelEl._choicesInstance.destroy();
+    if (equipEl._choicesInstance) equipEl._choicesInstance.destroy();
+
+    fuelEl._choicesInstance = new Choices(fuelEl, {
+      shouldSort: false,
+      searchEnabled: true,
+      itemSelectText: '',
+      placeholder: true,
+      placeholderValue: 'Selecione um combustível...'
+    });
+    equipEl._choicesInstance = new Choices(equipEl, {
+      shouldSort: false,
+      searchEnabled: true,
+      itemSelectText: '',
+      placeholder: true,
+      placeholderValue: 'Selecione um equipamento...'
+    });
+
+    // Ocultar selects nativos explicitamente (caso CSS do CDN não carregue)
+    fuelEl.classList.add('choices-activated');
+    equipEl.classList.add('choices-activated');
+  };
+
+  document.addEventListener('DOMContentLoaded', function() {
+    applyOptionColors();
+    initChoices();
+  });
+
+  // Re-inicializar após carregar dados dinamicamente
+  const originalLoadFuels = window.loadFuels;
+  window.loadFuels = async function() {
+    await originalLoadFuels.apply(this, arguments);
+    initChoices();
+  };
+
+  const originalLoadEquipments = window.loadEquipments;
+  window.loadEquipments = async function() {
+    await originalLoadEquipments.apply(this, arguments);
+    initChoices();
+  };
+})();
+</script>
+{% endblock %}

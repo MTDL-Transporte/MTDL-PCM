@@ -1,0 +1,1759 @@
+{% extends "base.html" %}
+
+{% block title %}Materiais - MTDL-PCM{% endblock %}
+
+{% block page_title %}Gestão de Materiais{% endblock %}
+{% block breadcrumb_title %}Gestão de Materiais{% endblock %}
+
+{% block content %}
+<!-- Filtros e Ações -->
+<div class="container-fluid">
+    <div class="row mb-4">
+        <div class="col-md-6">
+            <div class="d-flex gap-2">
+                <select class="form-select flex-grow-1" id="filter-category">
+                    <option value="">Todas as categorias</option>
+                    <option value="Peças">Peças</option>
+                    <option value="Ferramentas">Ferramentas</option>
+                    <option value="Consumíveis">Consumíveis</option>
+                    <option value="Lubrificantes">Lubrificantes</option>
+                    <option value="EPI">EPI</option>
+                </select>
+                <input type="text" class="form-control flex-grow-1" id="search-input" 
+                       placeholder="Buscar material...">
+            </div>
+        </div>
+        <div class="col-md-6">
+            <div class="d-flex gap-2 justify-content-end">
+                <button type="button" class="btn btn-success" onclick="openNewMaterialModal()" title="Criar novo material">
+                    <i class="bi bi-plus-circle"></i> Novo Material
+                </button>
+                <button type="button" class="btn btn-warning" onclick="openStockMovementModal()" title="Registrar movimentação de estoque">
+                    <i class="bi bi-arrow-left-right"></i> Movimentação
+                </button>
+                <button type="button" class="btn btn-info" onclick="openInventoryPage()" title="Realizar inventário físico">
+                    <i class="bi bi-clipboard-check"></i> Inventário
+                </button>
+            </div>
+        </div>
+    </div>
+
+<!-- Resumo do Estoque -->
+<div class="row mb-4">
+    <div class="col-md-3">
+        <div class="card metric-card">
+            <div class="card-body">
+                <div class="row no-gutters align-items-center">
+                    <div class="col mr-2">
+                        <div class="text-xs font-weight-bold text-uppercase mb-1">Total de Materiais</div>
+                        <div class="metric-value" id="total-materials">0</div>
+                    </div>
+                    <div class="col-auto">
+                        <i class="bi bi-box fa-2x"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card metric-card clickable-card" id="low-stock-card" onclick="showLowStockModal()" style="cursor: pointer;">
+            <div class="card-body">
+                <div class="row no-gutters align-items-center">
+                    <div class="col mr-2">
+                        <div class="text-xs font-weight-bold text-uppercase mb-1">Estoque Baixo</div>
+                        <div class="metric-value text-warning" id="low-stock">0</div>
+                        <div class="alert-badge" id="low-stock-alert" style="display: none;">
+                            <small class="text-warning"><i class="bi bi-bell-fill"></i> Atenção!</small>
+                        </div>
+                    </div>
+                    <div class="col-auto">
+                        <i class="bi bi-exclamation-triangle fa-2x text-warning"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card metric-card clickable-card" id="zero-stock-card" onclick="showZeroStockModal()" style="cursor: pointer;">
+            <div class="card-body">
+                <div class="row no-gutters align-items-center">
+                    <div class="col mr-2">
+                        <div class="text-xs font-weight-bold text-uppercase mb-1">Sem Estoque</div>
+                        <div class="metric-value text-danger" id="zero-stock">0</div>
+                        <div class="alert-badge" id="zero-stock-alert" style="display: none;">
+                            <small class="text-danger"><i class="bi bi-bell-fill"></i> Crítico!</small>
+                        </div>
+                    </div>
+                    <div class="col-auto">
+                        <i class="bi bi-x-circle fa-2x text-danger"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card metric-card">
+            <div class="card-body">
+                <div class="row no-gutters align-items-center">
+                    <div class="col mr-2">
+                        <div class="text-xs font-weight-bold text-uppercase mb-1">Valor Total</div>
+                        <div class="metric-value text-success" id="total-value">R$ 0,00</div>
+                    </div>
+                    <div class="col-auto">
+                        <i class="bi bi-currency-dollar fa-2x text-success"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Notificações de Estoque -->
+<div class="row mb-4" id="stock-notifications-section" class="hidden">
+    <div class="col-12">
+        <div class="card shadow-sm border-warning">
+            <div class="card-header bg-warning text-dark">
+                <h6 class="mb-0">
+                    <i class="bi bi-bell-fill"></i> 
+                    Notificações de Estoque - Manutenção Preventiva
+                    <span class="badge bg-dark ms-2" id="notifications-count">0</span>
+                </h6>
+            </div>
+            <div class="card-body p-0">
+                <div class="table-responsive">
+                    <table class="table table-hover mb-0" id="notifications-table">
+                        <thead class="table-light">
+                            <tr>
+                                <th class="border-0 fw-semibold text-muted">OS</th>
+                                <th class="border-0 fw-semibold text-muted">EQUIPAMENTO</th>
+                                <th class="border-0 fw-semibold text-muted">PLANO</th>
+                                <th class="border-0 fw-semibold text-muted">MATERIAIS</th>
+                                <th class="border-0 fw-semibold text-muted">PRIORIDADE</th>
+                                <th class="border-0 fw-semibold text-muted">DATA</th>
+                                <th class="border-0 fw-semibold text-muted">STATUS</th>
+                                <th class="border-0 fw-semibold text-muted">AÇÕES</th>
+                            </tr>
+                        </thead>
+                        <tbody id="notifications-tbody">
+                            <tr>
+                                <td colspan="8" class="text-center py-3 text-muted">
+                                    <i class="bi bi-bell fs-4 d-block mb-2"></i>
+                                    Nenhuma notificação pendente
+                                </td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+    <!-- Lista de Materiais -->
+    <div class="card shadow-sm">
+        <div class="card-body p-0">
+            <div class="table-responsive">
+                <table class="table table-light border-0 mb-0" id="materials-table">
+                    <thead class="table-light">
+                        <tr>
+                            <th class="border-0 fw-semibold text-muted">CÓDIGO DO MATERIAL</th>
+                            <th class="border-0 fw-semibold text-muted">DESCRIÇÃO</th>
+                            <th class="border-0 fw-semibold text-muted">UNIDADE DE MEDIDA</th>
+                            <th class="border-0 fw-semibold text-muted">VALOR UNITÁRIO</th>
+                            <th class="border-0 fw-semibold text-muted">ESTOQUE MÁXIMO</th>
+                            <th class="border-0 fw-semibold text-muted">ESTOQUE MÍNIMO</th>
+                            <th class="border-0 fw-semibold text-muted">LOCAÇÃO</th>
+                            <th class="border-0 fw-semibold text-muted">SALDO ATUAL</th>
+                            <th class="border-0 fw-semibold text-muted">STATUS</th>
+                            <th class="border-0 fw-semibold text-muted">AÇÕES</th>
+                        </tr>
+                    </thead>
+                    <tbody id="materials-tbody">
+                        <tr>
+                            <td colspan="10" class="text-center py-5 text-muted">
+                                <i class="bi bi-box fs-1 d-block mb-2"></i>
+                                Nenhum material encontrado
+                            </td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+        
+        <!-- Paginação -->
+        <div class="d-flex justify-content-between align-items-center p-3 border-top">
+            <small class="text-muted">Mostrando 0 de 0 materiais</small>
+            <nav>
+                <ul class="pagination pagination-sm mb-0" id="pagination">
+                    <li class="page-item disabled">
+                        <a class="page-link" href="#" tabindex="-1">Anterior</a>
+                    </li>
+                    <li class="page-item active">
+                        <a class="page-link" href="#">1</a>
+                    </li>
+                    <li class="page-item disabled">
+                        <a class="page-link" href="#">Próximo</a>
+                    </li>
+                </ul>
+            </nav>
+        </div>
+    </div>
+</div>
+
+<!-- Modal Novo/Editar Material -->
+<div class="modal fade" id="materialModal" tabindex="-1">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="materialModalTitle">Novo Material</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Fechar modal"></button>
+            </div>
+            <div class="modal-body">
+                <form id="materialForm">
+                    <input type="hidden" id="material-id">
+                    
+                    <div class="row">
+                        <div class="col-md-4">
+                            <label for="material-code" class="form-label">Código *</label>
+                            <input type="text" class="form-control" id="material-code" readonly 
+                                   placeholder="Gerado automaticamente">
+                        </div>
+                        <div class="col-md-4">
+                            <label for="material-reference" class="form-label">Referência</label>
+                            <input type="text" class="form-control" id="material-reference" 
+                                   placeholder="Referência do fabricante">
+                        </div>
+                        <div class="col-md-4">
+                            <label for="material-name" class="form-label">Nome *</label>
+                            <input type="text" class="form-control" id="material-name" required>
+                        </div>
+                    </div>
+                    
+                    <div class="row mt-3">
+                        <div class="col-md-6">
+                            <label for="material-category" class="form-label">Categoria *</label>
+                            <select class="form-select" id="material-category" required>
+                                <option value="">Selecione uma categoria</option>
+                                <option value="Peças">Peças</option>
+                                <option value="Ferramentas">Ferramentas</option>
+                                <option value="Consumíveis">Consumíveis</option>
+                                <option value="Lubrificantes">Lubrificantes</option>
+                                <option value="Combustível">Combustível</option>
+                                <option value="EPI">EPI</option>
+                                <option value="Outros">Outros</option>
+                            </select>
+                        </div>
+                        <div class="col-md-6">
+                            <label for="material-unit" class="form-label">Unidade *</label>
+                            <select class="form-select" id="material-unit" required>
+                                <option value="">Selecione uma unidade</option>
+                                <option value="UN">Unidade</option>
+                                <option value="PC">Peça</option>
+                                <option value="KG">Quilograma</option>
+                                <option value="L">Litro</option>
+                                <option value="M">Metro</option>
+                                <option value="M²">Metro Quadrado</option>
+                                <option value="M³">Metro Cúbico</option>
+                                <option value="CX">Caixa</option>
+                                <option value="PCT">Pacote</option>
+                            </select>
+                        </div>
+                    </div>
+                    
+                    <div class="mt-3">
+                        <label for="material-description" class="form-label">Descrição</label>
+                        <textarea class="form-control" id="material-description" rows="3" 
+                                  placeholder="Descrição detalhada do material..."></textarea>
+                    </div>
+                    
+                    <div class="row mt-3">
+                        <div class="col-md-3">
+                            <label for="material-unit-price" class="form-label">Valor Unitário (R$)</label>
+                            <input type="number" class="form-control" id="material-unit-price" 
+                                   min="0" step="0.01" placeholder="0,00" onchange="calculateTotalValue()">
+                        </div>
+                        <div class="col-md-3">
+                            <label for="average-consumption" class="form-label">Consumo Médio Mensal</label>
+                            <input type="number" class="form-control" id="average-consumption" 
+                                   min="0" step="0.01" readonly placeholder="Calculado automaticamente">
+                        </div>
+                        <div class="col-md-3">
+                            <label for="minimum-stock" class="form-label">Estoque Mínimo *</label>
+                            <input type="number" class="form-control" id="minimum-stock" 
+                                   min="0" step="0.01" required>
+                        </div>
+                        <div class="col-md-3">
+                            <label for="maximum-stock" class="form-label">Estoque Máximo *</label>
+                            <input type="number" class="form-control" id="maximum-stock" 
+                                   min="0" step="0.01" required>
+                        </div>
+                    </div>
+                    
+
+                    
+                    <div class="row mt-3">
+                        <div class="col-md-6">
+                            <label for="material-location" class="form-label">Localização</label>
+                            <input type="text" class="form-control" id="material-location" 
+                                   placeholder="Ex: Prateleira A1, Setor B, etc.">
+                        </div>
+                        <div class="col-md-6">
+                            <label for="material-status" class="form-label">Status</label>
+                            <select class="form-select" id="material-status">
+                                <option value="Ativo">Ativo</option>
+                                <option value="Inativo">Inativo</option>
+                                <option value="Descontinuado">Descontinuado</option>
+                            </select>
+                        </div>
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal" title="Cancelar operação">Cancelar</button>
+                <button type="button" class="btn btn-primary" onclick="saveMaterial()" title="Salvar material">Salvar</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Modal Editar Estoque -->
+<div class="modal fade" id="stockMovementModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Editar Estoque</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Fechar modal"></button>
+            </div>
+            <div class="modal-body">
+                <form id="stockMovementForm">
+                    <!-- Campo de código do material -->
+                    <div class="mb-3">
+                        <label for="stock-material-code" class="form-label">Código do Material *</label>
+                        <input type="text" class="form-control" id="stock-material-code" 
+                               placeholder="Digite o código do material" required
+                               onchange="searchMaterialByCode()">
+                    </div>
+                    
+                    <!-- Descrição do material (preenchida automaticamente) -->
+                    <div class="mb-3">
+                        <label for="stock-material-description" class="form-label">Descrição do Material</label>
+                        <input type="text" class="form-control" id="stock-material-description" 
+                               readonly placeholder="Descrição será preenchida automaticamente">
+                        <input type="hidden" id="selected-material-id">
+                        <input type="hidden" id="source-notification-id">
+                        <input type="hidden" id="source-notification-item-id">
+                    </div>
+                    
+                    <!-- Tipo de movimentação -->
+                    <div class="mb-3">
+                        <label for="movement-type" class="form-label">Tipo de Movimentação *</label>
+                        <select class="form-select" id="movement-type" required onchange="toggleMovementFields()">
+                            <option value="">Selecione o tipo</option>
+                            <option value="Entrada">Entrada</option>
+                            <option value="Saída">Saída</option>
+                        </select>
+                    </div>
+
+                    <!-- Data da movimentação -->
+                    <div class="mb-3">
+                        <label for="movementDate" class="form-label">Data da Movimentação</label>
+                        <input type="date" class="form-control" id="movementDate">
+                    </div>
+                    
+                    <!-- Quantidade -->
+                    <div class="mb-3">
+                        <label for="movement-quantity" class="form-label">Quantidade *</label>
+                        <input type="number" class="form-control" id="movement-quantity" 
+                               min="0.01" step="0.01" required>
+                    </div>
+                    
+                    <!-- Campos específicos para ENTRADA -->
+                    <div id="entry-fields" class="hidden">
+                        <div class="mb-3">
+                            <label for="entry-reason" class="form-label">Motivo da Entrada *</label>
+                            <select class="form-select" id="entry-reason">
+                                <option value="">Selecione o motivo</option>
+                                <option value="Compra">Compra</option>
+                                <option value="Devolução">Devolução</option>
+                                <option value="Transferência">Transferência</option>
+                                <option value="Ajuste de Inventário">Ajuste de Inventário</option>
+                                <option value="Doação">Doação</option>
+                            </select>
+                        </div>
+                        
+                        <div class="row">
+                            <div class="col-md-6">
+                                <div class="mb-3">
+                                    <label for="invoice-number" class="form-label">Número da Nota Fiscal *</label>
+                                    <input type="text" class="form-control" id="invoice-number" 
+                                           placeholder="Ex: NF 123456">
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="mb-3">
+                                    <label for="entry-unit-price" class="form-label">Valor Unitário *</label>
+                                    <div class="input-group">
+                                        <span class="input-group-text">R$</span>
+                                        <input type="number" class="form-control" id="entry-unit-price" 
+                                               min="0" step="0.01" placeholder="0,00">
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- Campos específicos para SAÍDA -->
+                    <div id="exit-fields" class="hidden">
+                        <div class="mb-3">
+                            <label for="exit-reason" class="form-label">Motivo da Saída *</label>
+                            <select class="form-select" id="exit-reason">
+                                <option value="">Selecione o motivo</option>
+                                <option value="Uso em Manutenção">Uso em Manutenção</option>
+                                <option value="Transferência">Transferência</option>
+                                <option value="Perda">Perda</option>
+                                <option value="Venda">Venda</option>
+                                <option value="Descarte">Descarte</option>
+                                <option value="Ajuste de Inventário">Ajuste de Inventário</option>
+                            </select>
+                        </div>
+                        
+                        <div class="mb-3">
+                            <label for="requisition-number" class="form-label">Número da Requisição *</label>
+                            <input type="text" class="form-control" id="requisition-number" 
+                                   placeholder="Ex: REQ 123456">
+                        </div>
+
+                        <div class="mb-3">
+                            <label for="cost-center" class="form-label">Centro de Custo *</label>
+                            <select class="form-select" id="cost-center" required>
+                                <option value="">Selecione o centro de custo...</option>
+                                <option value="55000001001">Produção</option>
+                                <option value="55000002001">Qualidade</option>
+                                <option value="55000003001">Segurança (SESMT)</option>
+                                <option value="55000004001">Manutenção</option>
+                                <option value="55000005001">Logística</option>
+                                <option value="55000006001">Recursos Humanos (RH)</option>
+                                <option value="55000007001">Financeiro</option>
+                                <option value="55000008001">Comercial/Vendas</option>
+                                <option value="55000009001">Tecnologia da Informação (TI)</option>
+                                <option value="55000010001">Engenharia</option>
+                                <option value="55000011001">Almoxarifado</option>
+                                <option value="55000012001">Compras</option>
+                                <option value="55000013001">Jurídico</option>
+                                <option value="55000014001">Marketing</option>
+                                <option value="55000015001">Pesquisa e Desenvolvimento</option>
+                                <option value="55000016001">Atendimento ao Cliente</option>
+                                <option value="55000017001">Planejamento Estratégico</option>
+                                <option value="55000018001">Expedição</option>
+                                <option value="55000019001">Facilities/Serviços Gerais</option>
+                                <option value="55000020001">Sustentabilidade/Meio Ambiente</option>
+                            </select>
+                        </div>
+
+                        <div class="mb-3">
+                            <label for="equipment-select" class="form-label">Equipamento *</label>
+                            <select class="form-select" id="equipment-select">
+                                <option value="">Selecione o equipamento</option>
+                            </select>
+                        </div>
+
+                        <!-- Campo Aplicação removido por não servir -->
+                    </div>
+                    
+                    <!-- Observações (opcional) -->
+                    <div class="mb-3">
+                        <label for="movement-notes" class="form-label">Observações</label>
+                        <textarea class="form-control" id="movement-notes" rows="3" 
+                                  placeholder="Observações adicionais sobre a movimentação..."></textarea>
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal" title="Cancelar movimentação">Cancelar</button>
+                <button type="button" class="btn btn-primary" onclick="saveStockMovement()" title="Confirmar movimentação de estoque">Confirmar</button>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+let currentPage = 1;
+let totalPages = 1;
+let equipmentList = [];
+
+// Carregar lista de materiais
+async function loadMaterials(page = 1) {
+    try {
+        const response = await axios.get('/warehouse/inventory/materials');
+        const data = response.data;
+        
+        displayMaterials(data);
+        updatePagination(1, 1, data.length);
+        
+        currentPage = 1;
+        totalPages = 1;
+    } catch (error) {
+        console.error('Erro ao carregar materiais:', error);
+        showAlert('Erro ao carregar materiais', 'danger');
+    }
+}
+
+// Carregar métricas do estoque
+async function loadStockMetrics() {
+    try {
+        const response = await axios.get('/warehouse/api/stock-metrics');
+        const data = response.data;
+        
+        document.getElementById('total-materials').textContent = data.total_materials;
+        document.getElementById('low-stock').textContent = data.low_stock;
+        document.getElementById('zero-stock').textContent = data.zero_stock;
+        document.getElementById('total-value').textContent = 
+            new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(data.total_value);
+        
+        // Exibir alertas visuais
+        const lowStockAlert = document.getElementById('low-stock-alert');
+        const zeroStockAlert = document.getElementById('zero-stock-alert');
+        const lowStockCard = document.getElementById('low-stock-card');
+        const zeroStockCard = document.getElementById('zero-stock-card');
+        
+        // Alerta para estoque baixo
+        if (data.low_stock > 0) {
+            lowStockAlert.style.display = 'block';
+            lowStockCard.classList.add('border-warning');
+            lowStockCard.style.boxShadow = '0 0 10px rgba(255, 193, 7, 0.5)';
+        } else {
+            lowStockAlert.style.display = 'none';
+            lowStockCard.classList.remove('border-warning');
+            lowStockCard.style.boxShadow = '';
+        }
+        
+        // Alerta para sem estoque
+        if (data.zero_stock > 0) {
+            zeroStockAlert.style.display = 'block';
+            zeroStockCard.classList.add('border-danger');
+            zeroStockCard.style.boxShadow = '0 0 10px rgba(220, 53, 69, 0.5)';
+        } else {
+            zeroStockAlert.style.display = 'none';
+            zeroStockCard.classList.remove('border-danger');
+            zeroStockCard.style.boxShadow = '';
+        }
+        
+    } catch (error) {
+        console.error('Erro ao carregar métricas:', error);
+    }
+}
+
+// Exibir materiais na tabela
+function displayMaterials(materials) {
+    const tbody = document.getElementById('materials-tbody');
+    
+    if (!materials || materials.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="10" class="text-center">Nenhum material encontrado.</td></tr>';
+        return;
+    }
+    
+    let html = '';
+    materials.forEach(material => {
+        const stockStatus = getStockStatus(material.current_stock, material.minimum_stock);
+        const statusBadge = getStatusBadge(material.is_active);
+        
+        html += `
+            <tr>
+                <td><strong>${material.code}</strong></td>
+                <td>
+                    <div><strong>${material.name}</strong></div>
+                    <div class="text-muted small">${material.description ? material.description.substring(0, 50) + '...' : '-'}</div>
+                </td>
+                <td>${material.unit}</td>
+                <td>R$ ${material.unit_price ? parseFloat(material.unit_price).toFixed(2) : '0,00'}</td>
+                <td>${material.maximum_stock}</td>
+                <td>${material.minimum_stock}</td>
+                <td>${material.location || '-'}</td>
+                <td>
+                    <span class="${stockStatus.class}">${material.current_stock}</span>
+                    ${stockStatus.icon}
+                </td>
+                <td>${statusBadge}</td>
+                <td>
+                    <button class="btn btn-outline-primary btn-sm" onclick="editMaterial(${material.id})" 
+                            title="Editar" aria-label="Editar material">
+                        <i class="bi bi-pencil-square"></i>
+                    </button>
+                </td>
+            </tr>
+        `;
+    });
+    
+    tbody.innerHTML = html;
+}
+
+// Obter status do estoque
+function getStockStatus(current, minimum) {
+    if (current === 0) {
+        return { class: 'text-danger fw-bold', icon: '<i class="bi bi-x-circle text-danger ms-1"></i>' };
+    } else if (current <= minimum) {
+        return { class: 'text-warning fw-bold', icon: '<i class="bi bi-exclamation-triangle text-warning ms-1"></i>' };
+    } else {
+        return { class: 'text-success', icon: '' };
+    }
+}
+
+// Obter badge de status
+function getStatusBadge(isActive) {
+    if (isActive) {
+        return '<span class="badge bg-success">Ativo</span>';
+    } else {
+        return '<span class="badge bg-secondary">Inativo</span>';
+    }
+}
+
+// Obter filtros atuais
+function getFilters() {
+    const categoryEl = document.getElementById('filter-category');
+    const statusEl = document.getElementById('filter-status');
+    const stockEl = document.getElementById('filter-stock');
+    const searchEl = document.getElementById('search-input');
+    
+    return {
+        category: categoryEl ? categoryEl.value : '',
+        status: statusEl ? statusEl.value : '',
+        stock: stockEl ? stockEl.value : '',
+        search: searchEl ? searchEl.value : ''
+    };
+}
+
+// Aplicar filtros
+function applyFilters() {
+    loadMaterials(1);
+}
+
+// Limpar filtros
+function clearFilters() {
+    const categoryEl = document.getElementById('filter-category');
+    const statusEl = document.getElementById('filter-status');
+    const stockEl = document.getElementById('filter-stock');
+    const searchEl = document.getElementById('search-input');
+    
+    if (categoryEl) categoryEl.value = '';
+    if (statusEl) statusEl.value = '';
+    if (stockEl) stockEl.value = '';
+    if (searchEl) searchEl.value = '';
+    
+    loadMaterials(1);
+}
+
+// Abrir modal de novo material
+function openNewMaterialModal() {
+    document.getElementById('materialModalTitle').textContent = 'Novo Material';
+    document.getElementById('materialForm').reset();
+    document.getElementById('material-id').value = '';
+    document.getElementById('material-code').value = '';
+    document.getElementById('material-reference').value = '';
+    document.getElementById('average-consumption').value = '';
+    document.getElementById('material-status').value = 'Ativo';
+    
+    const modal = new bootstrap.Modal(document.getElementById('materialModal'));
+    modal.show();
+}
+
+// Editar material
+async function editMaterial(materialId) {
+    console.log('🔧 editMaterial chamada com ID:', materialId);
+    console.log('🌐 User Agent:', navigator.userAgent);
+    console.log('🔗 URL atual:', window.location.href);
+    
+    try {
+        // Buscar dados do material
+        const apiUrl = `/api/warehouse/materials/${materialId}`;
+        console.log('📡 Fazendo requisição para:', apiUrl);
+        console.log('🔍 URL completa:', window.location.origin + apiUrl);
+        
+        const response = await axios.get(apiUrl);
+        console.log('📊 Status da resposta:', response.status);
+        console.log('📋 Headers da resposta:', response.headers);
+        
+        const material = response.data;
+        console.log('📦 Dados do material recebidos:', JSON.stringify(material, null, 2));
+        
+        // Abrir o modal primeiro
+        const modalElement = document.getElementById('materialModal');
+        const modal = new bootstrap.Modal(modalElement);
+        modal.show();
+        console.log('🎭 Modal aberto');
+        
+        // Aguardar o modal ser totalmente renderizado
+        await new Promise(resolve => {
+            modalElement.addEventListener('shown.bs.modal', resolve, { once: true });
+        });
+        
+        console.log('✅ Modal totalmente carregado, preenchendo campos...');
+        
+        // Função para aguardar elemento estar disponível
+        const waitForElement = (id, maxAttempts = 10) => {
+            return new Promise((resolve) => {
+                let attempts = 0;
+                const checkElement = () => {
+                    const element = document.getElementById(id);
+                    if (element || attempts >= maxAttempts) {
+                        resolve(element);
+                    } else {
+                        attempts++;
+                        setTimeout(checkElement, 100);
+                    }
+                };
+                checkElement();
+            });
+        };
+        
+        // Preencher título
+        const titleElement = await waitForElement('materialModalTitle');
+        if (titleElement) {
+            titleElement.textContent = 'Editar Material';
+            console.log('✅ Título alterado para: Editar Material');
+        }
+        
+        // Preencher campos um por um com verificação
+        const fieldsToFill = [
+            { id: 'material-id', value: material.id, label: 'ID' },
+            { id: 'material-code', value: material.code || '', label: 'Código' },
+            { id: 'material-name', value: material.name || '', label: 'Nome' },
+            { id: 'material-reference', value: material.reference || '', label: 'Referência' },
+            { id: 'material-category', value: material.category || '', label: 'Categoria' },
+            { id: 'material-unit', value: material.unit || '', label: 'Unidade' },
+            { id: 'material-description', value: material.description || '', label: 'Descrição' },
+            { id: 'material-unit-price', value: material.unit_price || '', label: 'Preço unitário' },
+            { id: 'minimum-stock', value: material.minimum_stock || '', label: 'Estoque mínimo' },
+            { id: 'maximum-stock', value: material.maximum_stock || '', label: 'Estoque máximo' },
+            { id: 'material-location', value: material.location || '', label: 'Localização' },
+            { id: 'material-status', value: material.is_active ? 'Ativo' : 'Inativo', label: 'Status' }
+        ];
+        
+        console.log('🔍 Verificando se o modal está visível...');
+        const modalDiv = document.getElementById('materialModal');
+        console.log('📋 Modal encontrado:', !!modalDiv);
+        console.log('👁️ Modal visível:', modalDiv ? modalDiv.style.display : 'N/A');
+        console.log('🎯 Classes do modal:', modalDiv ? modalDiv.className : 'N/A');
+        
+        for (const field of fieldsToFill) {
+            console.log(`🔍 Procurando elemento: ${field.id} para valor: ${field.value}`);
+            
+            // Verificar se o elemento existe no DOM
+            const elementById = document.getElementById(field.id);
+            console.log(`📍 Elemento por ID: ${field.id} existe:`, !!elementById);
+            
+            const element = await waitForElement(field.id);
+            if (element) {
+                console.log(`✅ Elemento encontrado: ${field.id}, tipo: ${element.tagName}`);
+                console.log(`🔍 Valor anterior: "${element.value}"`);
+                element.value = field.value;
+                console.log(`✅ ${field.label} preenchido com: "${field.value}"`);
+                console.log(`🔍 Valor atual do elemento após preenchimento: "${element.value}"`);
+                
+                // Verificar se o valor foi realmente definido
+                if (element.value !== field.value) {
+                    console.warn(`⚠️ Valor não foi definido corretamente para ${field.id}. Esperado: "${field.value}", Atual: "${element.value}"`);
+                }
+                
+                // Disparar evento de mudança para campos select
+                if (element.tagName === 'SELECT') {
+                    element.dispatchEvent(new Event('change', { bubbles: true }));
+                    console.log(`🔄 Evento change disparado para ${field.label}`);
+                }
+            } else {
+                console.error(`❌ Elemento não encontrado: ${field.id}`);
+                // Listar todos os elementos com IDs similares
+                const allElements = document.querySelectorAll(`[id*="${field.id}"]`);
+                console.log(`🔍 Elementos similares encontrados:`, allElements.length);
+                allElements.forEach((el, index) => {
+                    console.log(`  ${index + 1}. ID: ${el.id}, Tag: ${el.tagName}`);
+                });
+            }
+        }
+        
+        console.log('🎉 Preenchimento concluído!');
+        
+    } catch (error) {
+        console.error('❌ Erro ao carregar material:', error);
+        console.error('🔍 Tipo do erro:', error.name);
+        console.error('📝 Mensagem do erro:', error.message);
+        console.error('📊 Status do erro:', error.response?.status);
+        console.error('📋 Dados do erro:', error.response?.data);
+        console.error('🌐 URL do erro:', error.config?.url);
+        console.error('🔧 Stack trace:', error.stack);
+        
+        let errorMessage = 'Erro ao carregar dados do material';
+        if (error.response) {
+            errorMessage += ` (Status: ${error.response.status})`;
+        } else if (error.request) {
+            errorMessage += ' (Falha na requisição)';
+        } else {
+            errorMessage += ` (${error.message})`;
+        }
+        
+        showAlert(errorMessage, 'danger');
+    }
+}
+
+// Calcular valor total baseado no valor unitário e estoque atual
+async function calculateTotalValue() {
+    const materialId = document.getElementById('material-id').value;
+    const unitPrice = parseFloat(document.getElementById('material-unit-price').value) || 0;
+    
+    if (materialId && unitPrice >= 0) {
+        try {
+            // Buscar o estoque atual do material
+            const response = await axios.get(`/api/warehouse/materials/${materialId}`);
+            const material = response.data;
+            const currentStock = material.current_stock || 0;
+            const totalValue = unitPrice * currentStock;
+            
+            // Exibir o valor total calculado
+            const formattedValue = new Intl.NumberFormat('pt-BR', { 
+                style: 'currency', 
+                currency: 'BRL' 
+            }).format(totalValue);
+            
+            console.log(`Estoque atual: ${currentStock} | Valor unitário: R$ ${unitPrice.toFixed(2)} | Valor total: ${formattedValue}`);
+            
+            // Atualizar o material no banco com o novo valor unitário
+            if (unitPrice !== material.unit_price) {
+                await updateMaterialUnitPrice(materialId, unitPrice);
+            }
+            
+        } catch (error) {
+            console.error('Erro ao calcular valor total:', error);
+        }
+    }
+}
+
+// Atualizar valor unitário do material
+async function updateMaterialUnitPrice(materialId, unitPrice) {
+    try {
+        const response = await axios.put(`/api/warehouse/materials/${materialId}`, {
+            unit_price: unitPrice
+        });
+        
+        // Recarregar a lista de materiais para refletir as mudanças
+        loadMaterials();
+        loadStockMetrics();
+        
+    } catch (error) {
+        console.error('Erro ao atualizar valor unitário:', error);
+        showAlert('Erro ao atualizar valor unitário', 'danger');
+    }
+}
+
+// (removido) Função duplicada openStockMovementModal - manter apenas a implementação completa mais abaixo
+
+// Carregar materiais para movimentação
+async function loadMaterialsForMovement() {
+    try {
+        const response = await axios.get('/api/warehouse/materials?active_only=true');
+        const materials = response.data.items;
+        
+        const select = document.getElementById('movement-material');
+        select.innerHTML = '<option value="">Selecione um material</option>';
+        
+        materials.forEach(material => {
+            const option = document.createElement('option');
+            option.value = material.id;
+            option.textContent = `${material.code} - ${material.name} (Estoque: ${material.current_stock})`;
+            select.appendChild(option);
+        });
+    } catch (error) {
+        console.error('Erro ao carregar materiais:', error);
+    }
+}
+
+// Salvar material
+async function saveMaterial() {
+    try {
+        const formData = {
+            name: document.getElementById('material-name').value,
+            reference: document.getElementById('material-reference').value,
+            category: document.getElementById('material-category').value,
+            unit: document.getElementById('material-unit').value,
+            description: document.getElementById('material-description').value,
+            unit_price: parseFloat(document.getElementById('material-unit-price').value) || 0,
+            minimum_stock: parseFloat(document.getElementById('minimum-stock').value),
+            maximum_stock: parseFloat(document.getElementById('maximum-stock').value),
+            location: document.getElementById('material-location').value,
+            status: document.getElementById('material-status').value
+        };
+        
+        const materialId = document.getElementById('material-id').value;
+        let response;
+        
+        if (materialId) {
+            response = await axios.put(`/api/warehouse/materials/${materialId}`, formData);
+        } else {
+            response = await axios.post('/api/warehouse/materials', formData);
+        }
+        
+        showAlert('Material salvo com sucesso!', 'success');
+        bootstrap.Modal.getInstance(document.getElementById('materialModal')).hide();
+        loadMaterials(currentPage);
+        loadStockMetrics();
+    } catch (error) {
+        console.error('Erro ao salvar material:', error);
+        showAlert('Erro ao salvar material', 'danger');
+    }
+}
+
+// Esta função foi substituída por uma versão mais completa abaixo que valida campos e inclui campos adicionais (cost_center, equipment_id, application).
+// Mantida aqui apenas como referência comentada caso seja necessário revertê-la.
+/*
+async function saveStockMovement() {
+    try {
+        const formData = {
+            material_id: document.getElementById('movement-material').value,
+            movement_type: document.getElementById('movement-type').value,
+            quantity: parseFloat(document.getElementById('movement-quantity').value),
+            reason: document.getElementById('movement-reason').value,
+            notes: document.getElementById('movement-notes').value,
+            reference: document.getElementById('movement-reference').value
+        };
+        const response = await axios.post('/api/warehouse/stock-movements', formData);
+        showAlert('Movimentação registrada com sucesso!', 'success');
+        bootstrap.Modal.getInstance(document.getElementById('stockMovementModal')).hide();
+        loadMaterials(currentPage);
+        loadStockMetrics();
+    } catch (error) {
+        console.error('Erro ao registrar movimentação:', error);
+        showAlert('Erro ao registrar movimentação', 'danger');
+    }
+}
+*/
+
+// Atualizar paginação
+function updatePagination(currentPage, totalPages, totalItems) {
+    const pagination = document.getElementById('pagination');
+    
+    if (totalPages <= 1) {
+        pagination.innerHTML = '';
+        return;
+    }
+    
+    let html = '';
+    
+    // Botão anterior
+    html += `
+        <li class="page-item ${currentPage === 1 ? 'disabled' : ''}">
+            <a class="page-link" href="#" onclick="loadMaterials(${currentPage - 1})">Anterior</a>
+        </li>
+    `;
+    
+    // Páginas
+    for (let i = Math.max(1, currentPage - 2); i <= Math.min(totalPages, currentPage + 2); i++) {
+        html += `
+            <li class="page-item ${i === currentPage ? 'active' : ''}">
+                <a class="page-link" href="#" onclick="loadMaterials(${i})">${i}</a>
+            </li>
+        `;
+    }
+    
+    // Botão próximo
+    html += `
+        <li class="page-item ${currentPage === totalPages ? 'disabled' : ''}">
+            <a class="page-link" href="#" onclick="loadMaterials(${currentPage + 1})">Próximo</a>
+        </li>
+    `;
+    
+    pagination.innerHTML = html;
+}
+
+// Abrir modal de movimentação de estoque
+function openStockMovementModal() {
+    // Limpar formulário
+    document.getElementById('stockMovementForm').reset();
+    document.getElementById('stock-material-description').value = '';
+    document.getElementById('selected-material-id').value = '';
+    // Limpar origem de notificação
+    const srcNotif = document.getElementById('source-notification-id');
+    const srcItem = document.getElementById('source-notification-item-id');
+    if (srcNotif) srcNotif.value = '';
+    if (srcItem) srcItem.value = '';
+    
+    // Esconder campos condicionais usando classe
+    document.getElementById('entry-fields').classList.add('hidden');
+    document.getElementById('exit-fields').classList.add('hidden');
+    
+    // Remover atributo required de todos os campos condicionais
+    const conditionalFields = [
+        'entry-reason', 'invoice-number', 'entry-unit-price',
+        'exit-reason', 'requisition-number',
+        'cost-center', 'equipment-select'
+    ];
+    
+    conditionalFields.forEach(fieldId => {
+        const field = document.getElementById(fieldId);
+        if (field) {
+            field.removeAttribute('required');
+            field.value = '';
+        }
+    });
+
+    // Definir data padrão (hoje)
+    const dateInput = document.getElementById('movementDate');
+    if (dateInput) {
+        const today = new Date();
+        const yyyy = today.getFullYear();
+        const mm = String(today.getMonth() + 1).padStart(2, '0');
+        const dd = String(today.getDate()).padStart(2, '0');
+        dateInput.value = `${yyyy}-${mm}-${dd}`;
+    }
+    
+    const modal = new bootstrap.Modal(document.getElementById('stockMovementModal'));
+    // Carregar equipamentos para o select
+    loadEquipmentOptions();
+    // Atualizar Centro de Custo ao alterar equipamento
+    const eqSelectForListener = document.getElementById('equipment-select');
+    if (eqSelectForListener) {
+        eqSelectForListener.removeEventListener('change', updateCostCenterFromEquipment);
+        eqSelectForListener.addEventListener('change', updateCostCenterFromEquipment);
+    }
+    // Garantir que os campos corretos apareçam de acordo com o tipo atual
+    toggleMovementFields();
+    modal.show();
+}
+
+// Buscar material por código
+async function searchMaterialByCode() {
+    const code = document.getElementById('stock-material-code').value.trim();
+    
+    if (!code) {
+        document.getElementById('stock-material-description').value = '';
+        document.getElementById('selected-material-id').value = '';
+        return;
+    }
+    
+    try {
+        const response = await axios.get(`/api/warehouse/materials/search?code=${encodeURIComponent(code)}`);
+        const material = response.data;
+        
+        if (material) {
+            document.getElementById('stock-material-description').value = material.name;
+            document.getElementById('selected-material-id').value = material.id;
+        } else {
+            document.getElementById('stock-material-description').value = 'Material não encontrado';
+            document.getElementById('selected-material-id').value = '';
+            showAlert('Material não encontrado com o código informado', 'warning');
+        }
+    } catch (error) {
+        console.error('Erro ao buscar material:', error);
+        document.getElementById('stock-material-description').value = 'Erro na busca';
+        document.getElementById('selected-material-id').value = '';
+        showAlert('Erro ao buscar material', 'danger');
+    }
+}
+
+// Alternar campos baseado no tipo de movimentação
+function toggleMovementFields() {
+    const movementType = document.getElementById('movement-type').value;
+    const entryFields = document.getElementById('entry-fields');
+    const exitFields = document.getElementById('exit-fields');
+    
+    // Esconder todos os campos primeiro usando a classe hidden
+    entryFields.classList.add('hidden');
+    exitFields.classList.add('hidden');
+    
+    // Remover atributo required de todos os campos condicionais
+    const conditionalFields = [
+        'entry-reason', 'invoice-number', 'entry-unit-price',
+        'exit-reason', 'requisition-number',
+        'cost-center', 'equipment-select'
+    ];
+    
+    conditionalFields.forEach(fieldId => {
+        const field = document.getElementById(fieldId);
+        if (field) {
+            field.removeAttribute('required');
+            field.value = ''; // Limpar valor
+        }
+    });
+    
+    // Mostrar campos específicos baseado no tipo
+    if (movementType === 'Entrada') {
+        entryFields.classList.remove('hidden');
+        document.getElementById('entry-reason').setAttribute('required', 'required');
+        document.getElementById('invoice-number').setAttribute('required', 'required');
+        document.getElementById('entry-unit-price').setAttribute('required', 'required');
+    } else if (movementType === 'Saída') {
+        exitFields.classList.remove('hidden');
+        document.getElementById('exit-reason').setAttribute('required', 'required');
+        document.getElementById('requisition-number').setAttribute('required', 'required');
+        document.getElementById('cost-center').setAttribute('required', 'required');
+        document.getElementById('equipment-select').setAttribute('required', 'required');
+    }
+}
+
+// Abrir movimentação de saída a partir de uma notificação/itens
+async function openExitMovementForItem(notificationId, itemId, materialCode, materialId, quantityNeeded, equipmentPrefix, workOrderNumber, planName) {
+    try {
+        // Reset do formulário
+        document.getElementById('stockMovementForm').reset();
+        document.getElementById('entry-fields').classList.add('hidden');
+        document.getElementById('exit-fields').classList.add('hidden');
+        document.getElementById('stock-material-description').value = '';
+        document.getElementById('selected-material-id').value = '';
+
+        // Pré-preencher material e quantidade
+        document.getElementById('stock-material-code').value = materialCode || '';
+        document.getElementById('selected-material-id').value = materialId || '';
+        document.getElementById('movement-quantity').value = quantityNeeded || '';
+
+        // Buscar descrição do material pelo código (se possível)
+        if (materialCode) {
+            try {
+                const materialResp = await axios.get(`/api/warehouse/materials/search?code=${encodeURIComponent(materialCode)}`);
+                if (materialResp.data && materialResp.data.name) {
+                    document.getElementById('stock-material-description').value = materialResp.data.name;
+                }
+            } catch (e) {
+                console.warn('Não foi possível buscar a descrição do material:', e);
+            }
+        }
+
+        // Definir tipo de movimentação como Saída e mostrar campos
+        document.getElementById('movement-type').value = 'Saída';
+        toggleMovementFields();
+
+        // Motivo da saída e documentos
+        document.getElementById('exit-reason').value = 'Uso em Manutenção';
+        const reqNumber = workOrderNumber ? `OS ${workOrderNumber}` : `OS-${notificationId}`;
+        document.getElementById('requisition-number').value = reqNumber;
+
+        // Carregar equipamentos e selecionar pelo prefixo
+        await loadEquipmentOptions();
+        const equipmentSelect = document.getElementById('equipment-select');
+        if (equipmentSelect && equipmentPrefix) {
+            for (let i = 0; i < equipmentSelect.options.length; i++) {
+                const opt = equipmentSelect.options[i];
+                if ((opt.textContent || '').startsWith(equipmentPrefix)) {
+                    equipmentSelect.value = opt.value;
+                    break;
+                }
+            }
+        }
+
+        // Observações
+        document.getElementById('movement-notes').value = `Notificação ${notificationId} - Item ${itemId} - ${reqNumber}${planName ? ' - Plano: ' + planName : ''}`;
+
+        // Auto-preencher Centro de Custo a partir do equipamento selecionado
+        updateCostCenterFromEquipment();
+
+        // Preencher IDs de origem
+        const srcNotif = document.getElementById('source-notification-id');
+        const srcItem = document.getElementById('source-notification-item-id');
+        if (srcNotif) srcNotif.value = String(notificationId || '');
+        if (srcItem) srcItem.value = String(itemId || '');
+        
+        // Exibir o modal
+        const modal = new bootstrap.Modal(document.getElementById('stockMovementModal'));
+        modal.show();
+    } catch (error) {
+        console.error('Erro ao abrir movimentação de saída:', error);
+        showAlert('Falha ao abrir a janela de movimentação de saída', 'danger');
+    }
+}
+
+// Salvar movimentação de estoque
+async function saveStockMovement() {
+    // Validação customizada para campos visíveis
+    const materialId = document.getElementById('selected-material-id').value;
+    if (!materialId) {
+        showAlert('Por favor, selecione um material válido', 'warning');
+        return;
+    }
+    
+    const movementType = document.getElementById('movement-type').value;
+    if (!movementType) {
+        showAlert('Por favor, selecione o tipo de movimentação', 'warning');
+        return;
+    }
+    
+    const quantity = parseFloat(document.getElementById('movement-quantity').value);
+    if (!quantity || quantity <= 0) {
+        showAlert('Por favor, informe uma quantidade válida', 'warning');
+        return;
+    }
+    
+    let movementData = {
+        material_id: parseInt(materialId),
+        movement_type: movementType,
+        quantity: quantity,
+        notes: document.getElementById('movement-notes').value,
+        date: document.getElementById('movementDate')?.value || null
+    };
+    
+    // Incluir IDs de origem se existirem
+    const srcNotif = document.getElementById('source-notification-id')?.value;
+    const srcItem = document.getElementById('source-notification-item-id')?.value;
+    if (srcNotif) movementData.notification_id = parseInt(srcNotif);
+    if (srcItem) movementData.notification_item_id = parseInt(srcItem);
+    
+    // Adicionar campos específicos baseado no tipo
+    if (movementType === 'Entrada') {
+        const entryReason = document.getElementById('entry-reason').value;
+        const invoiceNumber = document.getElementById('invoice-number').value;
+        const unitPriceRaw = document.getElementById('entry-unit-price').value;
+        const unitPrice = parseFloat(unitPriceRaw.replace(',', '.'));
+        
+        if (!entryReason || !invoiceNumber || isNaN(unitPrice) || unitPrice <= 0) {
+            showAlert('Por favor, preencha todos os campos obrigatórios para entrada', 'warning');
+            return;
+        }
+        
+        movementData.reason = entryReason;
+        movementData.reference_document = invoiceNumber;
+        movementData.unit_price = unitPrice;
+    } else if (movementType === 'Saída') {
+        const exitReason = document.getElementById('exit-reason').value;
+        const requisitionNumber = document.getElementById('requisition-number').value;
+        const costCenter = document.getElementById('cost-center').value;
+        const equipmentId = document.getElementById('equipment-select').value;
+        
+        if (!exitReason || !requisitionNumber || !costCenter || !equipmentId) {
+            showAlert('Por favor, preencha todos os campos obrigatórios para saída', 'warning');
+            return;
+        }
+        
+        movementData.reason = exitReason;
+        movementData.reference_document = requisitionNumber;
+        movementData.cost_center = costCenter;
+        movementData.equipment_id = parseInt(equipmentId);
+    }
+    
+    try {
+        const response = await axios.post('/api/warehouse/stock-movements', movementData);
+        
+        if (response.status >= 200 && response.status < 300) {
+            showAlert('Movimentação registrada com sucesso!', 'success');
+            
+            // Fechar modal
+            const modal = bootstrap.Modal.getInstance(document.getElementById('stockMovementModal'));
+            modal.hide();
+            
+            // Recarregar dados
+            loadMaterials();
+            loadStockMetrics();
+            loadStockNotifications();
+        }
+    } catch (error) {
+        console.error('Erro ao salvar movimentação:', error);
+        const message = error.response?.data?.detail || 'Erro ao registrar movimentação';
+        showAlert(message, 'danger');
+    }
+}
+
+// Função para exibir alertas
+function showAlert(message, type = 'info') {
+    const alertContainer = document.getElementById('alert-container') || createAlertContainer();
+    
+    const alertDiv = document.createElement('div');
+    alertDiv.className = `alert alert-${type} alert-dismissible fade show`;
+    alertDiv.innerHTML = `
+        ${message}
+        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+    `;
+    
+    alertContainer.appendChild(alertDiv);
+    
+    // Auto-remover após 5 segundos
+    setTimeout(() => {
+        if (alertDiv.parentNode) {
+            alertDiv.remove();
+        }
+    }, 5000);
+}
+
+// Criar container de alertas se não existir
+function createAlertContainer() {
+    let container = document.getElementById('alert-container');
+    if (!container) {
+        container = document.createElement('div');
+        container.id = 'alert-container';
+        container.style.position = 'fixed';
+        container.style.top = '20px';
+        container.style.right = '20px';
+        container.style.zIndex = '9999';
+        container.style.maxWidth = '400px';
+        document.body.appendChild(container);
+    }
+    return container;
+}
+
+// Inicializar página
+document.addEventListener('DOMContentLoaded', function() {
+    loadMaterials();
+    loadStockMetrics();
+    loadStockNotifications();
+    
+    // Atualizar notificações a cada 30 segundos
+    setInterval(loadStockNotifications, 30000);
+    
+    // Event listeners para filtros
+    document.getElementById('search-input').addEventListener('keypress', function(e) {
+        if (e.key === 'Enter') {
+            applyFilters();
+        }
+    });
+});
+
+// Função para carregar notificações de estoque
+async function loadStockNotifications() {
+    try {
+        const response = await axios.get('/api/warehouse/stock-notifications?status=Pendente');
+        const notifications = response.data;
+        
+        const notificationsSection = document.getElementById('stock-notifications-section');
+        const notificationsCount = document.getElementById('notifications-count');
+        const notificationsTbody = document.getElementById('notifications-tbody');
+        
+        if (notifications.length > 0) {
+            notificationsSection.style.display = 'block';
+            notificationsCount.textContent = notifications.length;
+            
+            notificationsTbody.innerHTML = notifications.map(notification => {
+                const priorityClass = notification.priority === 'Alta' ? 'danger' : 
+                                    notification.priority === 'Média' ? 'warning' : 'info';
+                
+                const materialsText = notification.items.map(item => 
+                    `${item.material_code} (${item.quantity_needed} ${item.material_unit})`
+                ).join(', ');
+                
+                const createdDate = new Date(notification.created_at).toLocaleDateString('pt-BR');
+                
+                return `
+                    <tr>
+                        <td><span class="badge bg-primary">${notification.work_order_number || 'N/A'}</span></td>
+                        <td>
+                            <strong>${notification.equipment_name}</strong><br>
+                            <small class="text-muted">${notification.equipment_prefix}</small>
+                        </td>
+                        <td>${notification.maintenance_plan_name}</td>
+                        <td>
+                            <small title="${materialsText}">${materialsText.length > 50 ? materialsText.substring(0, 50) + '...' : materialsText}</small>
+                        </td>
+                        <td><span class="badge bg-${priorityClass}">${notification.priority}</span></td>
+                        <td>${createdDate}</td>
+                        <td><span class="badge bg-warning">${notification.status}</span></td>
+                        <td>
+                            <button class="btn btn-sm btn-success" onclick="viewNotificationDetails(${notification.id})" 
+                                    title="Abrir detalhes para atender">
+                                <i class="bi bi-check-circle"></i> Atender
+                            </button>
+                            <button class="btn btn-sm btn-outline-info" onclick="viewNotificationDetails(${notification.id})" 
+                                    title="Ver Detalhes">
+                                <i class="bi bi-eye"></i>
+                            </button>
+                        </td>
+                    </tr>
+                `;
+            }).join('');
+        } else {
+            notificationsSection.style.display = 'none';
+        }
+    } catch (error) {
+        console.error('Erro ao carregar notificações:', error);
+    }
+}
+
+// Função para atender notificação
+async function attendNotification(notificationId) {
+    if (!confirm('Confirma o atendimento desta notificação? Isso irá processar a movimentação automática dos materiais.')) {
+        return;
+    }
+    
+    try {
+        const attendData = {
+            attended_by: 'Almoxarife', // Pode ser obtido do usuário logado
+            notes: 'Atendimento automático via sistema'
+        };
+        
+        const response = await axios.post(`/api/warehouse/stock-notifications/${notificationId}/attend`, attendData);
+        
+        if (response.data.success) {
+            showAlert(response.data.message, 'success');
+            
+            // Recarregar dados
+            loadStockNotifications();
+            loadMaterials();
+            loadStockMetrics();
+        } else {
+            // Mostrar materiais com estoque insuficiente
+            let message = response.data.message + '\n\nMateriais com estoque insuficiente:\n';
+            response.data.insufficient_stock.forEach(item => {
+                message += `- ${item.material_name}: Necessário ${item.needed}, Disponível ${item.available}, Faltam ${item.missing}\n`;
+            });
+            showAlert(message, 'warning');
+        }
+    } catch (error) {
+        console.error('Erro ao atender notificação:', error);
+        const message = error.response?.data?.detail || 'Erro ao atender notificação';
+        showAlert(message, 'danger');
+    }
+}
+
+// Função para ver detalhes da notificação
+async function viewNotificationDetails(notificationId) {
+    try {
+        const response = await axios.get(`/api/warehouse/stock-notifications?status=Todas`);
+        const notification = response.data.find(n => n.id === notificationId);
+        
+        if (!notification) {
+            showAlert('Notificação não encontrada', 'warning');
+            return;
+        }
+        
+        let detailsHtml = `
+            <div class="row">
+                <div class="col-md-6">
+                    <h6>Informações Gerais</h6>
+                    <p><strong>OS:</strong> ${notification.work_order_number || 'N/A'}</p>
+                    <p><strong>Equipamento:</strong> ${notification.equipment_name} (${notification.equipment_prefix})</p>
+                    <p><strong>Plano:</strong> ${notification.maintenance_plan_name}</p>
+                    <p><strong>Prioridade:</strong> ${notification.priority}</p>
+                    <p><strong>Status:</strong> ${notification.status}</p>
+                    <p><strong>Data:</strong> ${new Date(notification.created_at).toLocaleString('pt-BR')}</p>
+                </div>
+                <div class="col-md-6">
+                    <h6>Materiais Necessários</h6>
+                    <div class="table-responsive">
+                        <table class="table table-sm">
+                            <thead>
+                                <tr>
+                                    <th>Código</th>
+                                    <th>Material</th>
+                                    <th>Qtd</th>
+                                    <th>Unidade</th>
+                                    <th>Ações</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+        `;
+        
+        notification.items.forEach(item => {
+            detailsHtml += `
+                <tr>
+                    <td>${item.material_code}</td>
+                    <td>${item.material_name}</td>
+                    <td>${item.quantity_needed}</td>
+                    <td>${item.material_unit}</td>
+                    <td>
+                        <button class="btn btn-sm btn-success" title="Abrir movimentação de saída"
+                            onclick="openExitMovementForItem(${notification.id}, ${item.id}, '${item.material_code}', ${item.material_id}, ${item.quantity_needed}, '${notification.equipment_prefix || ''}', '${notification.work_order_number || ''}', '${notification.maintenance_plan_name || ''}')">
+                            <i class="bi bi-box-arrow-left"></i> Saída
+                        </button>
+                    </td>
+                </tr>
+            `;
+        });
+        
+        detailsHtml += `
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        `;
+        
+        // Criar modal para mostrar detalhes
+        const modalHtml = `
+            <div class="modal fade" id="notificationDetailsModal" tabindex="-1">
+                <div class="modal-dialog modal-lg">
+                    <div class="modal-content">
+                        <div class="modal-header">
+                            <h5 class="modal-title">Detalhes da Notificação</h5>
+                            <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                        </div>
+                        <div class="modal-body">
+                            ${detailsHtml}
+                        </div>
+                        <div class="modal-footer">
+                            <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Fechar</button>
+                            ${notification.status === 'Pendente' ? 
+                                `<button type="button" class="btn btn-warning" onclick="attendNotification(${notification.id}); bootstrap.Modal.getInstance(document.getElementById('notificationDetailsModal')).hide();" title="Processar atendimento automático">
+                                    <i class="bi bi-lightning"></i> Atender automaticamente
+                                </button>` : ''
+                            }
+                        </div>
+                    </div>
+                </div>
+            </div>
+        `;
+        
+        // Remover modal anterior se existir
+        const existingModal = document.getElementById('notificationDetailsModal');
+        if (existingModal) {
+            existingModal.remove();
+        }
+        
+        // Adicionar novo modal
+        document.body.insertAdjacentHTML('beforeend', modalHtml);
+        
+        // Mostrar modal
+        const modal = new bootstrap.Modal(document.getElementById('notificationDetailsModal'));
+        modal.show();
+        
+    } catch (error) {
+        console.error('Erro ao carregar detalhes:', error);
+        showAlert('Erro ao carregar detalhes da notificação', 'danger');
+    }
+}
+
+// Função para exibir modal de materiais com estoque baixo
+async function showLowStockModal() {
+    try {
+        const response = await axios.get('/warehouse/reports/low-stock');
+        const materials = response.data;
+        
+        const tbody = document.getElementById('low-stock-tbody');
+        
+        if (!materials || materials.length === 0) {
+            tbody.innerHTML = '<tr><td colspan="7" class="text-center">Nenhum material com estoque baixo encontrado.</td></tr>';
+        } else {
+            let html = '';
+            materials.forEach(material => {
+                const difference = material.minimum_stock - material.current_stock;
+                html += `
+                    <tr>
+                        <td><strong>${material.code}</strong></td>
+                        <td>
+                            <div><strong>${material.name}</strong></div>
+                            <div class="text-muted small">${material.description || '-'}</div>
+                        </td>
+                        <td><span class="badge bg-warning">${material.current_stock}</span></td>
+                        <td>${material.minimum_stock}</td>
+                        <td><span class="text-danger">-${difference}</span></td>
+                        <td>${material.location || '-'}</td>
+                        <td>
+                            <button class="btn btn-sm btn-primary" onclick="editMaterial(${material.id})" title="Editar">
+                                <i class="bi bi-pencil"></i>
+                            </button>
+                            <button class="btn btn-sm btn-success" onclick="openStockMovementModal(${material.id})" title="Movimentar">
+                                <i class="bi bi-arrow-left-right"></i>
+                            </button>
+                        </td>
+                    </tr>
+                `;
+            });
+            tbody.innerHTML = html;
+        }
+        
+        const modal = new bootstrap.Modal(document.getElementById('lowStockModal'));
+        modal.show();
+        
+    } catch (error) {
+        console.error('Erro ao carregar materiais com estoque baixo:', error);
+        showAlert('Erro ao carregar materiais com estoque baixo', 'danger');
+    }
+}
+
+// Função para exibir modal de materiais sem estoque
+async function showZeroStockModal() {
+    try {
+        const response = await axios.get('/warehouse/inventory/materials');
+        const allMaterials = response.data;
+        
+        // Filtrar materiais com estoque zero
+        const zeroStockMaterials = allMaterials.filter(material => material.current_stock === 0);
+        
+        const tbody = document.getElementById('zero-stock-tbody');
+        
+        if (!zeroStockMaterials || zeroStockMaterials.length === 0) {
+            tbody.innerHTML = '<tr><td colspan="6" class="text-center">Nenhum material sem estoque encontrado.</td></tr>';
+        } else {
+            let html = '';
+            zeroStockMaterials.forEach(material => {
+                html += `
+                    <tr>
+                        <td><strong>${material.code}</strong></td>
+                        <td>
+                            <div><strong>${material.name}</strong></div>
+                            <div class="text-muted small">${material.description || '-'}</div>
+                        </td>
+                        <td><span class="text-muted">-</span></td>
+                        <td>${material.minimum_stock}</td>
+                        <td>${material.location || '-'}</td>
+                        <td>
+                            <button class="btn btn-sm btn-primary" onclick="editMaterial(${material.id})" title="Editar">
+                                <i class="bi bi-pencil"></i>
+                            </button>
+                            <button class="btn btn-sm btn-success" onclick="openStockMovementModal(${material.id})" title="Movimentar">
+                                <i class="bi bi-arrow-left-right"></i>
+                            </button>
+                        </td>
+                    </tr>
+                `;
+            });
+            tbody.innerHTML = html;
+        }
+        
+        const modal = new bootstrap.Modal(document.getElementById('zeroStockModal'));
+        modal.show();
+        
+    } catch (error) {
+        console.error('Erro ao carregar materiais sem estoque:', error);
+        showAlert('Erro ao carregar materiais sem estoque', 'danger');
+    }
+}
+
+// Event listeners para resetar modal quando fechado
+document.addEventListener('DOMContentLoaded', function() {
+    const stockMovementModal = document.getElementById('stockMovementModal');
+    
+    stockMovementModal.addEventListener('hidden.bs.modal', function () {
+        // Resetar formulário
+        document.getElementById('stockMovementForm').reset();
+        document.getElementById('stock-material-description').value = '';
+        document.getElementById('selected-material-id').value = '';
+        
+        // Esconder campos condicionais
+        document.getElementById('entry-fields').classList.add('hidden');
+        document.getElementById('exit-fields').classList.add('hidden');
+        
+        // Remover atributo required de todos os campos condicionais
+        const conditionalFields = [
+            'entry-reason', 'invoice-number', 'entry-unit-price',
+            'exit-reason', 'requisition-number',
+            'cost-center', 'equipment-select',
+            'movementDate'
+        ];
+        
+        conditionalFields.forEach(fieldId => {
+            const field = document.getElementById(fieldId);
+            if (field) {
+                field.removeAttribute('required');
+                field.value = '';
+            }
+        });
+    });
+});
+
+// Carregar lista de equipamentos para o select no modal de saída
+async function loadEquipmentOptions() {
+    const select = document.getElementById('equipment-select');
+    if (!select) return;
+    try {
+        const response = await axios.get('/api/maintenance/equipment/list');
+        const equipments = Array.isArray(response.data) ? response.data : [];
+        equipmentList = equipments;
+        select.innerHTML = '<option value="">Selecione o equipamento</option>';
+        equipments.forEach(eq => {
+            const option = document.createElement('option');
+            option.value = eq.id;
+            const labelPrefix = (eq.prefix && String(eq.prefix).trim()) ? String(eq.prefix).trim() : null;
+            const labelName = (eq.name && String(eq.name).trim()) ? String(eq.name).trim() : 'Equipamento';
+            const labelLocation = (eq.location && String(eq.location).trim()) ? ` (${String(eq.location).trim()})` : '';
+            // Exibir SOMENTE o PREFIXO; se não existir, cair para o nome
+            option.textContent = labelPrefix ? labelPrefix : labelName;
+            option.title = labelPrefix ? `${labelPrefix} - ${labelName}${labelLocation}` : `${labelName}${labelLocation}`;
+            select.appendChild(option);
+        });
+    } catch (error) {
+        console.error('Erro ao carregar equipamentos:', error);
+        select.innerHTML = '<option value="">Selecione o equipamento</option>';
+        showAlert('Não foi possível carregar a lista de equipamentos', 'warning');
+    }
+}
+
+// Preencher Centro de Custo automaticamente ao selecionar equipamento
+function updateCostCenterFromEquipment() {
+    const equipmentSelect = document.getElementById('equipment-select');
+    const costCenterSelect = document.getElementById('cost-center');
+    if (!equipmentSelect || !costCenterSelect) return;
+    const selectedId = parseInt(equipmentSelect.value);
+    if (!selectedId || equipmentList.length === 0) return;
+    const eq = equipmentList.find(item => item.id === selectedId);
+    if (eq && eq.cost_center) {
+        costCenterSelect.value = String(eq.cost_center);
+    }
+}
+
+// Cache buster - Updated: 2025-01-25 14:48:00 - Fixed variable conflicts
+</script>
+
+<!-- Modal para Materiais com Estoque Baixo -->
+<div class="modal fade" id="lowStockModal" tabindex="-1">
+    <div class="modal-dialog modal-xl">
+        <div class="modal-content">
+            <div class="modal-header bg-warning text-dark">
+                <h5 class="modal-title">
+                    <i class="bi bi-exclamation-triangle"></i> Materiais com Estoque Baixo
+                </h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <div class="table-responsive">
+                    <table class="table table-striped table-hover">
+                        <thead class="table-warning">
+                            <tr>
+                                <th>Código</th>
+                                <th>Material</th>
+                                <th>Estoque Atual</th>
+                                <th>Estoque Mínimo</th>
+                                <th>Diferença</th>
+                                <th>Localização</th>
+                                <th>Ações</th>
+                            </tr>
+                        </thead>
+                        <tbody id="low-stock-tbody">
+                            <!-- Dados carregados via JavaScript -->
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Fechar</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Modal para Materiais sem Estoque -->
+<div class="modal fade" id="zeroStockModal" tabindex="-1">
+    <div class="modal-dialog modal-xl">
+        <div class="modal-content">
+            <div class="modal-header bg-danger text-white">
+                <h5 class="modal-title">
+                    <i class="bi bi-x-circle"></i> Materiais sem Estoque
+                </h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <div class="table-responsive">
+                    <table class="table table-striped table-hover">
+                        <thead class="table-danger">
+                            <tr>
+                                <th>Código</th>
+                                <th>Material</th>
+                                <th>Última Movimentação</th>
+                                <th>Estoque Mínimo</th>
+                                <th>Localização</th>
+                                <th>Ações</th>
+                            </tr>
+                        </thead>
+                        <tbody id="zero-stock-tbody">
+                            <!-- Dados carregados via JavaScript -->
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Fechar</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+// Função para abrir a página de inventário
+function openInventoryPage() {
+    window.location.href = '/warehouse/inventory';
+}
+</script>
+
+{% endblock %}

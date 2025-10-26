@@ -1,0 +1,440 @@
+{% extends "base.html" %}
+{% block title %}Apropriação de Obra{% endblock %}
+{% block page_title %}Apropriação de Obra{% endblock %}
+{% block breadcrumb_title %}Apropriação de Obra{% endblock %}
+
+{% block content %}
+<div class="row">
+  <div class="col-12">
+    <div class="card shadow-sm">
+      <div class="card-header d-flex justify-content-between align-items-center">
+        <h5 class="mb-0">Estrutura da Obra</h5>
+        <div class="text-muted">Macroetapas → Subetapas → Tarefas</div>
+      </div>
+      <div class="card-body">
+        <div class="accordion" id="macroAccordion">
+          {% for macro in hierarchy %}
+            <div class="accordion-item" data-macro-name="{{ macro.name }}">
+              <h2 class="accordion-header" id="macroHeading{{ macro.id }}">
+                <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#macroCollapse{{ macro.id }}" aria-expanded="false" aria-controls="macroCollapse{{ macro.id}}">
+                  {{ macro.name }}
+                </button>
+              </h2>
+              <div id="macroCollapse{{ macro.id }}" class="accordion-collapse collapse" aria-labelledby="macroHeading{{ macro.id }}" data-bs-parent="#macroAccordion">
+                <div class="accordion-body">
+                   {% if macro.sub_stages|length == 0 %}
+                     <div class="text-muted">Nenhuma subetapa cadastrada.</div>
+                   {% else %}
+                     <div class="row g-3">
+                      {% for sub in macro.sub_stages %}
+                        <div class="col-12">
+                          <div class="card">
+                            <div class="card-header d-flex justify-content-between align-items-center">
+                              <button class="btn btn-link p-0 text-decoration-none d-flex align-items-center gap-2" type="button" data-bs-toggle="collapse" data-bs-target="#subCollapse{{ sub.id }}" aria-expanded="true" aria-controls="subCollapse{{ sub.id }}">
+                                <i id="chevronSub{{ sub.id }}" class="bi bi-chevron-down"></i>
+                                <h6 class="mb-0">{{ sub.name }}</h6>
+                              </button>
+                              <div class="d-flex align-items-center gap-1">
+                                {% if macro.name == 'Infraestrutura Básica' %}
+                                <div class="input-group input-group-sm" style="width: 240px;">
+                                  <span class="input-group-text">Contrato</span>
+                                  <input type="number" step="0.01" class="form-control" id="cv_input_sub_{{ sub.id }}" value="{{ (sub.contractual_value or 0) | round(2) }}">
+                                  <button class="btn btn-outline-secondary" type="button" onclick="saveContractValue({{ sub.id }})"><i class="bi bi-save"></i></button>
+                                </div>
+                                <button class="btn btn-sm btn-outline-danger" type="button" onclick="deleteSubStage({{ sub.id }})"><i class="bi bi-trash"></i></button>
+                                {% endif %}
+                                <span class="text-muted">Progresso a realizar</span>
+                                <span id="progressBadgeSub{{ sub.id }}" class="badge {{ sub.progress_color_class }}">{{ (sub.progress_avg or 0) | round(2) }}%</span>
+                                <button class="btn btn-sm btn-primary" data-sub-id="{{ sub.id }}" onclick="showTaskModal({{ sub.id }})"><i class="bi bi-plus-circle"></i> Adicionar Tarefa</button>
+                              </div>
+                            </div>
+                            <div id="subCollapse{{ sub.id }}" class="collapse show">
+                              <div class="card-body">
+                              {% if sub.tasks|length == 0 %}
+                                <div class="text-muted">Nenhuma tarefa nesta subetapa.</div>
+                              {% else %}
+                                <div class="table-responsive">
+                                  <table class="table table-sm table-striped">
+                                    <thead>
+                                      <tr>
+                                        <th>Nome</th>
+                                        <th>Tipo</th>
+                                        <th>Período</th>
+                                        <th>Unidade</th>
+                                        <th>Qtd. Prevista</th>
+                                        <th>Qtd. Realizada</th>
+                                        <th>Total Previsto</th>
+                                        <th>Status</th>
+                                        <th class="text-end">Ações</th>
+                                      </tr>
+                                    </thead>
+                                    <tbody id="tasksBodySub{{ sub.id }}">
+                                      {% for t in sub.tasks %}
+                                      <tr>
+                                        <td>{{ t.name }}</td>
+                                        <td>{{ t.task_type }}</td>
+                                        <td>
+                                          {% if t.start_date and t.end_date %}
+                                            {{ t.start_date }} — {{ t.end_date }}
+                                          {% elif t.start_date %}
+                                            {{ t.start_date }}
+                                          {% elif t.end_date %}
+                                            {{ t.end_date }}
+                                          {% else %}
+                                            —
+                                          {% endif %}
+                                        </td>
+                                        <td>{{ t.unit }}</td>
+                                        <td>{{ t.quantity_planned }}</td>
+                                        <td>{{ t.executed_quantity }}</td>
+                                        <td class="fw-bold">{{ t.total_cost_planned }}</td>
+                                        <td>{{ t.status_percent }}%</td>
+                                        <td class="text-end"><button class="btn btn-sm btn-outline-success" onclick="showMeasurementModal({{ t.id }}, '{{ t.name|replace("'", "&#39;") }}')"><i class="bi bi-clipboard-check"></i> Medir</button></td>
+                                      </tr>
+                                      {% endfor %}
+                                    </tbody>
+                                  </table>
+                                </div>
+                              {% endif %}
+                            </div>
+                            </div>
+                          </div>
+                        </div>
+                      {% endfor %}
+                      </div>
+                    {% endif %}
+                    {% if True %}
+                    <div class="mt-3 p-3 border rounded bg-light">
+                      <div class="d-flex justify-content-between align-items-center mb-2">
+                        <strong>Nova Subetapa</strong>
+                        <small class="text-muted">Adicionar subetapa com valor contratual</small>
+                      </div>
+                      <div class="row g-2 align-items-end">
+                        <div class="col-md-3">
+                          <label class="form-label">Nome</label>
+                          <input type="text" class="form-control" id="ns_name_{{ macro.id }}" placeholder="Ex.: Contenções">
+                        </div>
+                        <div class="col-md-2">
+                          <label class="form-label">Ordem</label>
+                          <input type="number" class="form-control" id="ns_order_{{ macro.id }}" value="0">
+                        </div>
+                        <div class="col-md-2">
+                          <label class="form-label">A Medir</label>
+                          <select class="form-select" id="ns_to_measure_{{ macro.id }}">
+                            <option value="true">Sim</option>
+                            <option value="false">Não</option>
+                          </select>
+                        </div>
+                        <div class="col-md-3">
+                          <label class="form-label">Valor Contratual (R$)</label>
+                          <input type="number" step="0.01" class="form-control" id="ns_contract_value_{{ macro.id }}" placeholder="0,00">
+                        </div>
+                        <div class="col-md-2 text-end">
+                          <button type="button" class="btn btn-sm btn-primary" onclick="createSubStage({{ macro.id }})"><i class="bi bi-plus-circle"></i> Adicionar</button>
+                        </div>
+                      </div>
+                    </div>
+                    {% endif %}
+                </div>
+              </div>
+            </div>
+          {% endfor %}
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+// Abrir macro automaticamente quando chegar com ?macro=Nome
+document.addEventListener('DOMContentLoaded', () => {
+  const params = new URLSearchParams(window.location.search);
+  const macroName = params.get('macro');
+  if (macroName) {
+    const items = Array.from(document.querySelectorAll('.accordion-item'));
+    const item = items.find(el => (el.dataset.macroName || '').toLowerCase() === macroName.toLowerCase());
+    if (item) {
+      const collapseEl = item.querySelector('.accordion-collapse');
+      if (collapseEl) {
+        const bs = bootstrap.Collapse.getOrCreateInstance(collapseEl, { toggle: false });
+        bs.show();
+        item.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      }
+    }
+  }
+});
+
+const apiConstruction = '/api/construction';
+function idemp(){ return { 'X-Idempotency-Key': `${Date.now()}-${Math.random().toString(36).slice(2)}` }; }
+function currency(v){ return window.MTDL ? MTDL.formatCurrency(v) : `R$ ${(v||0).toFixed(2)}`; }
+
+function showTaskModal(subId){
+  document.getElementById('tf_sub_stage_id').value = subId;
+  document.getElementById('taskForm').reset();
+  document.getElementById('laborPlanList').innerHTML = '';
+  document.getElementById('equipmentPlanList').innerHTML = '';
+  addLaborPlanRow();
+  addEquipmentPlanRow();
+  bindUnitBehavior();
+  bootstrap.Modal.getOrCreateInstance(document.getElementById('taskModal')).show();
+}
+
+function rowHtml(inputs){
+  return `<div class="row g-2 align-items-end mb-2">${inputs}<div class="col-auto"><button type="button" class="btn btn-sm btn-outline-danger" onclick="this.closest('.row').remove()"><i class="bi bi-x"></i></button></div></div>`;
+}
+
+function addLaborPlanRow(){
+  const wrap = document.getElementById('laborPlanList');
+  const inputs = `
+    <div class="col-md-3"><label class="form-label">Função</label><select class="form-select lp-role"><option>Encarregado</option><option>Ajudante</option><option>Operador</option></select></div>
+    <div class="col-md-2"><label class="form-label">Qtd</label><input type="number" step="0.01" class="form-control lp-qty" value="1"></div>
+    <div class="col-md-3"><label class="form-label">Valor Unitário (R$/dia ou hora)</label><input type="number" step="0.01" class="form-control lp-value" value="250"></div>
+    <div class="col-md-2"><label class="form-label">Unidade</label><select class="form-select lp-unit"><option>dia</option><option>hora</option></select></div>`;
+  wrap.insertAdjacentHTML('beforeend', rowHtml(inputs));
+}
+
+function addEquipmentPlanRow(){
+  const wrap = document.getElementById('equipmentPlanList');
+  const inputs = `
+    <div class="col-md-4"><label class="form-label">Equipamento</label><input type="text" class="form-control ep-eq" value="Escavadeira Hidráulica"></div>
+    <div class="col-md-3"><label class="form-label">Horas</label><input type="number" step="0.01" class="form-control ep-hours" value="8"></div>
+    <div class="col-md-3"><label class="form-label">Valor Unitário (R$/hora)</label><input type="number" step="0.01" class="form-control ep-value" value="300"></div>`;
+  wrap.insertAdjacentHTML('beforeend', rowHtml(inputs));
+}
+
+function bindUnitBehavior(){
+  const wrap = document.getElementById('laborPlanList');
+  wrap.addEventListener('change', (ev) => {
+    if (ev.target.classList.contains('lp-unit')){
+      const unit = ev.target.value;
+      const parent = ev.target.closest('.row');
+      const label = parent.querySelector('.lp-value')?.closest('.col-md-3')?.querySelector('label');
+      if (label){ label.textContent = unit === 'hora' ? 'Valor Unitário (R$/hora)' : 'Valor Unitário (R$/dia)'; }
+    }
+  });
+}
+
+async function saveTask(){
+  try {
+    const subId = parseInt(document.getElementById('tf_sub_stage_id').value);
+    const payload = {
+      sub_stage_id: subId,
+      name: document.getElementById('tf_name').value.trim(),
+      task_type: document.getElementById('tf_type').value,
+      start_date: document.getElementById('tf_start_date').value || null,
+      end_date: document.getElementById('tf_end_date').value || null,
+      unit: document.getElementById('tf_unit').value,
+      quantity_planned: parseFloat(document.getElementById('tf_quantity').value || '0'),
+      labor_plan: Array.from(document.querySelectorAll('#laborPlanList .row')).map(r => ({ role: r.querySelector('.lp-role').value, qty: parseFloat(r.querySelector('.lp-qty').value || '0'), unit_value: parseFloat(r.querySelector('.lp-value').value || '0'), unit: r.querySelector('.lp-unit').value })),
+      equipment_plan: Array.from(document.querySelectorAll('#equipmentPlanList .row')).map(r => ({ equipment: r.querySelector('.ep-eq').value, hours: parseFloat(r.querySelector('.ep-hours').value || '0'), unit_value: parseFloat(r.querySelector('.ep-value').value || '0') })),
+    };
+    const headers = Object.assign({ 'Content-Type': 'application/json', Accept: 'application/json' }, idemp());
+    const res = await axios.post(`${apiConstruction}/tasks`, payload, { headers });
+    bootstrap.Modal.getInstance(document.getElementById('taskModal')).hide();
+
+    // Preparar HTML da linha
+    const start = payload.start_date ? new Date(payload.start_date).toLocaleDateString('pt-BR') : '';
+    const end = payload.end_date ? new Date(payload.end_date).toLocaleDateString('pt-BR') : '';
+    const rowHtml = `
+      <td>${payload.name}</td>
+      <td>${payload.task_type}</td>
+      <td>${start} - ${end}</td>
+      <td>${payload.unit}</td>
+      <td>${payload.quantity_planned}</td>
+      <td>0</td>
+      <td class="fw-bold">${currency(res.data?.total_cost_planned || 0)}</td>
+      <td>0%</td>
+      <td class="text-end"><button class="btn btn-sm btn-outline-success" onclick="showMeasurementModal(${res.data?.id}, '${payload.name.replace(/'/g, "&#39;")}')"><i class="bi bi-clipboard-check"></i> Medir</button></td>`;
+
+    let tbody = document.getElementById(`tasksBodySub${subId}`);
+    if (!tbody){
+      // Criar tabela se ainda não existir (caso haja o placeholder "Nenhuma tarefa nesta subetapa.")
+      const cardBody = document.querySelector(`[onclick=\"showTaskModal(${subId})\"]`)?.closest('.card')?.querySelector('.card-body');
+      if (cardBody){
+        cardBody.innerHTML = `
+          <div class="table-responsive">
+            <table class="table table-sm table-striped">
+              <thead>
+                <tr>
+                  <th>Nome</th>
+                  <th>Tipo</th>
+                  <th>Período</th>
+                  <th>Unidade</th>
+                  <th>Qtd. Prevista</th>
+                  <th>Qtd. Realizada</th>
+                  <th>Total Previsto</th>
+                  <th>Status</th>
+                  <th class="text-end">Ações</th>
+                </tr>
+              </thead>
+              <tbody id="tasksBodySub${subId}"></tbody>
+            </table>
+          </div>`;
+        tbody = document.getElementById(`tasksBodySub${subId}`);
+      }
+    }
+
+    if (tbody){
+      const tr = document.createElement('tr');
+      tr.setAttribute('data-task-id', res.data?.id);
+      tr.innerHTML = rowHtml;
+      tbody.prepend(tr);
+      updateSubStageProgress(subId);
+    } else {
+      // Fallback: recarregar página se não foi possível criar/obter a tabela
+      location.reload();
+    }
+
+    if (typeof showAlert === 'function') showAlert('Tarefa criada com sucesso!', 'success', 2500);
+  } catch (e){ console.error(e); alert('Erro ao criar tarefa'); }
+}
+
+function showMeasurementModal(taskId, taskName){
+  document.getElementById('mf_task_id').value = taskId;
+  document.getElementById('mm_task_name').textContent = taskName || '';
+  document.getElementById('measurementForm').reset();
+  document.getElementById('laborRealizedList').innerHTML = '';
+  document.getElementById('equipmentUsedList').innerHTML = '';
+  addLaborRealizedRow();
+  addEquipmentUsedRow();
+  bindMeasurementPreview();
+  bootstrap.Modal.getOrCreateInstance(document.getElementById('measurementModal')).show();
+}
+
+function addLaborRealizedRow(){
+  const wrap = document.getElementById('laborRealizedList');
+  const inputs = `
+    <div class="col-md-3"><label class="form-label">Função</label><select class="form-select lr-role"><option>Ajudante</option><option>Encarregado</option><option>Operador</option></select></div>
+    <div class="col-md-2"><label class="form-label">Qtd</label><input type="number" step="0.01" class="form-control lr-qty" value="1"></div>
+    <div class="col-md-3"><label class="form-label">Valor Unitário</label><input type="number" step="0.01" class="form-control lr-value" value="250"></div>
+    <div class="col-md-2"><label class="form-label">Dias/Horas</label><input type="number" step="0.01" class="form-control lr-time" value="1"></div>`;
+  wrap.insertAdjacentHTML('beforeend', rowHtml(inputs));
+}
+
+function addEquipmentUsedRow(){
+  const wrap = document.getElementById('equipmentUsedList');
+  const inputs = `
+    <div class="col-md-4"><label class="form-label">Equipamento</label><input type="text" class="form-control eu-eq" value="Escavadeira Hidráulica"></div>
+    <div class="col-md-3"><label class="form-label">Horas</label><input type="number" step="0.01" class="form-control eu-hours" value="8"></div>
+    <div class="col-md-3"><label class="form-label">Valor Unitário</label><input type="number" step="0.01" class="form-control eu-value" value="300"></div>`;
+  wrap.insertAdjacentHTML('beforeend', rowHtml(inputs));
+}
+
+async function saveMeasurement(){
+  try {
+    const taskId = parseInt(document.getElementById('mf_task_id').value);
+    const payload = {
+      task_id: taskId,
+      quantity_executed: parseFloat(document.getElementById('mf_quantity').value || '0'),
+      labor_realized: Array.from(document.querySelectorAll('#laborRealizedList .row')).map(r => ({ role: r.querySelector('.lr-role').value, qty: parseFloat(r.querySelector('.lr-qty').value || '0'), unit_value: parseFloat(r.querySelector('.lr-value').value || '0'), time: parseFloat(r.querySelector('.lr-time').value || '0') })),
+      equipment_used: Array.from(document.querySelectorAll('#equipmentUsedList .row')).map(r => ({ equipment: r.querySelector('.eu-eq').value, hours: parseFloat(r.querySelector('.eu-hours').value || '0'), unit_value: parseFloat(r.querySelector('.eu-value').value || '0') })),
+    };
+    const headers = Object.assign({ 'Content-Type': 'application/json', Accept: 'application/json' }, idemp());
+    const res = await axios.post(`${apiConstruction}/measurements`, payload, { headers });
+
+    // Atualizar a linha da tarefa com QTD Realizada e Status
+    const row = document.querySelector(`tr[data-task-id="${taskId}"]`);
+    if (row) {
+      const qtyCell = row.children[5]; // Qtd. Realizada
+      const plannedCell = row.children[4]; // Qtd. Prevista
+      const statusCell = row.children[7]; // Status
+      const planned = parseFloat((plannedCell?.textContent || '0').replace(',', '.')) || 0;
+      const prevExec = parseFloat((qtyCell?.textContent || '0').replace(',', '.')) || 0;
+      const added = parseFloat(payload.quantity_executed || 0);
+      const executed = prevExec + added;
+      if (qtyCell) qtyCell.textContent = isFinite(executed) ? executed.toFixed(2) : '0';
+      const percent = planned > 0 ? (executed / planned * 100) : 0;
+      if (statusCell) statusCell.textContent = `${percent.toFixed(2)}%`;
+      const tb = row.closest('tbody');
+      const m = (tb?.id || '').match(/tasksBodySub(\d+)/);
+      if (m && m[1]) updateSubStageProgress(parseInt(m[1]));
+    }
+
+    bootstrap.Modal.getInstance(document.getElementById('measurementModal')).hide();
+    if (typeof showAlert === 'function') showAlert('Medição registrada!', 'success', 2500);
+  } catch (e){ console.error(e); alert('Erro ao salvar medição'); }
+}
+
+// --- Subetapas: criar, atualizar valor contratual, excluir ---
+async function createSubStage(macroId){
+  try {
+    const name = document.getElementById(`ns_name_${macroId}`).value.trim();
+    const order = parseInt(document.getElementById(`ns_order_${macroId}`).value || '0');
+    const to_measure = document.getElementById(`ns_to_measure_${macroId}`).value === 'true';
+    const cv_input_el = document.getElementById(`ns_contract_value_${macroId}`);
+    const contractual_value = parseFloat(cv_input_el?.value || '0');
+    const payload = { macro_stage_id: macroId, name, order, contractual_value };
+    const headers = Object.assign({ 'Content-Type': 'application/json', Accept: 'application/json' }, idemp());
+    const res = await axios.post(`${apiConstruction}/sub-stages`, payload, { headers });
+
+    // Inserir nova subetapa no DOM
+    const accordionBody = document.querySelector(`#macroCollapse${macroId} .accordion-body .row.g-3`);
+    if (!accordionBody) return location.reload();
+    const sub = res.data;
+    const html = `
+      <div class="col-12">
+        <div class="card">
+          <div class="card-header d-flex justify-content-between align-items-center">
+            <button class="btn btn-link p-0 text-decoration-none d-flex align-items-center gap-2" type="button" data-bs-toggle="collapse" data-bs-target="#subCollapse${sub.id}" aria-expanded="true" aria-controls="subCollapse${sub.id}">
+              <i id="chevronSub${sub.id}" class="bi bi-chevron-down"></i>
+              <h6 class="mb-0">${sub.name}</h6>
+            </button>
+            <div class="d-flex align-items-center gap-1">
+              <span class="text-muted">Progresso a realizar</span>
+              <span id="progressBadgeSub${sub.id}" class="badge bg-danger">0%</span>
+              <button class="btn btn-sm btn-primary" data-sub-id="${sub.id}" onclick="showTaskModal(${sub.id})"><i class="bi bi-plus-circle"></i> Adicionar Tarefa</button>
+            </div>
+          </div>
+          <div id="subCollapse${sub.id}" class="collapse show">
+            <div class="card-body">
+              <div class="text-muted">Nenhuma tarefa nesta subetapa.</div>
+            </div>
+          </div>
+        </div>
+      </div>`;
+    accordionBody.insertAdjacentHTML('afterbegin', html);
+  } catch (e){ console.error(e); alert('Erro ao criar subetapa'); }
+}
+
+function updateSubStageProgress(subId){
+  try {
+    const tbody = document.getElementById(`tasksBodySub${subId}`);
+    if (!tbody) return;
+    const rows = Array.from(tbody.querySelectorAll('tr'));
+    const percents = rows.map(r => {
+      const cell = r.children[7];
+      const text = cell ? cell.textContent || '' : '0';
+      const n = parseFloat(text.replace('%','').replace(',','.'));
+      return isNaN(n) ? 0 : n;
+    });
+    const avg = percents.length ? (percents.reduce((a,b)=>a+b,0) / percents.length) : 0;
+    const badge = document.getElementById(`progressBadgeSub${subId}`);
+    if (badge){
+      badge.textContent = `${avg.toFixed(2)}%`;
+      badge.classList.remove('bg-danger','bg-primary','bg-success');
+      badge.classList.add(avg >= 100 ? 'bg-success' : (avg > 50 ? 'bg-primary' : 'bg-danger'));
+    }
+  } catch (e){ console.warn('Falha ao atualizar progresso:', e); }
+}
+
+// Sincroniza ícone (chevron) conforme expandir/recolher das subetapas
+// Usa eventos do Bootstrap Collapse para alternar o ícone
+document.addEventListener('DOMContentLoaded', function(){
+  document.querySelectorAll('[id^="subCollapse"]').forEach(function(el){
+    var subId = el.id.replace('subCollapse','');
+    var chev = document.getElementById('chevronSub'+subId);
+    if (!chev) return;
+    el.addEventListener('shown.bs.collapse', function(){
+      chev.classList.remove('bi-chevron-right');
+      chev.classList.add('bi-chevron-down');
+    });
+    el.addEventListener('hidden.bs.collapse', function(){
+      chev.classList.remove('bi-chevron-down');
+      chev.classList.add('bi-chevron-right');
+    });
+  });
+});
+</script>
+{% endblock %}

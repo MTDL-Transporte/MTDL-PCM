@@ -1,0 +1,1010 @@
+/* Estilos personalizados para MTDL-PCM */
+
+/* Correções de compatibilidade para navegadores */
+* {
+    box-sizing: border-box;
+}
+
+:root {
+    --primary-color: #2c3e50;
+    --secondary-color: #3498db;
+    --success-color: #27ae60;
+    --warning-color: #f39c12;
+    --danger-color: #e74c3c;
+    --info-color: #17a2b8;
+    --light-color: #ecf0f1;
+    --dark-color: #2c3e50;
+    --sidebar-width: 250px;
+}
+
+/* Layout Principal */
+body {
+    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    background-color: #f8f9fa;
+    margin: 0;
+    padding: 0;
+    color-scheme: light; /* garantir paleta clara para controles nativos (select, input, etc.) */
+}
+
+/* Sidebar melhorado */
+.sidebar {
+    height: 100vh;
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: var(--sidebar-width);
+    z-index: 1000;
+    overflow-y: auto;
+    overscroll-behavior: contain;
+}
+
+/* Remover recortes visuais que podem esconder submenus expandidos */
+.sidebar .nav-link {
+    position: relative;
+    /* overflow: hidden;  removido para permitir texto completo */
+}
+
+/* Garantir que o container do menu possa crescer conforme necessário */
+.sidebar-nav {
+    max-height: none;
+    overflow: visible;
+}
+
+/* Ajustar indentação de submenu sem aumentar muito a altura por item */
+.sidebar .nav-link.ps-4 {
+    padding-left: 2.2rem !important;
+    font-size: 0.92rem;
+}
+.sidebar .nav-link {
+    color: rgba(255, 255, 255, 0.8);
+    border-radius: 8px;
+    margin: 2px 0;
+    padding: 12px 16px;
+    transition: all 0.3s ease;
+}
+
+.sidebar .nav-link:hover,
+.sidebar .nav-link.active {
+    color: white;
+    background-color: rgba(255, 255, 255, 0.1);
+    transform: translateX(5px);
+}
+
+/* Animações para menu colapsável */
+.sidebar {
+    transition: transform 0.3s ease;
+}
+
+.sidebar.collapsed {
+    transform: translateX(-100%);
+}
+
+.menu-toggle {
+    display: none;
+    position: fixed;
+    top: 15px;
+    left: 15px;
+    z-index: 1001;
+    background: var(--primary-color);
+    color: white;
+    border: none;
+    border-radius: 6px;
+    padding: 10px;
+    cursor: pointer;
+    transition: all 0.3s ease;
+}
+
+.menu-toggle:hover {
+    background: var(--secondary-color);
+    transform: scale(1.1);
+}
+
+@media (max-width: 768px) {
+    .menu-toggle {
+        display: block;
+    }
+    
+    .sidebar {
+        transform: translateX(-100%);
+    }
+    
+    .sidebar.show {
+        transform: translateX(0);
+    }
+    
+    .main-content.sidebar-open {
+        margin-left: 0;
+    }
+}
+
+/* Overlay para mobile */
+.sidebar-overlay {
+    display: none;
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(0, 0, 0, 0.5);
+    z-index: 999;
+    opacity: 0;
+    transition: opacity 0.3s ease;
+}
+
+.sidebar-overlay.show {
+    display: block;
+    opacity: 1;
+}
+
+/* Animação suave para links do menu */
+.sidebar .nav-link {
+    position: relative;
+    overflow: hidden;
+}
+
+.sidebar .nav-link::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: -100%;
+    width: 100%;
+    height: 100%;
+    background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.2), transparent);
+    transition: left 0.5s ease;
+    /* Não interceptar cliques */
+    pointer-events: none;
+}
+
+.sidebar .nav-link:hover::before {
+    left: 100%;
+}
+    background-color: rgba(255, 255, 255, 0.1);
+    transform: translateX(5px);
+}
+
+/* Estilos para menu colapsável */
+.collapsible-menu-header {
+    cursor: pointer;
+    transition: all 0.3s ease;
+}
+
+.collapsible-menu-header:hover {
+    background-color: rgba(255, 255, 255, 0.1);
+}
+
+.collapsible-menu-header .bi-chevron-down {
+    transition: transform 0.3s ease;
+}
+
+.collapsible-menu-header[aria-expanded="false"] .bi-chevron-down {
+    transform: rotate(-90deg);
+}
+
+.collapsible-menu-header[aria-expanded="true"] .bi-chevron-down {
+    transform: rotate(0deg);
+}
+
+/* Indentação para itens do submenu */
+.sidebar .nav-link.ps-4 {
+    padding-left: 2.5rem !important;
+    font-size: 0.9rem;
+}
+
+.sidebar .nav-link.ps-4:hover {
+    background-color: rgba(255, 255, 255, 0.15);
+    padding-left: 2.8rem !important;
+}
+
+.sidebar .nav-link i {
+    margin-right: 10px;
+    width: 20px;
+    text-align: center;
+}
+
+/* Main content com margem para sidebar */
+.main-content {
+    background-color: #f8f9fa;
+    min-height: 100vh;
+    margin-left: var(--sidebar-width);
+    padding: 20px;
+}
+
+/* Cards melhorados */
+.card {
+    border: none;
+    border-radius: 12px;
+    box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
+    transition: transform 0.3s ease, box-shadow 0.3s ease;
+    margin-bottom: 20px;
+}
+
+.card:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 8px 25px rgba(0, 0, 0, 0.15);
+}
+
+/* Cards de métricas com bordas coloridas */
+.border-left-primary {
+    border-left: 4px solid var(--primary-color) !important;
+}
+
+.border-left-success {
+    border-left: 4px solid var(--success-color) !important;
+}
+
+.border-left-info {
+    border-left: 4px solid var(--info-color) !important;
+}
+
+.border-left-warning {
+    border-left: 4px solid var(--warning-color) !important;
+}
+
+/* Melhorias nos cards de métricas */
+.metric-card {
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    color: white;
+}
+
+.metric-card .card-body {
+    padding: 1.5rem;
+}
+
+.metric-value {
+    font-size: 2.5rem;
+    font-weight: bold;
+    margin-bottom: 0;
+}
+
+/* Responsividade melhorada */
+@media (max-width: 768px) {
+    .sidebar {
+        transform: translateX(-100%);
+        transition: transform 0.3s ease;
+    }
+    
+    .sidebar.show {
+        transform: translateX(0);
+    }
+    
+    .main-content {
+        margin-left: 0;
+        padding: 15px;
+    }
+    
+    .metric-value {
+        font-size: 2rem;
+    }
+}
+
+@media (max-width: 576px) {
+    .main-content {
+        padding: 10px;
+    }
+    
+    .card-body {
+        padding: 1rem;
+    }
+    
+    .metric-value {
+        font-size: 1.8rem;
+    }
+}
+
+/* Botões melhorados */
+.btn-primary {
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    border: none;
+    border-radius: 8px;
+    padding: 10px 20px;
+    transition: all 0.3s ease;
+}
+
+.btn-primary:hover {
+    background: linear-gradient(135deg, #5a6fd8 0%, #6a4190 100%);
+    transform: translateY(-1px);
+    box-shadow: 0 4px 12px rgba(102, 126, 234, 0.4);
+}
+
+/* Alertas melhorados */
+.alert {
+    border-radius: 10px;
+    border: none;
+    padding: 15px 20px;
+}
+
+.alert-warning {
+    background: linear-gradient(135deg, #ffeaa7 0%, #fdcb6e 100%);
+    color: #2d3436;
+}
+
+/* Gráficos de progresso melhorados */
+.progress {
+    height: 10px;
+    border-radius: 10px;
+    background-color: rgba(0, 0, 0, 0.1);
+    overflow: hidden;
+}
+
+.progress-bar {
+    border-radius: 10px;
+    transition: width 0.6s ease;
+}
+
+/* Equipamentos críticos - melhorias no layout */
+.equipment-chart .chart-row {
+    padding: 10px 0;
+    border-bottom: 1px solid rgba(0, 0, 0, 0.05);
+}
+
+.equipment-chart .chart-row:last-child {
+    border-bottom: none;
+}
+
+.chart-label {
+    font-weight: 500;
+    color: #2c3e50;
+}
+
+.chart-value {
+    font-weight: 600;
+    color: #27ae60;
+    font-size: 0.9rem;
+}
+
+/* Ícones melhorados */
+.fa-2x {
+    font-size: 2em;
+    opacity: 0.3;
+}
+
+/* Header da página */
+.page-header {
+    background: white;
+    padding: 20px 0;
+    margin-bottom: 30px;
+    border-radius: 12px;
+    box-shadow: 0 2px 10px rgba(0, 0, 0, 0.05);
+}
+
+/* Animações suaves */
+@keyframes fadeInUp {
+    from {
+        opacity: 0;
+        transform: translateY(30px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+.card {
+    animation: fadeInUp 0.6s ease-out;
+}
+
+/* Melhorias na tipografia */
+.text-xs {
+    font-size: 0.75rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+.h5 {
+    font-weight: 700;
+}
+
+/* Cores de texto melhoradas */
+.text-primary { color: var(--primary-color) !important; }
+.text-success { color: var(--success-color) !important; }
+.text-info { color: var(--info-color) !important; }
+.text-warning { color: var(--warning-color) !important; }
+.text-danger { color: var(--danger-color) !important; }
+
+/* Espaçamento consistente */
+.mb-4 { margin-bottom: 1.5rem !important; }
+.mt-4 { margin-top: 1.5rem !important; }
+.py-2 { padding-top: 0.5rem !important; padding-bottom: 0.5rem !important; }
+
+/* Conteúdo */
+.content {
+    padding: 30px;
+    min-height: calc(100vh - 120px);
+}
+
+/* Cards Personalizados */
+.metric-card {
+    border: none;
+    border-radius: 10px;
+    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+    transition: all 0.3s ease;
+    overflow: hidden;
+    position: relative;
+}
+
+.metric-card::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: 4px;
+    background: linear-gradient(90deg, var(--secondary-color), var(--success-color));
+}
+
+.metric-card:hover {
+    transform: translateY(-5px);
+    box-shadow: 0 8px 15px rgba(0, 0, 0, 0.2);
+}
+
+.metric-value {
+    font-size: 2rem;
+    font-weight: 700;
+    color: var(--primary-color);
+}
+
+/* Tabelas */
+.table {
+    background: white;
+    border-radius: 8px;
+    overflow: hidden;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+.table thead th {
+    background: var(--primary-color);
+    color: white;
+    border: none;
+    font-weight: 600;
+    text-transform: uppercase;
+    font-size: 0.85rem;
+    letter-spacing: 0.5px;
+    padding: 15px;
+}
+
+.table tbody tr {
+    transition: all 0.2s ease;
+}
+
+.table tbody tr:hover {
+    background-color: rgba(52, 152, 219, 0.05);
+    transform: scale(1.01);
+}
+
+.table tbody td {
+    padding: 12px 15px;
+    vertical-align: middle;
+    border-top: 1px solid #e9ecef;
+}
+
+/* Botões */
+.btn {
+    border-radius: 6px;
+    font-weight: 500;
+    padding: 8px 16px;
+    transition: all 0.3s ease;
+    border: none;
+    position: relative;
+    overflow: hidden;
+}
+
+.btn::before {
+    content: '';
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    width: 0;
+    height: 0;
+    background: rgba(255, 255, 255, 0.2);
+    border-radius: 50%;
+    transform: translate(-50%, -50%);
+    transition: width 0.3s ease, height 0.3s ease;
+}
+
+.btn:hover::before {
+    width: 300px;
+    height: 300px;
+}
+
+.btn-primary {
+    background: linear-gradient(135deg, var(--secondary-color), #2980b9);
+}
+
+.btn-success {
+    background: linear-gradient(135deg, var(--success-color), #229954);
+}
+
+.btn-warning {
+    background: linear-gradient(135deg, var(--warning-color), #e67e22);
+}
+
+.btn-danger {
+    background: linear-gradient(135deg, var(--danger-color), #c0392b);
+}
+
+.btn-info {
+    background: linear-gradient(135deg, var(--info-color), #138496);
+}
+
+/* Estilos para botões outline - melhor visibilidade */
+.btn-outline-primary {
+    color: var(--secondary-color);
+    border: 2px solid var(--secondary-color);
+    background-color: transparent;
+    font-weight: 600;
+}
+
+.btn-outline-primary:hover {
+    color: white;
+    background-color: var(--secondary-color);
+    border-color: var(--secondary-color);
+    transform: translateY(-1px);
+    box-shadow: 0 4px 8px rgba(52, 152, 219, 0.3);
+}
+
+.btn-outline-info {
+    color: var(--info-color);
+    border: 2px solid var(--info-color);
+    background-color: transparent;
+    font-weight: 600;
+}
+
+.btn-outline-info:hover {
+    color: white;
+    background-color: var(--info-color);
+    border-color: var(--info-color);
+    transform: translateY(-1px);
+    box-shadow: 0 4px 8px rgba(23, 162, 184, 0.3);
+}
+
+.btn-outline-success {
+    color: var(--success-color);
+    border: 2px solid var(--success-color);
+    background-color: transparent;
+    font-weight: 600;
+}
+
+.btn-outline-success:hover {
+    color: white;
+    background-color: var(--success-color);
+    border-color: var(--success-color);
+    transform: translateY(-1px);
+    box-shadow: 0 4px 8px rgba(39, 174, 96, 0.3);
+}
+
+.btn-outline-danger {
+    color: var(--danger-color);
+    border: 2px solid var(--danger-color);
+    background-color: transparent;
+    font-weight: 600;
+}
+
+.btn-outline-danger:hover {
+    color: white;
+    background-color: var(--danger-color);
+    border-color: var(--danger-color);
+    transform: translateY(-1px);
+    box-shadow: 0 4px 8px rgba(231, 76, 60, 0.3);
+}
+
+/* Estilos específicos para botões pequenos */
+.btn-sm.btn-outline-primary,
+.btn-sm.btn-outline-info,
+.btn-sm.btn-outline-success {
+    border-width: 2px;
+    font-weight: 600;
+    min-width: 80px;
+    padding: 6px 12px;
+}
+
+/* Melhor contraste para botões em tabelas */
+.table .btn-outline-primary,
+.table .btn-outline-info,
+.table .btn-outline-success {
+    border-width: 2px;
+    font-size: 0.875rem;
+    margin: 1px;
+}
+
+/* Formulários */
+.form-control, .form-select {
+    border-radius: 6px;
+    border: 2px solid #e9ecef;
+    padding: 10px 15px;
+    transition: all 0.3s ease;
+}
+
+.form-control:focus, .form-select:focus {
+    border-color: var(--secondary-color);
+    box-shadow: 0 0 0 0.2rem rgba(52, 152, 219, 0.25);
+}
+
+.form-label {
+    font-weight: 600;
+    color: var(--primary-color);
+    margin-bottom: 8px;
+}
+
+/* Modais */
+.modal-content {
+    border: none;
+    border-radius: 10px;
+    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3);
+}
+
+.modal-header {
+    background: var(--primary-color);
+    color: white;
+    border-radius: 10px 10px 0 0;
+    padding: 20px;
+}
+
+.modal-title {
+    font-weight: 600;
+}
+
+.modal-body {
+    padding: 25px;
+}
+
+.modal-footer {
+    padding: 20px;
+    border-top: 1px solid #e9ecef;
+}
+
+/* Alertas */
+.alert {
+    border: none;
+    border-radius: 8px;
+    padding: 15px 20px;
+    margin-bottom: 20px;
+    border-left: 4px solid;
+}
+
+.alert-success {
+    background: rgba(39, 174, 96, 0.1);
+    border-left-color: var(--success-color);
+    color: #155724;
+}
+
+.alert-warning {
+    background: rgba(243, 156, 18, 0.1);
+    border-left-color: var(--warning-color);
+    color: #856404;
+}
+
+.alert-danger {
+    background: rgba(231, 76, 60, 0.1);
+    border-left-color: var(--danger-color);
+    color: #721c24;
+}
+
+.alert-info {
+    background: rgba(23, 162, 184, 0.1);
+    border-left-color: var(--info-color);
+    color: #0c5460;
+}
+
+/* Badges */
+.badge {
+    font-size: 0.75rem;
+    font-weight: 600;
+    padding: 6px 10px;
+    border-radius: 20px;
+}
+
+/* Paginação */
+.pagination {
+    margin: 20px 0;
+}
+
+.page-link {
+    border: none;
+    color: var(--secondary-color);
+    padding: 10px 15px;
+    margin: 0 2px;
+    border-radius: 6px;
+    transition: all 0.3s ease;
+}
+
+.page-link:hover {
+    background: var(--secondary-color);
+    color: white;
+    transform: translateY(-2px);
+}
+
+.page-item.active .page-link {
+    background: var(--secondary-color);
+    border-color: var(--secondary-color);
+}
+
+/* Gráficos */
+.chart-container {
+    position: relative;
+    height: 300px;
+    margin: 20px 0;
+}
+
+/* Spinner de Loading */
+.spinner-border {
+    color: var(--secondary-color);
+}
+
+/* Responsividade */
+@media (max-width: 768px) {
+    .sidebar {
+        width: 100%;
+        height: auto;
+        position: relative;
+    }
+    
+    .main-content {
+        margin-left: 0;
+    }
+    
+    .content {
+        padding: 15px;
+    }
+    
+    .metric-card {
+        margin-bottom: 15px;
+    }
+    
+    .table-responsive {
+        font-size: 0.85rem;
+    }
+    
+    .btn-group-sm .btn {
+        padding: 4px 8px;
+        font-size: 0.75rem;
+    }
+}
+
+@media (max-width: 576px) {
+    .page-title {
+        font-size: 1.4rem;
+    }
+    
+    .metric-value {
+        font-size: 1.5rem;
+    }
+    
+    .modal-dialog {
+        margin: 10px;
+    }
+    
+    .sidebar-nav a {
+        padding: 12px 15px;
+    }
+}
+
+/* Animações */
+@keyframes fadeIn {
+    from {
+        opacity: 0;
+        transform: translateY(20px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+.fade-in {
+    animation: fadeIn 0.5s ease-out;
+}
+
+@keyframes slideIn {
+    from {
+        transform: translateX(-100%);
+    }
+    to {
+        transform: translateX(0);
+    }
+}
+
+.slide-in {
+    animation: slideIn 0.3s ease-out;
+}
+
+/* Utilitários */
+.text-truncate {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.shadow-sm {
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1) !important;
+}
+
+.shadow {
+    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1) !important;
+}
+
+.shadow-lg {
+    box-shadow: 0 10px 15px rgba(0, 0, 0, 0.1) !important;
+}
+
+/* Estados de Loading */
+.loading {
+    position: relative;
+    pointer-events: none;
+}
+
+.loading::after {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: rgba(255, 255, 255, 0.8);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 1000;
+}
+
+/* Scrollbar personalizada */
+::-webkit-scrollbar {
+    width: 8px;
+}
+
+::-webkit-scrollbar-track {
+    background: #f1f1f1;
+    border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb {
+    background: var(--secondary-color);
+    border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+    background: #2980b9;
+}
+
+/* Classes para substituir estilos inline */
+.hidden {
+    display: none !important;
+}
+
+.error-icon-large {
+    font-size: 5rem;
+}
+
+.progress-height-12 {
+    height: 12px;
+}
+
+.max-width-250 {
+    max-width: 250px;
+}
+
+.margin-left-30 {
+    margin-left: 30px;
+}
+
+.margin-left-50 {
+    margin-left: 50px;
+}
+
+.margin-left-100 {
+    margin-left: 100px;
+}
+
+.margin-top-5 {
+    margin-top: 5px;
+}
+
+.margin-top-10 {
+    margin-top: 10px;
+}
+
+.width-30 {
+    width: 30px;
+}
+
+.width-60 {
+    width: 60px;
+}
+
+.width-80 {
+    width: 80px;
+}
+
+.width-100 {
+    width: 100px;
+}
+
+.width-150 {
+    width: 150px;
+}
+
+.width-200 {
+    width: 200px;
+}
+
+.width-250 {
+    width: 250px;
+}
+
+.width-300 {
+    width: 300px;
+}
+
+.width-400 {
+    width: 400px;
+}
+
+.text-center-bold {
+    text-align: center;
+    font-weight: bold;
+}
+
+.text-center-date {
+    text-align: center;
+    margin-top: 5px;
+}
+
+.chevron-collapsed {
+    transform: rotate(-90deg);
+}
+
+.no-text-decoration {
+    text-decoration: none;
+}
+
+/* Print styles */
+@media print {
+    .sidebar,
+    .main-header,
+    .btn,
+    .pagination {
+        display: none !important;
+    }
+    
+    .main-content {
+        margin-left: 0 !important;
+    }
+    
+    .content {
+        padding: 0 !important;
+    }
+    
+    .card {
+        border: 1px solid #ddd !important;
+        box-shadow: none !important;
+    }
+}
+
+/* Ajuste adicional de contraste para dropdown do combustível */
+#fuelingForm .form-select {
+    color: #000 !important;
+    background-color: #fff !important;
+    forced-color-adjust: none; /* evitar sobrescrita por modo de alto contraste do Windows */
+}
+#fuelingForm .form-select option,
+#fuelingForm .form-select optgroup {
+    color: #000 !important;
+    background-color: #fff !important;
+    forced-color-adjust: none;
+}
+#fuelingForm .form-select option:checked,
+#fuelingForm .form-select option:hover,
+#fuelingForm .form-select option:focus {
+    color: #000 !important;
+    background-color: #e9ecef !important;
+}
+#fuelingForm .form-select:focus,
+#fuelingForm .form-control:focus {
+    color: #000 !important;
+    background-color: #fff !important;
+}
+#fuelingForm .form-select option {
+    color: #000 !important;
+    background-color: #fff !important;
+}

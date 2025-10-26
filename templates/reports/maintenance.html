@@ -1,0 +1,1454 @@
+{% extends "base.html" %}
+{% block title %}Relatórios de Manutenção{% endblock %}
+
+{% block extra_css %}
+<style>
+    .tab-content { padding-top: 1rem; }
+    .kpi-card { border-radius: 10px; box-shadow: 0 2px 8px rgba(0,0,0,0.1); }
+    .chart-container { position: relative; height: 280px; }
+    /* Centralizar conteúdo do container quando necessário */
+    .chart-center { display: flex; align-items: center; justify-content: center; }
+    .filters .form-select, .filters .form-control { border-radius: 8px; }
+    /* Estado sem dados: cursor e dica */
+    .no-data-card { cursor: not-allowed; }
+    /* Modal A4 para tabela */
+    .a4-modal .modal-dialog { max-width: 1024px; }
+    .a4-page { width: 210mm; min-height: 297mm; margin: 0 auto; background: #fff; padding: 10mm; box-shadow: 0 2px 8px rgba(0,0,0,0.15); }
+    .a4-page .table { font-size: 12px; }
+    .a4-footer { text-align: center; margin-top: 8px; font-size: 12px; color: #555; }
+    @media print {
+        .a4-page { box-shadow: none; }
+    }
+    /* Chat de IA */
+    .ai-chat { max-height: 420px; display: flex; flex-direction: column; }
+    .ai-messages { height: 280px; overflow-y: auto; padding: .5rem; background: #f8f9fa; border-radius: 8px; border: 1px solid #eee; }
+    .ai-msg { display: flex; gap: 8px; margin-bottom: 10px; }
+    .ai-msg .avatar { width: 28px; height: 28px; border-radius: 50%; background: #dee2e6; display:flex; align-items:center; justify-content:center; font-weight:600; font-size: 12px; color: #495057; }
+    .ai-msg .bubble { padding: 8px 12px; border-radius: 12px; max-width: 80%; border: 1px solid #e9ecef; white-space: pre-wrap; }
+    .ai-msg.user { justify-content: flex-end; }
+    .ai-msg.user .bubble { background: #0d6efd; color: #fff; border-color: #0d6efd; }
+    .ai-msg.assistant { justify-content: flex-start; }
+    .ai-msg.assistant .bubble { background: #e9ecef; color: #212529; }
+    .ai-hint { font-size: 12px; color: #6c757d; }
+    .ai-msg.loading .bubble { opacity: 0.8; }
+    .ai-sources { border-top: 1px dashed #ced4da; margin-top: 8px; padding-top: 6px; }
+    .ai-sources .ai-source-link { display: inline-block; max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .ai-safety { font-size: 13px; }
+    .ai-safety ul { margin: .25rem 0 0; padding-left: 1.25rem; }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid py-4">
+    <div class="d-flex justify-content-between align-items-center mb-3">
+        <h2 class="fw-bold">Relatórios de Manutenção</h2>
+        <a href="/reports" class="btn btn-outline-secondary"><i class="bi bi-arrow-left"></i> Voltar</a>
+    </div>
+
+    <!-- Filtros dinâmicos -->
+    <div class="card mb-4">
+        <div class="card-body filters">
+            <div class="row g-3">
+                <div class="col-md-2">
+                    <label class="form-label">Semana</label>
+                    <input type="number" min="1" max="54" class="form-control" id="filterWeek" placeholder="1-54">
+                </div>
+                <div class="col-md-2">
+                    <label class="form-label">Mês</label>
+                    <select class="form-select" id="filterMonth">
+                        <option value="">Todos</option>
+                        <option value="1">Jan</option>
+                        <option value="2">Fev</option>
+                        <option value="3">Mar</option>
+                        <option value="4">Abr</option>
+                        <option value="5">Mai</option>
+                        <option value="6">Jun</option>
+                        <option value="7">Jul</option>
+                        <option value="8">Ago</option>
+                        <option value="9">Set</option>
+                        <option value="10">Out</option>
+                        <option value="11">Nov</option>
+                        <option value="12">Dez</option>
+                    </select>
+                </div>
+                <div class="col-md-2">
+                    <label class="form-label">Ano</label>
+                    <input type="number" class="form-control" id="filterYear" placeholder="2025">
+                </div>
+                <div class="col-md-3">
+                    <label class="form-label">Categoria</label>
+                    <select class="form-select" id="filterCategory">
+                        <option value="">Todas</option>
+                    </select>
+                </div>
+                <div class="col-md-3 d-flex align-items-end">
+                    <button class="btn btn-primary me-2" id="applyFilters"><i class="bi bi-funnel"></i> Aplicar</button>
+                    <button class="btn btn-outline-secondary" id="resetFilters"><i class="bi bi-x-circle"></i> Limpar</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Abas de relatórios -->
+    <ul class="nav nav-tabs" id="maintenanceTabs" role="tablist">
+        <li class="nav-item" role="presentation">
+            <button class="nav-link active" id="availability-tab" data-bs-toggle="tab" data-bs-target="#availability" type="button" role="tab">Disponibilidade</button>
+        </li>
+        <li class="nav-item" role="presentation">
+            <button class="nav-link" id="utilization-tab" data-bs-toggle="tab" data-bs-target="#utilization" type="button" role="tab">Utilização</button>
+        </li>
+        <li class="nav-item" role="presentation">
+            <button class="nav-link" id="mttr-tab" data-bs-toggle="tab" data-bs-target="#mttr" type="button" role="tab">MTTR</button>
+        </li>
+        <li class="nav-item" role="presentation">
+            <button class="nav-link" id="mtbf-tab" data-bs-toggle="tab" data-bs-target="#mtbf" type="button" role="tab">MTBF</button>
+        </li>
+        <li class="nav-item" role="presentation">
+            <button class="nav-link" id="backlog-tab" data-bs-toggle="tab" data-bs-target="#backlog" type="button" role="tab">Backlog</button>
+        </li>
+        <li class="nav-item" role="presentation">
+            <button class="nav-link" id="cost-tab" data-bs-toggle="tab" data-bs-target="#cost" type="button" role="tab">Custo por Equipamento</button>
+        </li>
+        <li class="nav-item" role="presentation">
+            <button class="nav-link" id="fuel-tab" data-bs-toggle="tab" data-bs-target="#fuel" type="button" role="tab">Consumo de Combustível</button>
+        </li>
+        <li class="nav-item" role="presentation">
+            <button class="nav-link" id="quota-tab" data-bs-toggle="tab" data-bs-target="#quota" type="button" role="tab">Excedentes de Franquia</button>
+        </li>
+    </ul>
+    <div class="tab-content" id="maintenanceTabsContent">
+        <!-- Disponibilidade -->
+        <div class="tab-pane fade show active" id="availability" role="tabpanel">
+            <div class="row g-4">
+                <div class="col-lg-4">
+                    <div class="card kpi-card">
+                        <div class="card-header">Disponibilidade por Classe</div>
+                        <div class="card-body"><div class="chart-container"><canvas id="chartAvailabilityClass"></canvas></div></div>
+                    </div>
+                </div>
+                <div class="col-lg-4">
+                    <div class="card kpi-card">
+                        <div class="card-header">Disponibilidade por Categoria</div>
+                        <div class="card-body"><div class="chart-container"><canvas id="chartAvailabilityCategory"></canvas></div></div>
+                    </div>
+                </div>
+                <div class="col-lg-4">
+                    <div class="card kpi-card">
+                        <div class="card-header">Disponibilidade Geral</div>
+                        <div class="card-body"><div class="chart-container chart-center"><canvas id="chartAvailabilityOverall"></canvas></div></div>
+                    </div>
+                </div>
+            </div>
+            <!-- Chat de IA abaixo dos cards de disponibilidade -->
+            <div class="row g-4 mt-3">
+                <div class="col-lg-12">
+                    <div class="card kpi-card">
+                        <div class="card-header d-flex justify-content-between align-items-center">
+                            <span>Assistente de Manutenção (IA)</span>
+                            <small class="text-muted">Aprende com OS, custos, MTTR/MTBF e abastecimentos</small>
+                        </div>
+                        <div class="card-body">
+                            <div id="aiChat" class="ai-chat">
+                                <div id="aiChatMessages" class="ai-messages" aria-live="polite" aria-atomic="false"></div>
+                                <div class="input-group mt-3">
+                                    <input type="text" class="form-control" id="aiChatInput" placeholder="Pergunte sobre disponibilidade, custos, MTTR/MTBF, backlog, consumo..." autocomplete="off" />
+                                    <button class="btn btn-primary" id="aiChatSend" type="button"><i class="bi bi-send"></i> Enviar</button>
+                                </div>
+                                <div class="ai-hint mt-1">O chat considera os filtros atuais (semana, mês, ano, categoria).</div>
+                                <!-- Bloco de segurança sempre visível -->
+                                <div class="ai-safety alert alert-warning mt-3" role="note">
+                                    <div class="d-flex align-items-start">
+                                        <i class="bi bi-shield-exclamation me-2"></i>
+                                        <div>
+                                            <strong>Segurança sempre:</strong>
+                                            <ul class="mb-0">
+                                                <li>Use EPIs: capacete, óculos, luvas e protetores auriculares.</li>
+                                                <li>Bloqueie/trave fontes de energia (LOTO) e despressurize linhas.</li>
+                                                <li>Siga procedimentos OEM e isole a área de trabalho.</li>
+                                                <li>Mantenha extintor/kit de derramamento disponível e supervisão qualificada.</li>
+                                            </ul>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <!-- Utilização -->
+        <div class="tab-pane fade" id="utilization" role="tabpanel">
+            <div class="row g-4">
+                <div class="col-lg-4">
+                    <div class="card kpi-card">
+                        <div class="card-header">Utilização por Classe</div>
+                        <div class="card-body"><div class="chart-container"><canvas id="chartUtilizationClass"></canvas></div></div>
+                    </div>
+                </div>
+                <div class="col-lg-4">
+                    <div class="card kpi-card">
+                        <div class="card-header">Utilização por Categoria</div>
+                        <div class="card-body"><div class="chart-container"><canvas id="chartUtilizationCategory"></canvas></div></div>
+                    </div>
+                </div>
+                <div class="col-lg-4">
+                    <div class="card kpi-card">
+                        <div class="card-header">Utilização Média Geral</div>
+                        <div class="card-body"><div class="chart-container"><canvas id="chartUtilizationOverall"></canvas></div></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <!-- MTTR -->
+        <div class="tab-pane fade" id="mttr" role="tabpanel">
+            <div class="row g-4">
+                <div class="col-lg-6">
+                    <div class="card kpi-card">
+                        <div class="card-header">MTTR por Equipamento</div>
+                        <div class="card-body"><div class="chart-container"><canvas id="chartMTTREquipment"></canvas></div></div>
+                    </div>
+                </div>
+                <div class="col-lg-6">
+                    <div class="card kpi-card">
+                        <div class="card-header">MTTR por Categoria e Média</div>
+                        <div class="card-body"><div class="chart-container"><canvas id="chartMTTRCategory"></canvas></div></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <!-- MTBF -->
+        <div class="tab-pane fade" id="mtbf" role="tabpanel">
+            <div class="row g-4">
+                <div class="col-lg-6">
+                    <div class="card kpi-card">
+                        <div class="card-header">MTBF por Equipamento</div>
+                        <div class="card-body"><div class="chart-container"><canvas id="chartMTBFEquipment"></canvas></div></div>
+                    </div>
+                </div>
+                <div class="col-lg-6">
+                    <div class="card kpi-card">
+                        <div class="card-header">MTBF por Categoria e Média</div>
+                        <div class="card-body"><div class="chart-container"><canvas id="chartMTBFCategory"></canvas></div></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <!-- Backlog -->
+        <div class="tab-pane fade" id="backlog" role="tabpanel">
+            <div class="row g-4">
+                <div class="col-lg-12">
+                    <div class="card kpi-card">
+                        <div class="card-header">Evolução do Backlog por Mês</div>
+                        <div class="card-body"><div class="chart-container"><canvas id="chartBacklogEvolution"></canvas></div></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <!-- Custo por Equipamento -->
+        <div class="tab-pane fade" id="cost" role="tabpanel">
+            <div class="row g-4">
+                <div class="col-lg-6">
+                    <div class="card kpi-card">
+                        <div class="card-header">Custo Total por Equipamento</div>
+                        <div class="card-body"><div class="chart-container"><canvas id="chartCostByEquipment"></canvas></div></div>
+                    </div>
+                </div>
+                <div class="col-lg-6">
+                    <div class="card kpi-card">
+                        <div class="card-header">Comparativo Mensal</div>
+                        <div class="card-body"><div class="chart-container"><canvas id="chartCostMonthly"></canvas></div></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <!-- Consumo de Combustível -->
+        <div class="tab-pane fade" id="fuel" role="tabpanel">
+            <div class="row g-4">
+                <div class="col-lg-6">
+                    <div class="card kpi-card">
+                        <div class="card-header">Consumo Médio por Equipamento</div>
+                        <div class="card-body"><div class="chart-container"><canvas id="chartFuelConsumption"></canvas></div></div>
+                    </div>
+                </div>
+                <div class="col-lg-6">
+                    <div class="card kpi-card">
+                        <div class="card-header">Comparativo por Categoria</div>
+                        <div class="card-body"><div class="chart-container"><canvas id="chartFuelByCategory"></canvas></div></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <!-- Excedentes de Franquia -->
+        <div class="tab-pane fade" id="quota" role="tabpanel">
+            <div class="row g-4">
+                <div class="col-lg-6">
+                    <div class="card kpi-card">
+                        <div class="card-header">Equipamentos que Excederam a Franquia</div>
+                        <div class="card-body">
+                            <div class="table-responsive">
+                                <table class="table table-hover">
+                                    <thead>
+                                        <tr>
+                                            <th>Equipamento</th>
+                                            <th>Categoria</th>
+                                            <th>Classe</th>
+                                            <th>Franquia</th>
+                                            <th>Horas Usadas</th>
+                                            <th>Excedente</th>
+                                            <th>%</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody id="quotaTableBody"></tbody>
+                                </table>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-lg-6">
+                    <div class="card kpi-card">
+                        <div class="card-header">Comparativo por Classe e Categoria</div>
+                        <div class="card-body"><div class="chart-container"><canvas id="chartQuotaCompare"></canvas></div></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Modal para dados em tabela (A4) -->
+<div class="modal fade a4-modal" id="chartDataModal" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog modal-xl">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title" id="chartDataTitle">Dados do Gráfico</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Fechar"></button>
+      </div>
+      <div class="modal-body">
+        <div id="a4PageContainer" class="a4-page"></div>
+      </div>
+      <div class="modal-footer w-100 d-flex justify-content-between align-items-center">
+        <div class="d-flex align-items-center gap-2">
+          <button class="btn btn-outline-secondary btn-sm" id="a4Prev">Anterior</button>
+          <button class="btn btn-outline-secondary btn-sm" id="a4Next">Próxima</button>
+          <label class="ms-2 small" for="a4Goto">Ir para página</label>
+          <input type="number" min="1" class="form-control form-control-sm" id="a4Goto" style="width:80px;" />
+        </div>
+        <div class="small" id="a4PageInfo">Página 1 de 1</div>
+        <div>
+          <button class="btn btn-primary btn-sm" id="a4Print"><i class="bi bi-printer"></i> Imprimir</button>
+        </div>
+      </div>
+    </div>
+  </div>
+  <div class="a4-footer"></div>
+  
+</div>
+
+<script>
+// Utilidades
+function fetchJSON(url) { 
+    return fetch(url, { headers: { 'Accept': 'application/json' } }).then(async r => {
+        if (!r.ok) {
+            const text = await r.text();
+            throw new Error(`HTTP ${r.status} - ${r.statusText}: ${text}`);
+        }
+        return r.json();
+    });
+}
+// Registro simples por canvas para evitar múltiplos gráficos sobre o mesmo elemento
+const chartStore = {};
+// Estado de paginação por canvas
+const pagerStore = {};
+
+// Modal A4: abrir tabela paginada com numeração de páginas
+function openChartDataModal(title, labels, data, valueHeader='Valor', pageSize=15, periodLabel='') {
+    const modalEl = document.getElementById('chartDataModal');
+    const container = document.getElementById('a4PageContainer');
+    const prev = document.getElementById('a4Prev');
+    const next = document.getElementById('a4Next');
+    const goto = document.getElementById('a4Goto');
+    const info = document.getElementById('a4PageInfo');
+    document.getElementById('chartDataTitle').textContent = title || 'Dados do Gráfico';
+
+    const state = { page: 1, total: Math.max(1, Math.ceil(labels.length / pageSize)) };
+
+    function renderPage() {
+        const start = (state.page - 1) * pageSize;
+        const end = Math.min(labels.length, start + pageSize);
+        const rows = [];
+        for (let i = start; i < end; i++) {
+            rows.push({ label: labels[i], value: data[i] });
+        }
+        container.innerHTML = '';
+        const pageDiv = document.createElement('div');
+        pageDiv.className = 'a4-page';
+        // Cabeçalho de período (mês/ano) no topo esquerdo
+        if (periodLabel) {
+            const hdr = document.createElement('div');
+            hdr.className = 'd-flex justify-content-between align-items-center mb-2';
+            const left = document.createElement('div');
+            left.className = 'small text-muted';
+            left.textContent = periodLabel;
+            hdr.appendChild(left);
+            pageDiv.appendChild(hdr);
+        }
+        // Estado vazio: quando não há linhas, exibir mensagem amigável
+        if (!rows.length) {
+            const msg = document.createElement('div');
+            msg.className = 'alert alert-warning';
+            msg.innerHTML = `
+                <div class="fw-bold mb-1">Nenhuma informação disponível</div>
+                <div>Não há registros no sistema para o período selecionado.</div>
+            `;
+            pageDiv.appendChild(msg);
+        } else {
+            const table = document.createElement('table');
+            table.className = 'table table-sm table-striped';
+            const formatValue = (v) => Number(v).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+            table.innerHTML = `
+                <thead><tr><th>Item</th><th>${valueHeader}</th></tr></thead>
+                <tbody>${rows.map(r => `<tr><td>${r.label}</td><td>${formatValue(r.value)}</td></tr>`).join('')}</tbody>`;
+            pageDiv.appendChild(table);
+        }
+        const footer = document.createElement('div');
+        footer.className = 'a4-footer';
+        footer.textContent = `Página ${state.page} de ${state.total}`;
+        pageDiv.appendChild(footer);
+        container.appendChild(pageDiv);
+        info.textContent = `Página ${state.page} de ${state.total}`;
+        goto.value = String(state.page);
+        prev.disabled = state.page <= 1 || labels.length === 0;
+        next.disabled = state.page >= state.total || labels.length === 0;
+    }
+
+    prev.onclick = () => { if (state.page > 1) { state.page--; renderPage(); } };
+    next.onclick = () => { if (state.page < state.total) { state.page++; renderPage(); } };
+    goto.onchange = () => { const p = parseInt(goto.value || '1', 10); if (!isNaN(p)) { state.page = Math.min(state.total, Math.max(1, p)); renderPage(); } };
+    document.getElementById('a4Print').onclick = () => { window.print(); };
+
+    renderPage();
+    const modal = new bootstrap.Modal(modalEl);
+    modal.show();
+}
+
+// Formatação BRL
+function formatBRL(value) {
+    try { return Number(value || 0).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' }); }
+    catch { return String(value); }
+}
+
+// Formatação de quantidade (duas casas decimais)
+function formatQty(value) {
+    try { return Number(value || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 }); }
+    catch { return String(value); }
+}
+
+// Modal: Detalhamento de custos
+function openCostBreakdownModal(payload) {
+    // Criar modal se não existir
+    let modalEl = document.getElementById('costBreakdownModal');
+    if (!modalEl) {
+        const wrapper = document.createElement('div');
+        wrapper.innerHTML = `
+<div class="modal fade" id="costBreakdownModal" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog modal-xl">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title" id="costBreakdownTitle">Detalhamento de Custos</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Fechar"></button>
+      </div>
+      <div class="modal-body">
+        <div class="mb-3" id="costBreakdownSummary"></div>
+        <div class="row g-4">
+          <div class="col-lg-12">
+            <div class="card">
+              <div class="card-header">Materiais</div>
+              <div class="card-body table-responsive">
+                <table class="table table-sm table-striped">
+                  <thead><tr>
+                    <th>OS</th><th>Data</th><th>Código</th><th>Material</th><th>Unidade</th><th>Qtd</th><th>Unitário</th><th>Total</th>
+                  </tr></thead>
+                  <tbody id="materialsTableBody"></tbody>
+                </table>
+                <div class="d-flex justify-content-between align-items-center mt-2">
+                  <small class="text-muted" id="materialsPageInfo"></small>
+                  <div class="btn-group btn-group-sm">
+                    <button class="btn btn-outline-secondary" id="materialsPrev">Anterior</button>
+                    <button class="btn btn-outline-secondary" id="materialsNext">Próximo</button>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+          <div class="col-lg-12">
+            <div class="card">
+              <div class="card-header">Mão de Obra</div>
+              <div class="card-body table-responsive">
+                <table class="table table-sm table-striped">
+                  <thead><tr>
+                    <th>OS</th><th>Técnico</th><th>Horas</th><th>Taxa/Hora</th><th>Total</th><th>Data</th>
+                  </tr></thead>
+                  <tbody id="laborTableBody"></tbody>
+                </table>
+                <div class="d-flex justify-content-between align-items-center mt-2">
+                  <small class="text-muted" id="laborPageInfo"></small>
+                  <div class="btn-group btn-group-sm">
+                    <button class="btn btn-outline-secondary" id="laborPrev">Anterior</button>
+                    <button class="btn btn-outline-secondary" id="laborNext">Próximo</button>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+          <div class="col-lg-12">
+            <div class="card">
+              <div class="card-header">Outros Itens/Serviços</div>
+              <div class="card-body table-responsive">
+                <table class="table table-sm table-striped">
+                  <thead><tr>
+                    <th>Descrição</th><th>Total</th>
+                  </tr></thead>
+                  <tbody id="otherTableBody"></tbody>
+                </table>
+                <div class="d-flex justify-content-between align-items-center mt-2">
+                  <small class="text-muted" id="otherPageInfo"></small>
+                  <div class="btn-group btn-group-sm">
+                    <button class="btn btn-outline-secondary" id="otherPrev">Anterior</button>
+                    <button class="btn btn-outline-secondary" id="otherNext">Próximo</button>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+          <div class="col-lg-12">
+            <div class="card">
+              <div class="card-header">Aguardando finalização</div>
+              <div class="card-body">
+                <div class="alert alert-warning small">Apenas OS fechadas e saídas realizadas compõem os totais. As pendências abaixo não estão somadas.</div>
+                <div class="row g-3">
+                  <div class="col-md-12">
+                    <h6 class="mb-2">Ordens de Serviço pendentes</h6>
+                    <div class="table-responsive">
+                      <table class="table table-sm table-striped">
+                        <thead><tr>
+                          <th>OS</th><th>Título</th><th>Status</th><th>Data</th><th>Previsto</th><th>Custo</th>
+                        </tr></thead>
+                        <tbody id="pendingWOBody"></tbody>
+                      </table>
+                      <div class="d-flex justify-content-between align-items-center mt-2">
+                        <small class="text-muted" id="pendingWOPageInfo"></small>
+                        <div class="btn-group btn-group-sm">
+                          <button class="btn btn-outline-secondary" id="pendingWOPrev">Anterior</button>
+                          <button class="btn btn-outline-secondary" id="pendingWONext">Próximo</button>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                  <div class="col-md-12 mt-3">
+                    <h6 class="mb-2">Movimentações de materiais pendentes</h6>
+                    <div class="table-responsive">
+                      <table class="table table-sm table-striped">
+                        <thead><tr>
+                          <th>Data</th><th>Código</th><th>Material</th><th>Un</th><th>Qtd</th><th>Unitário</th><th>Total</th><th>Referência</th>
+                        </tr></thead>
+                        <tbody id="pendingMovBody"></tbody>
+                      </table>
+                      <div class="d-flex justify-content-between align-items-center mt-2">
+                        <small class="text-muted" id="pendingMovPageInfo"></small>
+                        <div class="btn-group btn-group-sm">
+                          <button class="btn btn-outline-secondary" id="pendingMovPrev">Anterior</button>
+                          <button class="btn btn-outline-secondary" id="pendingMovNext">Próximo</button>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-primary btn-sm" id="costBreakdownPrint"><i class="bi bi-printer"></i> Imprimir</button>
+      </div>
+    </div>
+  </div>
+</div>`;
+        document.body.appendChild(wrapper.firstElementChild);
+        modalEl = document.getElementById('costBreakdownModal');
+    }
+
+    // Preencher dados
+    document.getElementById('costBreakdownTitle').textContent = `Custos - ${payload.equipment} (${payload.period})`;
+    const s = payload.summary || { total_cost: 0, materials_total: 0, labor_total: 0, other_total: 0 };
+    const summaryEl = document.getElementById('costBreakdownSummary');
+    summaryEl.innerHTML = `
+      <div class="row g-3">
+        <div class="col-md-3"><strong>Equipamento:</strong> ${payload.equipment}</div>
+        <div class="col-md-3"><strong>Período:</strong> ${payload.period}</div>
+        <div class="col-md-3"><strong>Total:</strong> ${formatBRL(s.total_cost)}</div>
+        <div class="col-md-3"><strong>Materiais:</strong> ${formatBRL(s.materials_total)}</div>
+        <div class="col-md-3"><strong>Mão de Obra:</strong> ${formatBRL(s.labor_total)}</div>
+        <div class="col-md-3"><strong>Outros:</strong> ${formatBRL(s.other_total)}</div>
+        <div class="col-md-3"><strong>Combustível:</strong> ${formatQty(s.fuel_quantity)} L</div>
+      </div>`;
+
+    const mbody = document.getElementById('materialsTableBody');
+    const lbody = document.getElementById('laborTableBody');
+    const obody = document.getElementById('otherTableBody');
+    const pwobody = document.getElementById('pendingWOBody');
+    const pmbody = document.getElementById('pendingMovBody');
+    mbody.innerHTML = '';
+    lbody.innerHTML = '';
+    obody.innerHTML = '';
+    if (pwobody) pwobody.innerHTML = '';
+    if (pmbody) pmbody.innerHTML = '';
+
+    // Função genérica de paginação para tabelas
+    function paginateTable({ bodyId, data, renderRow, pageSize, prevId, nextId, infoId }) {
+        const tbody = document.getElementById(bodyId);
+        const prev = document.getElementById(prevId);
+        const next = document.getElementById(nextId);
+        const info = document.getElementById(infoId);
+        const state = { page: 1, total: Math.max(1, Math.ceil((data || []).length / pageSize)) };
+        function render() {
+            tbody.innerHTML = '';
+            const start = (state.page - 1) * pageSize;
+            const end = Math.min((data || []).length, start + pageSize);
+            for (let i = start; i < end; i++) { tbody.appendChild(renderRow(data[i])); }
+            info.textContent = `Página ${state.page} de ${state.total}`;
+            prev.disabled = state.page <= 1;
+            next.disabled = state.page >= state.total;
+        }
+        prev.onclick = () => { if (state.page > 1) { state.page--; render(); } };
+        next.onclick = () => { if (state.page < state.total) { state.page++; render(); } };
+        render();
+    }
+
+    // Materiais
+    paginateTable({
+        bodyId: 'materialsTableBody',
+        data: payload.materials || [],
+        pageSize: 10,
+        prevId: 'materialsPrev',
+        nextId: 'materialsNext',
+        infoId: 'materialsPageInfo',
+        renderRow: (row) => {
+            const tr = document.createElement('tr');
+            tr.innerHTML = `<td>${row.work_order_number || row.work_order_id || ''}</td><td>${row.date ? row.date.substring(0,10) : ''}</td><td>${row.material_code || ''}</td><td>${row.material_name || ''}</td><td>${row.unit || ''}</td><td>${Number(row.quantity || 0).toLocaleString('pt-BR')}</td><td>${formatBRL(row.unit_cost || 0)}</td><td>${formatBRL(row.total_cost || 0)}</td>`;
+            return tr;
+        }
+    });
+
+    // Mão de obra
+    paginateTable({
+        bodyId: 'laborTableBody',
+        data: payload.labor || [],
+        pageSize: 10,
+        prevId: 'laborPrev',
+        nextId: 'laborNext',
+        infoId: 'laborPageInfo',
+        renderRow: (row) => {
+            const tr = document.createElement('tr');
+            tr.innerHTML = `<td>${row.work_order_id || ''}</td><td>${row.technician || ''}</td><td>${Number(row.hours || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td><td>${formatBRL(row.hourly_rate || 0)}</td><td>${formatBRL(row.total_cost || 0)}</td><td>${row.date ? row.date.substring(0,10) : ''}</td>`;
+            return tr;
+        }
+    });
+
+    // Outros
+    paginateTable({
+        bodyId: 'otherTableBody',
+        data: payload.other_items || [],
+        pageSize: 10,
+        prevId: 'otherPrev',
+        nextId: 'otherNext',
+        infoId: 'otherPageInfo',
+        renderRow: (row) => {
+            const tr = document.createElement('tr');
+            tr.innerHTML = `<td>${row.description || ''}</td><td>${formatBRL(row.total_cost || 0)}</td>`;
+            return tr;
+        }
+    });
+
+    // Pendências
+    const pending = payload.pending || { work_orders: [], stock_movements: [] };
+    paginateTable({
+        bodyId: 'pendingWOBody',
+        data: pending.work_orders || [],
+        pageSize: 10,
+        prevId: 'pendingWOPrev',
+        nextId: 'pendingWONext',
+        infoId: 'pendingWOPageInfo',
+        renderRow: (row) => {
+            const tr = document.createElement('tr');
+            tr.innerHTML = `<td>${row.work_order_number || row.work_order_id || ''}</td><td>${row.title || ''}</td><td>${row.status || ''}</td><td>${row.created_at ? row.created_at.substring(0,10) : ''}</td><td>${row.due_date ? row.due_date.substring(0,10) : ''}</td><td>${formatBRL(row.cost || 0)}</td>`;
+            return tr;
+        }
+    });
+    paginateTable({
+        bodyId: 'pendingMovBody',
+        data: pending.stock_movements || [],
+        pageSize: 10,
+        prevId: 'pendingMovPrev',
+        nextId: 'pendingMovNext',
+        infoId: 'pendingMovPageInfo',
+        renderRow: (row) => {
+            const tr = document.createElement('tr');
+            const qtyFmt = Number(row.quantity || 0).toLocaleString('pt-BR');
+            tr.innerHTML = `<td>${row.date ? row.date.substring(0,10) : ''}</td><td>${row.material_code || ''}</td><td>${row.material_name || ''}</td><td>${row.unit || ''}</td><td>${qtyFmt}</td><td>${formatBRL(row.unit_cost || 0)}</td><td>${formatBRL(row.total_cost || 0)}</td><td>${row.reference_document || ''}</td>`;
+            return tr;
+        }
+    });
+
+    document.getElementById('costBreakdownPrint').onclick = () => { window.print(); };
+    const modal = new bootstrap.Modal(modalEl);
+    modal.show();
+}
+
+function toBarChart(ctx, labels, data, label, color='#0d6efd', opts={}) {
+    const canvas = ctx.canvas;
+    if (chartStore[canvas.id]) { chartStore[canvas.id].destroy(); }
+    // Defaults para rótulos de dados; permitem sobrescrita via opts.datalabels
+    const dlabelDefaults = {
+        display: true,
+        anchor: 'end',
+        align: 'top',
+        rotation: -90,
+        font: { size: 10 },
+        color: '#000',
+        offset: 2,
+        clamp: true,
+        clip: false,
+        formatter: (v) => Number(v).toLocaleString('pt-BR', { maximumFractionDigits: 0 })
+    };
+    const options = {
+        responsive: true,
+        plugins: {
+            legend: { display: false },
+            title: { display: false, text: '' },
+            datalabels: { ...dlabelDefaults, ...(opts.datalabels || {}) }
+        },
+        scales: {
+            x: { grid: { display: !!(opts.showXGrid) }, ticks: { font: { size: 11 } } },
+            y: { grid: { display: opts.showYGrid ?? true } }
+        },
+        indexAxis: opts.horizontal ? 'y' : 'x'
+    };
+    const chart = new Chart(ctx, { type: 'bar', data: { labels, datasets: [{ label, data, backgroundColor: color }] }, options });
+    chartStore[canvas.id] = chart;
+    // Clique na barra: abrir modal com dados completos da série atual
+    const titleFromCard = canvas.closest('.card')?.querySelector('.card-header')?.textContent || 'Dados do Gráfico';
+    canvas.onclick = (evt) => {
+        const points = chart.getElementsAtEventForMode(evt, 'nearest', { intersect: true }, true);
+        if (points && points.length) {
+            openChartDataModal(`${titleFromCard} - ${label}`, labels, data, label, 15);
+        }
+    };
+    return chart;
+}
+function toLineChart(ctx, labels, data, label, color='#20c997', opts={}) {
+    const canvas = ctx.canvas;
+    if (chartStore[canvas.id]) { chartStore[canvas.id].destroy(); }
+    const options = {
+        responsive: true,
+        plugins: {
+            legend: { display: false },
+            title: { display: false, text: '' },
+            datalabels: { display: true, anchor: 'end', align: 'top', formatter: (v)=>v }
+        },
+        scales: {
+            x: { grid: { display: !!(opts.showXGrid) }, ticks: { font: { size: 11 } } },
+            y: { grid: { display: opts.showYGrid ?? true } }
+        }
+    };
+    const chart = new Chart(ctx, { type: 'line', data: { labels, datasets: [{ label, data, borderColor: color, backgroundColor: color+'33', fill: true }] }, options });
+    chartStore[canvas.id] = chart;
+    return chart;
+}
+function toPieChart(ctx, labels, data, opts={}) {
+    const canvas = ctx.canvas;
+    if (chartStore[canvas.id]) { chartStore[canvas.id].destroy(); }
+    const options = {
+        responsive: true,
+        plugins: {
+            legend: { display: false },
+            title: { display: false, text: '' },
+            datalabels: {
+                display: true,
+                anchor: 'center',
+                align: 'center',
+                color: '#000',
+                font: (ctx) => ({ size: (Chart.defaults?.font?.size || 12) + 5 }),
+                formatter: (v)=> Number(v).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
+            }
+        }
+    };
+    const chart = new Chart(ctx, { type: opts.type || 'pie', data: { labels, datasets: [{ data, backgroundColor: ['#0d6efd','#198754','#ffc107','#dc3545','#6610f2','#6f42c1'], radius: '75%' }] }, options });
+    chartStore[canvas.id] = chart;
+    return chart;
+}
+
+// Criar gráfico de barras com paginação
+function createPaginatedBarChart(canvasId, ctx, allLabels, allData, label, color='#0d6efd', pageSize=15, onBarClick=null) {
+    const canvas = ctx.canvas;
+    const container = canvas.closest('.card') || canvas.parentElement;
+    const pagerId = `pager-${canvasId}`;
+    // Inicializar estado
+    const totalPages = Math.max(1, Math.ceil(allLabels.length / pageSize));
+    if (!pagerStore[canvasId]) { pagerStore[canvasId] = { page: 1, total: totalPages }; }
+    const state = pagerStore[canvasId];
+
+    function sliceData(page) {
+        const start = (page - 1) * pageSize;
+        const end = start + pageSize;
+        return {
+            labels: allLabels.slice(start, end),
+            data: allData.slice(start, end)
+        };
+    }
+
+    function renderPage(page) {
+        state.page = Math.min(totalPages, Math.max(1, page));
+        const { labels, data } = sliceData(state.page);
+        toBarChart(ctx, labels, data, label, color, { allowOrientation: true });
+        // Clique: custom handler (se fornecido) ou modal de dados
+        canvas.onclick = (evt) => {
+            const chart = chartStore[canvas.id];
+            if (!chart) return;
+            const points = chart.getElementsAtEventForMode(evt, 'nearest', { intersect: true }, true);
+            if (points && points.length) {
+                const idx = points[0].index;
+                const start = (state.page - 1) * pageSize;
+                const absoluteIndex = start + idx;
+                if (typeof onBarClick === 'function') {
+                    try {
+                        onBarClick({ label: labels[idx], value: data[idx], index: idx, indexAbsolute: absoluteIndex, allLabels, allData });
+                    } catch (err) { console.error(err); }
+                } else {
+                    const titleFromCard = canvas.closest('.card')?.querySelector('.card-header')?.textContent || 'Dados';
+                    openChartDataModal(`${titleFromCard} - ${label}`, allLabels, allData, label, pageSize);
+                }
+            }
+        };
+        // Atualizar controles
+        const pager = container.querySelector(`#${pagerId}`);
+        if (pager) {
+            const curr = pager.querySelector('[data-pager-current]');
+            const prevBtn = pager.querySelector('[data-pager-prev]');
+            const nextBtn = pager.querySelector('[data-pager-next]');
+            if (curr) curr.textContent = String(state.page);
+            if (pager.querySelector('[data-pager-total]')) pager.querySelector('[data-pager-total]').textContent = String(totalPages);
+            if (prevBtn) prevBtn.disabled = state.page <= 1;
+            if (nextBtn) nextBtn.disabled = state.page >= totalPages;
+        }
+    }
+
+    // Criar controles se não existirem
+    let pager = container.querySelector(`#${pagerId}`);
+    if (!pager) {
+        pager = document.createElement('div');
+        pager.id = pagerId;
+        pager.className = 'd-flex justify-content-between align-items-center mt-2 small';
+        pager.innerHTML = `
+            <div>
+                Página <span data-pager-current>1</span> de <span data-pager-total>${totalPages}</span>
+            </div>
+            <div class="btn-group btn-group-sm">
+                <button type="button" class="btn btn-outline-secondary" data-pager-prev>Anterior</button>
+                <button type="button" class="btn btn-outline-secondary" data-pager-next>Próxima</button>
+            </div>`;
+        // Inserir logo após o canvas
+        canvas.parentElement.insertAdjacentElement('afterend', pager);
+        // Bind eventos
+        const prevBtn = pager.querySelector('[data-pager-prev]');
+        const nextBtn = pager.querySelector('[data-pager-next]');
+        prevBtn.addEventListener('click', () => renderPage(state.page - 1));
+        nextBtn.addEventListener('click', () => renderPage(state.page + 1));
+    }
+
+    // Render inicial
+    renderPage(state.page);
+}
+
+// Painel removido por solicitação do usuário
+function attachChartControls(canvasId, chart, cfg={}) { return; 
+    const canvas = document.getElementById(canvasId);
+    if (!canvas) return;
+    const container = canvas.closest('.card') || canvas.parentElement;
+    if (!container) return;
+    // Evitar duplicação
+    const toggleId = `toggle-${canvasId}`;
+    const panelId = `controls-${canvasId}`;
+    let toggleBtn = container.querySelector(`#${toggleId}`);
+    let panel = container.querySelector(`#${panelId}`);
+    if (!toggleBtn) {
+        toggleBtn = document.createElement('button');
+        toggleBtn.id = toggleId;
+        toggleBtn.className = 'btn btn-sm btn-outline-secondary mt-2';
+        toggleBtn.innerHTML = '<i class="bi bi-brush"></i> Elementos do Gráfico';
+        canvas.parentElement.insertAdjacentElement('afterend', toggleBtn);
+    }
+    if (!panel) {
+        panel = document.createElement('div');
+        panel.id = panelId;
+        panel.className = 'border rounded p-2 mt-2 d-none';
+        panel.innerHTML = `
+            <div class="row g-2 small">
+                <div class="col-12"><strong>Elementos do Gráfico</strong></div>
+                <div class="col-6">
+                    <label class="form-label">Título</label>
+                    <input type="text" class="form-control form-control-sm" id="${panelId}-title" placeholder="Título do gráfico">
+                </div>
+                <div class="col-6">
+                    <label class="form-label">Tipo</label>
+                    <select class="form-select form-select-sm" id="${panelId}-type"></select>
+                </div>
+                <div class="col-6">
+                    <div class="form-check">
+                        <input class="form-check-input" type="checkbox" id="${panelId}-legend">
+                        <label class="form-check-label" for="${panelId}-legend">Legenda</label>
+                    </div>
+                    <div class="form-check">
+                        <input class="form-check-input" type="checkbox" id="${panelId}-dlabels">
+                        <label class="form-check-label" for="${panelId}-dlabels">Rótulos de dados</label>
+                    </div>
+                </div>
+                <div class="col-6" id="${panelId}-grid-wrap">
+                    <div class="form-check">
+                        <input class="form-check-input" type="checkbox" id="${panelId}-xgrid">
+                        <label class="form-check-label" for="${panelId}-xgrid">Grade X</label>
+                    </div>
+                    <div class="form-check">
+                        <input class="form-check-input" type="checkbox" id="${panelId}-ygrid" checked>
+                        <label class="form-check-label" for="${panelId}-ygrid">Grade Y</label>
+                    </div>
+                    <div class="form-check" id="${panelId}-orient-wrap">
+                        <input class="form-check-input" type="checkbox" id="${panelId}-horizontal">
+                        <label class="form-check-label" for="${panelId}-horizontal">Barra horizontal</label>
+                    </div>
+                </div>
+            </div>`;
+        toggleBtn.insertAdjacentElement('afterend', panel);
+    }
+    // Preencher tipos permitidos
+    const typeSel = panel.querySelector(`#${panelId}-type`);
+    typeSel.innerHTML = '';
+    const allowed = cfg.allowedTypes || (chart.config.type === 'pie' ? ['pie','doughnut'] : ['bar','line']);
+    allowed.forEach(t => { const opt = document.createElement('option'); opt.value=t; opt.textContent=t; typeSel.appendChild(opt); });
+    typeSel.value = chart.config.type;
+    // Estados iniciais
+    const titleInput = panel.querySelector(`#${panelId}-title`);
+    titleInput.value = (chart.options.plugins?.title?.text) || (cfg.defaultTitle || '');
+    panel.querySelector(`#${panelId}-legend`).checked = !!(chart.options.plugins?.legend?.display);
+    panel.querySelector(`#${panelId}-dlabels`).checked = !!(chart.options.plugins?.datalabels?.display);
+    const xgrid = panel.querySelector(`#${panelId}-xgrid`);
+    const ygrid = panel.querySelector(`#${panelId}-ygrid`);
+    const horiz = panel.querySelector(`#${panelId}-horizontal`);
+    const gridWrap = panel.querySelector(`#${panelId}-grid-wrap`);
+    const orientWrap = panel.querySelector(`#${panelId}-orient-wrap`);
+    const isPie = chart.config.type === 'pie' || chart.config.type === 'doughnut';
+    gridWrap.style.display = isPie ? 'none' : '';
+    orientWrap.style.display = (isPie || !(cfg.allowOrientation)) ? 'none' : '';
+    xgrid.checked = !!(chart.options.scales?.x?.grid?.display);
+    ygrid.checked = !!(chart.options.scales?.y?.grid?.display ?? true);
+    horiz.checked = chart.options.indexAxis === 'y';
+    // Interações
+    toggleBtn.onclick = () => panel.classList.toggle('d-none');
+    titleInput.oninput = () => { chart.options.plugins = chart.options.plugins || {}; chart.options.plugins.title = chart.options.plugins.title || {}; chart.options.plugins.title.display = !!titleInput.value; chart.options.plugins.title.text = titleInput.value; chart.update(); };
+    panel.querySelector(`#${panelId}-legend`).onchange = (e) => { chart.options.plugins.legend = chart.options.plugins.legend || {}; chart.options.plugins.legend.display = e.target.checked; chart.update(); };
+    panel.querySelector(`#${panelId}-dlabels`).onchange = (e) => { chart.options.plugins.datalabels = chart.options.plugins.datalabels || {}; chart.options.plugins.datalabels.display = e.target.checked; chart.update(); };
+    xgrid.onchange = () => { if (chart.options.scales?.x) { chart.options.scales.x.grid.display = xgrid.checked; chart.update(); } };
+    ygrid.onchange = () => { if (chart.options.scales?.y) { chart.options.scales.y.grid.display = ygrid.checked; chart.update(); } };
+    horiz.onchange = () => { chart.options.indexAxis = horiz.checked ? 'y' : 'x'; chart.update(); };
+    typeSel.onchange = () => {
+        const newType = typeSel.value;
+        const isNowPie = newType === 'pie' || newType === 'doughnut';
+        // Atualiza o tipo diretamente
+        chart.config.type = newType;
+        gridWrap.style.display = isNowPie ? 'none' : '';
+        orientWrap.style.display = (isNowPie || !(cfg.allowOrientation)) ? 'none' : '';
+        chart.update();
+    };
+}
+
+// Carregar opções de filtro (categorias)
+fetchJSON('/api/maintenance/equipment/list').then(list => {
+    const categories = [...new Set(list.map(item => item.category).filter(Boolean))];
+    const catSel = document.getElementById('filterCategory');
+    categories.forEach(c => { const opt = document.createElement('option'); opt.value=c; opt.textContent=c; catSel.appendChild(opt); });
+});
+
+// Aplicar filtros
+function getFilters() {
+    const week = document.getElementById('filterWeek').value || '';
+    const month = document.getElementById('filterMonth').value || '';
+    const year = document.getElementById('filterYear').value || '';
+    const category = document.getElementById('filterCategory').value || '';
+    return { week, month, year, category };
+}
+
+// Renderização dos gráficos
+async function renderAvailability() {
+    // Construir período via start_date/end_date quando houver ano/mês
+    const filters = getFilters();
+    let qs = '';
+    let periodLabel = '';
+    if (filters.year && filters.month) {
+        const y = parseInt(filters.year, 10);
+        const m = parseInt(filters.month, 10);
+        const start = `${y}-${String(m).padStart(2,'0')}-01`;
+        const lastDay = new Date(y, m, 0).getDate();
+        const end = `${y}-${String(m).padStart(2,'0')}-${String(lastDay).padStart(2,'0')}T23:59:59`;
+        qs = `&start_date=${start}&end_date=${end}`;
+        const monthName = new Date(y, m-1, 1).toLocaleString('pt-BR', { month: 'long' });
+        periodLabel = `Referente a ${monthName} de ${y}`;
+    } else if (filters.year) {
+        const y = parseInt(filters.year, 10);
+        qs = `&start_date=${y}-01-01&end_date=${y}-12-31T23:59:59`;
+        periodLabel = `Referente a ${y}`;
+    }
+
+    const resClass = await fetchJSON(`/api/reports/availability?group_by=class${qs}`);
+    const resCategory = await fetchJSON(`/api/reports/availability?group_by=category${qs}`);
+    // Se não houver dados no período, não renderizar gráficos e mostrar mensagem
+    const cont1 = document.getElementById('chartAvailabilityClass')?.closest('.chart-container');
+    const cont2 = document.getElementById('chartAvailabilityCategory')?.closest('.chart-container');
+    const cont3 = document.getElementById('chartAvailabilityOverall')?.closest('.chart-container');
+    const canvas1 = document.getElementById('chartAvailabilityClass');
+    const canvas2 = document.getElementById('chartAvailabilityCategory');
+    const canvas3 = document.getElementById('chartAvailabilityOverall');
+    const showNoData = (container, canvas) => {
+        if (!container || !canvas) return;
+        // Limpar mensagens antigas
+        container.querySelectorAll('.no-data-msg').forEach(el => el.remove());
+        // Ocultar canvas
+        canvas.style.display = 'none';
+        // Inserir mensagem
+        const div = document.createElement('div');
+        div.className = 'no-data-msg w-100';
+        div.innerHTML = `${periodLabel ? `<div class="text-muted small mb-2">${periodLabel}</div>` : ''}<div class="alert alert-warning mb-0">Nenhuma informação disponível. Não há registros no sistema para o período selecionado.</div>`;
+        container.appendChild(div);
+        // Marcar card e tooltip
+        const card = container.closest('.card');
+        if (card) { card.classList.add('no-data-card'); card.setAttribute('title', 'Sem dados neste período'); }
+    };
+    const hideNoData = (container, canvas) => {
+        if (!container || !canvas) return;
+        container.querySelectorAll('.no-data-msg').forEach(el => el.remove());
+        canvas.style.display = '';
+        // Remover marcação do card
+        const card = container.closest('.card');
+        if (card) { card.classList.remove('no-data-card'); card.removeAttribute('title'); }
+    };
+    if (!resClass.has_data && !resCategory.has_data) {
+        // Destruir gráficos anteriores, se existirem
+        try { if (chartStore['chartAvailabilityClass']) { chartStore['chartAvailabilityClass'].destroy(); delete chartStore['chartAvailabilityClass']; } } catch {}
+        try { if (chartStore['chartAvailabilityCategory']) { chartStore['chartAvailabilityCategory'].destroy(); delete chartStore['chartAvailabilityCategory']; } } catch {}
+        try { if (chartStore['chartAvailabilityOverall']) { chartStore['chartAvailabilityOverall'].destroy(); delete chartStore['chartAvailabilityOverall']; } } catch {}
+        // Mostrar mensagens
+        showNoData(cont1, canvas1);
+        showNoData(cont2, canvas2);
+        showNoData(cont3, canvas3);
+        return; // Não renderizar gráficos
+    } else {
+        // Garantir que canvas apareçam e mensagens sejam removidas
+        hideNoData(cont1, canvas1);
+        hideNoData(cont2, canvas2);
+        hideNoData(cont3, canvas3);
+    }
+    // Log de auditoria (contagem de OS consideradas)
+    try {
+        const totalWOs = Math.max(Number(resClass.work_orders_count || 0), Number(resCategory.work_orders_count || 0));
+        const tab = document.getElementById('availability');
+        if (tab) {
+            let info = document.getElementById('availabilityAuditInfo');
+            if (!info) { info = document.createElement('div'); info.id = 'availabilityAuditInfo'; info.className = 'small text-muted mb-2'; tab.prepend(info); }
+            info.textContent = `OS fechadas consideradas no período: ${Number(totalWOs).toLocaleString('pt-BR')}`;
+        }
+    } catch {}
+    const labelsClass = resClass.grouped.map(x=>x.label); const dataClass = resClass.grouped.map(x=>x.availability_percent);
+    const labelsCat = resCategory.grouped.map(x=>x.label); const dataCat = resCategory.grouped.map(x=>x.availability_percent);
+    const ctx1 = canvas1.getContext('2d');
+    const ctx2 = canvas2.getContext('2d');
+    const ctx3 = canvas3.getContext('2d');
+    const c1 = toBarChart(ctx1, labelsClass, dataClass, 'Disponibilidade (%)', '#0d6efd', { title: 'Disponibilidade (%)', allowOrientation: true, datalabels: { rotation: 0, color: '#000', font: { size: 12 }, anchor: 'end', align: 'top', offset: 6, clamp: true, formatter: (v)=> Number(v).toLocaleString('pt-BR', { maximumFractionDigits: 0 }) } });
+    const c2 = toBarChart(ctx2, labelsCat, dataCat, 'Disponibilidade (%)', '#198754', { title: 'Disponibilidade (%)', allowOrientation: true, datalabels: { rotation: 0, color: '#000', font: { size: 12 }, anchor: 'end', align: 'top', offset: 6, clamp: true, formatter: (v)=> Number(v).toLocaleString('pt-BR', { maximumFractionDigits: 0 }) } });
+    const c3 = toPieChart(ctx3, ['Disponível','Indisponível'], [resCategory.overall, 100 - resCategory.overall], { title: 'Disponibilidade (%)' });
+    attachChartControls('chartAvailabilityClass', c1, { defaultTitle: 'Disponibilidade (%)', allowedTypes: ['bar','line'], allowOrientation: true });
+    attachChartControls('chartAvailabilityCategory', c2, { defaultTitle: 'Disponibilidade (%)', allowedTypes: ['bar','line'], allowOrientation: true });
+    attachChartControls('chartAvailabilityOverall', c3, { defaultTitle: 'Disponibilidade (%)', allowedTypes: ['pie','doughnut'], allowOrientation: false });
+
+    // Drill-down: ao clicar em uma barra/ponto, listar equipamentos com sua disponibilidade
+    const bindDrilldown = (chart, labels, groupBy) => {
+        if (!chart) return;
+        const canvas = chart.canvas;
+        canvas.onclick = async (evt) => {
+            try {
+                const points = chart.getElementsAtEventForMode(evt, 'nearest', { intersect: true }, true);
+                if (!points || !points.length) return;
+                const idx = points[0].index;
+                const label = labels[idx];
+                const details = await fetchJSON(`/api/reports/availability/details?group_by=${encodeURIComponent(groupBy)}&label=${encodeURIComponent(label)}${qs}`);
+                // Quando não houver registros no período, exibir mensagem no modal
+                if (!details.has_data) {
+                    openChartDataModal(`Disponibilidade por Equipamento - ${groupBy === 'class' ? 'Classe' : 'Categoria'} ${label}`, [], [], 'Disponibilidade (%)', 15, periodLabel);
+                    return;
+                }
+                const itemLabels = (details.items || []).map(i => (i.prefix ? `${i.prefix} - ${i.equipment}` : i.equipment));
+                const itemValues = (details.items || []).map(i => i.availability_percent);
+                openChartDataModal(`Disponibilidade por Equipamento - ${groupBy === 'class' ? 'Classe' : 'Categoria'} ${label}`, itemLabels, itemValues, 'Disponibilidade (%)', 15, periodLabel);
+            } catch (err) { console.error(err); }
+        };
+    };
+    bindDrilldown(c1, labelsClass, 'class');
+    bindDrilldown(c2, labelsCat, 'category');
+}
+
+async function renderUtilization() {
+    const filters = getFilters();
+    const params = new URLSearchParams();
+    if (filters.year) params.set('year', filters.year);
+    if (filters.month) params.set('month', filters.month);
+    if (filters.week) params.set('week', filters.week);
+    const qs = params.toString();
+    // Montar rótulo de período
+    let periodLabel = '';
+    if (filters.year && filters.month) {
+        const y = parseInt(filters.year, 10);
+        const m = parseInt(filters.month, 10);
+        const monthName = new Date(y, m-1, 1).toLocaleString('pt-BR', { month: 'long' });
+        periodLabel = `Referente a ${monthName} de ${y}`;
+    } else if (filters.week) {
+        periodLabel = `Referente à semana ${filters.week}`;
+    } else if (filters.year) {
+        periodLabel = `Referente a ${filters.year}`;
+    }
+    const urlClass = `/api/reports/utilization?group_by=class${qs ? `&${qs}` : ''}`;
+    const urlCategory = `/api/reports/utilization?group_by=category${qs ? `&${qs}` : ''}`;
+    const resClass = await fetchJSON(urlClass);
+    const resCategory = await fetchJSON(urlCategory);
+    // Tratar estado sem dados e desabilitar interação
+    const cont1 = document.getElementById('chartUtilizationClass')?.closest('.chart-container');
+    const cont2 = document.getElementById('chartUtilizationCategory')?.closest('.chart-container');
+    const cont3 = document.getElementById('chartUtilizationOverall')?.closest('.chart-container');
+    const canvas1 = document.getElementById('chartUtilizationClass');
+    const canvas2 = document.getElementById('chartUtilizationCategory');
+    const canvas3 = document.getElementById('chartUtilizationOverall');
+    const showNoData = (container, canvas) => {
+        if (!container || !canvas) return;
+        container.querySelectorAll('.no-data-msg').forEach(el => el.remove());
+        canvas.style.display = 'none';
+        const div = document.createElement('div');
+        div.className = 'no-data-msg w-100';
+        div.innerHTML = `${periodLabel ? `<div class="text-muted small mb-2">${periodLabel}</div>` : ''}<div class="alert alert-warning mb-0">Nenhuma informação disponível. Não há registros no sistema para o período selecionado.</div>`;
+        container.appendChild(div);
+        const card = container.closest('.card');
+        if (card) { card.classList.add('no-data-card'); card.setAttribute('title', 'Sem dados neste período'); }
+    };
+    const hideNoData = (container, canvas) => {
+        if (!container || !canvas) return;
+        container.querySelectorAll('.no-data-msg').forEach(el => el.remove());
+        canvas.style.display = '';
+        const card = container.closest('.card');
+        if (card) { card.classList.remove('no-data-card'); card.removeAttribute('title'); }
+    };
+    if (!resClass.has_data && !resCategory.has_data) {
+        try { if (chartStore['chartUtilizationClass']) { chartStore['chartUtilizationClass'].destroy(); delete chartStore['chartUtilizationClass']; } } catch {}
+        try { if (chartStore['chartUtilizationCategory']) { chartStore['chartUtilizationCategory'].destroy(); delete chartStore['chartUtilizationCategory']; } } catch {}
+        try { if (chartStore['chartUtilizationOverall']) { chartStore['chartUtilizationOverall'].destroy(); delete chartStore['chartUtilizationOverall']; } } catch {}
+        showNoData(cont1, canvas1);
+        showNoData(cont2, canvas2);
+        showNoData(cont3, canvas3);
+        return;
+    } else {
+        hideNoData(cont1, canvas1);
+        hideNoData(cont2, canvas2);
+        hideNoData(cont3, canvas3);
+    }
+    const labelsClass = resClass.grouped.map(x=>x.label); const dataClass = resClass.grouped.map(x=>x.utilization_percent);
+    const labelsCat = resCategory.grouped.map(x=>x.label); const dataCat = resCategory.grouped.map(x=>x.utilization_percent);
+    const ctx1 = document.getElementById('chartUtilizationClass').getContext('2d');
+    const ctx2 = document.getElementById('chartUtilizationCategory').getContext('2d');
+    const ctx3 = document.getElementById('chartUtilizationOverall').getContext('2d');
+    const c1 = toBarChart(ctx1, labelsClass, dataClass, 'Utilização (%)', '#0d6efd', { title: 'Utilização (%)', allowOrientation: true, datalabels: { rotation: 0, color: '#000', font: { size: 12 }, anchor: 'end', align: 'top', offset: 6, clamp: true, formatter: (v)=> Number(v).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) } });
+    const c2 = toBarChart(ctx2, labelsCat, dataCat, 'Utilização (%)', '#fd7e14', { title: 'Utilização (%)', allowOrientation: true, datalabels: { rotation: 0, color: '#000', font: { size: 12 }, anchor: 'end', align: 'top', offset: 6, clamp: true, formatter: (v)=> Number(v).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) } });
+    const c3 = toPieChart(ctx3, ['Utilizada','Disponível'], [resCategory.overall, 100 - resCategory.overall], { title: 'Utilização (%)' });
+    attachChartControls('chartUtilizationClass', c1, { defaultTitle: 'Utilização (%)', allowedTypes: ['bar','line'], allowOrientation: true });
+    attachChartControls('chartUtilizationCategory', c2, { defaultTitle: 'Utilização (%)', allowedTypes: ['bar','line'], allowOrientation: true });
+    attachChartControls('chartUtilizationOverall', c3, { defaultTitle: 'Utilização (%)', allowedTypes: ['pie','doughnut'], allowOrientation: false });
+}
+
+async function renderMTTR() {
+    const resEq = await fetchJSON(`/api/reports/kpis/mttr-grouped?group_by=equipment`);
+    const resCat = await fetchJSON(`/api/reports/kpis/mttr-grouped?group_by=category`);
+    const labelsEq = resEq.grouped.map(x=>x.label); const dataEq = resEq.grouped.map(x=>x.mttr_hours);
+    const labelsCat = resCat.grouped.map(x=>x.label); const dataCat = resCat.grouped.map(x=>x.mttr_hours);
+    // Paginação: limitar a 15 itens por página
+    const ctxEq = document.getElementById('chartMTTREquipment').getContext('2d');
+    createPaginatedBarChart('chartMTTREquipment', ctxEq, labelsEq, dataEq, 'Horas', '#0d6efd', 15);
+    const c2 = toBarChart(document.getElementById('chartMTTRCategory').getContext('2d'), labelsCat, dataCat, 'Horas', '#6f42c1', { title: 'MTTR por Categoria', allowOrientation: true });
+    attachChartControls('chartMTTRCategory', c2, { defaultTitle: 'MTTR por Categoria', allowedTypes: ['bar','line'], allowOrientation: true });
+}
+
+async function renderMTBF() {
+    const resEq = await fetchJSON(`/api/reports/kpis/mtbf-grouped?group_by=equipment`);
+    const resCat = await fetchJSON(`/api/reports/kpis/mtbf-grouped?group_by=category`);
+    const labelsEq = resEq.grouped.map(x=>x.label); const dataEq = resEq.grouped.map(x=>x.mtbf_hours);
+    const labelsCat = resCat.grouped.map(x=>x.label); const dataCat = resCat.grouped.map(x=>x.mtbf_hours);
+    // Paginação: limitar a 15 itens por página
+    const ctxEq = document.getElementById('chartMTBFEquipment').getContext('2d');
+    createPaginatedBarChart('chartMTBFEquipment', ctxEq, labelsEq, dataEq, 'Horas', '#0dcaf0', 15);
+    const c2 = toBarChart(document.getElementById('chartMTBFCategory').getContext('2d'), labelsCat, dataCat, 'Horas', '#198754', { title: 'MTBF por Categoria', allowOrientation: true });
+    attachChartControls('chartMTBFCategory', c2, { defaultTitle: 'MTBF por Categoria', allowedTypes: ['bar','line'], allowOrientation: true });
+}
+
+async function renderBacklog() {
+    const year = document.getElementById('filterYear').value || new Date().getFullYear();
+    const res = await fetchJSON(`/api/reports/backlog?year=${year}`);
+    const labels = res.evolution.map(x=>x.month);
+    const data = res.evolution.map(x=>x.count);
+    const c = toLineChart(document.getElementById('chartBacklogEvolution').getContext('2d'), labels, data, 'OS Abertas', '#20c997', { title: 'Backlog - Evolução' });
+    attachChartControls('chartBacklogEvolution', c, { defaultTitle: 'Backlog - Evolução', allowedTypes: ['line','bar'], allowOrientation: false });
+}
+
+async function renderCosts() {
+    const filters = getFilters();
+    // Construir período via start_date/end_date quando houver ano/mês
+    let qs = '';
+    if (filters.year && filters.month) {
+        const y = parseInt(filters.year, 10);
+        const m = parseInt(filters.month, 10);
+        const start = `${y}-${String(m).padStart(2,'0')}-01`;
+        const lastDay = new Date(y, m, 0).getDate();
+        const end = `${y}-${String(m).padStart(2,'0')}-${String(lastDay).padStart(2,'0')}T23:59:59`;
+        qs = `&start_date=${start}&end_date=${end}`;
+    } else if (filters.year) {
+        const y = parseInt(filters.year, 10);
+        qs = `&start_date=${y}-01-01&end_date=${y}-12-31T23:59:59`;
+    }
+
+    const resEq = await fetchJSON(`/api/reports/maintenance-costs?group_by=equipment${qs}`);
+    const labelsEq = resEq.map(x=>x.equipment); const dataEq = resEq.map(x=>x.total_cost);
+    // Tratamento de estado vazio e tooltip
+    const contEq = document.getElementById('chartCostByEquipment')?.closest('.chart-container');
+    const canvasEq = document.getElementById('chartCostByEquipment');
+    const showNoData = (container, canvas) => {
+        if (!container || !canvas) return;
+        container.querySelectorAll('.no-data-msg').forEach(el => el.remove());
+        canvas.style.display = 'none';
+        const div = document.createElement('div');
+        div.className = 'no-data-msg w-100';
+        div.innerHTML = `<div class="alert alert-warning mb-0">Nenhuma informação disponível. Não há registros no sistema para o período selecionado.</div>`;
+        container.appendChild(div);
+        const card = container.closest('.card');
+        if (card) { card.classList.add('no-data-card'); card.setAttribute('title', 'Sem dados neste período'); }
+    };
+    const hideNoData = (container, canvas) => {
+        if (!container || !canvas) return;
+        container.querySelectorAll('.no-data-msg').forEach(el => el.remove());
+        canvas.style.display = '';
+        const card = container.closest('.card');
+        if (card) { card.classList.remove('no-data-card'); card.removeAttribute('title'); }
+    };
+    // Se não houver dados por equipamento
+    if (!resEq || resEq.length === 0) {
+        try { if (chartStore['chartCostByEquipment']) { chartStore['chartCostByEquipment'].destroy(); delete chartStore['chartCostByEquipment']; } } catch {}
+        showNoData(contEq, canvasEq);
+    } else {
+        hideNoData(contEq, canvasEq);
+        // Paginação: limitar a 15 itens por página e bind de clique para detalhamento
+        const ctxEq = canvasEq.getContext('2d');
+        createPaginatedBarChart('chartCostByEquipment', ctxEq, labelsEq, dataEq, 'R$', '#0d6efd', 15, async (info) => {
+            try {
+                const params = new URLSearchParams({ equipment: info.label });
+                if (filters.year && filters.month) {
+                    params.append('year', filters.year);
+                    params.append('month', filters.month);
+                } else if (filters.year && !filters.month) {
+                    const y = parseInt(filters.year, 10);
+                    params.append('start_date', `${y}-01-01`);
+                    params.append('end_date', `${y}-12-31T23:59:59`);
+                }
+                const payload = await fetchJSON(`/api/reports/maintenance-costs/breakdown?${params.toString()}`);
+                openCostBreakdownModal(payload);
+            } catch (err) { console.error(err); }
+        });
+    }
+
+    const resMonth = await fetchJSON(`/api/reports/maintenance-costs?group_by=month${qs}`);
+    const labelsMonth = resMonth.map(x=>x.period); const dataMonth = resMonth.map(x=>x.total_cost);
+    const contMonth = document.getElementById('chartCostMonthly')?.closest('.chart-container');
+    const canvasMonth = document.getElementById('chartCostMonthly');
+    if (!resMonth || resMonth.length === 0) {
+        try { if (chartStore['chartCostMonthly']) { chartStore['chartCostMonthly'].destroy(); delete chartStore['chartCostMonthly']; } } catch {}
+        showNoData(contMonth, canvasMonth);
+    } else {
+        hideNoData(contMonth, canvasMonth);
+        const c2 = toLineChart(canvasMonth.getContext('2d'), labelsMonth, dataMonth, 'R$', '#20c997', { title: 'Custo Mensal' });
+        attachChartControls('chartCostMonthly', c2, { defaultTitle: 'Custo Mensal', allowedTypes: ['line','bar'], allowOrientation: false });
+    }
+
+    // Log de auditoria (contagem total de OS consideradas no período)
+    try {
+        const totalWOsCosts = (resMonth || []).reduce((s, r) => s + Number(r.work_orders_count || 0), 0);
+        const tab = document.getElementById('cost');
+        if (tab) {
+            let info = document.getElementById('costsAuditInfo');
+            if (!info) { info = document.createElement('div'); info.id = 'costsAuditInfo'; info.className = 'small text-muted mb-2'; tab.prepend(info); }
+            info.textContent = `OS fechadas consideradas no período: ${Number(totalWOsCosts).toLocaleString('pt-BR')}`;
+        }
+    } catch {}
+}
+
+async function renderFuel() {
+    const resEq = await fetchJSON(`/api/reports/fuel-consumption?group_by=equipment`);
+    const labelsEq = resEq.grouped.map(x=>x.label); const dataEq = resEq.grouped.map(x=>x.avg_consumption);
+    const ctxEq = document.getElementById('chartFuelConsumption').getContext('2d');
+    // Paginação: limitar a 15 itens por página
+    createPaginatedBarChart('chartFuelConsumption', ctxEq, labelsEq, dataEq, 'L/evento', '#0d6efd', 15);
+    const resCat = await fetchJSON(`/api/reports/fuel-consumption?group_by=category`);
+    const labelsCat = resCat.grouped.map(x=>x.label); const dataCat = resCat.grouped.map(x=>x.avg_consumption);
+    const c2 = toBarChart(document.getElementById('chartFuelByCategory').getContext('2d'), labelsCat, dataCat, 'L/evento', '#198754', { title: 'Consumo por Categoria', allowOrientation: true });
+    // Controles antigos removidos por solicitação
+    attachChartControls('chartFuelByCategory', c2, { defaultTitle: 'Consumo por Categoria', allowedTypes: ['bar','line'], allowOrientation: true });
+}
+
+async function renderQuota() {
+    const filters = getFilters();
+    if (!filters.year || !filters.month) return;
+    const res = await fetchJSON(`/api/reports/exceeded-quota?year=${filters.year}&month=${filters.month}&category=${filters.category}`);
+    // Tabela
+    const tbody = document.getElementById('quotaTableBody'); tbody.innerHTML='';
+    res.list.forEach(row => {
+        const tr = document.createElement('tr');
+        tr.innerHTML = `<td>${row.equipment}</td><td>${row.category}</td><td>${row.class}</td><td>${row.monthly_quota}</td><td>${row.used_hours}</td><td>${row.exceeded_hours}</td><td>${row.percentage}%</td>`;
+        tbody.appendChild(tr);
+    });
+    // Gráfico comparativo
+    const labels = res.by_category.map(x=>x.label); const data = res.by_category.map(x=>x.count);
+    const c = toBarChart(document.getElementById('chartQuotaCompare').getContext('2d'), labels, data, 'Excedentes', '#0d6efd', { title: 'Excedente por Categoria', allowOrientation: true });
+    attachChartControls('chartQuotaCompare', c, { defaultTitle: 'Excedente por Categoria', allowedTypes: ['bar','line'], allowOrientation: true });
+}
+
+function loadAll() {
+    renderAvailability();
+    renderUtilization();
+    renderMTTR();
+    renderMTBF();
+    renderBacklog();
+    renderCosts();
+    renderFuel();
+    renderQuota();
+}
+
+// ================== Chat de IA (cliente) ==================
+let aiMessagesState = [];
+let aiLoadingEl = null;
+function aiAppendMessage(role, content, sources = []) {
+    const box = document.getElementById('aiChatMessages');
+    if (!box) return;
+    const wrap = document.createElement('div');
+    wrap.className = `ai-msg ${role}`;
+    const avatar = document.createElement('div');
+    avatar.className = 'avatar';
+    avatar.textContent = role === 'user' ? 'Você' : 'IA';
+    const bubble = document.createElement('div');
+    bubble.className = 'bubble';
+    bubble.textContent = content;
+    wrap.appendChild(avatar);
+    wrap.appendChild(bubble);
+    // Fontes clicáveis abaixo da resposta da IA
+    if (role === 'assistant' && Array.isArray(sources) && sources.length) {
+        const src = document.createElement('div');
+        src.className = 'ai-sources small mt-1';
+        const label = document.createElement('div');
+        label.className = 'text-muted';
+        label.textContent = 'Fontes:';
+        src.appendChild(label);
+        const list = document.createElement('div');
+        sources.forEach(u => {
+            if (!u) return;
+            const a = document.createElement('a');
+            a.href = u;
+            a.target = '_blank';
+            a.rel = 'noopener noreferrer';
+            a.className = 'ai-source-link me-2';
+            a.textContent = u;
+            list.appendChild(a);
+        });
+        src.appendChild(list);
+        bubble.appendChild(src);
+    }
+    box.appendChild(wrap);
+    box.scrollTop = box.scrollHeight;
+    return wrap;
+}
+
+async function aiSendMessage() {
+    const input = document.getElementById('aiChatInput');
+    const btn = document.getElementById('aiChatSend');
+    if (!input || !input.value.trim()) return;
+    const text = input.value.trim();
+    input.value = '';
+    aiAppendMessage('user', text);
+    aiMessagesState.push({ role: 'user', content: text });
+    // Preparar payload com filtros atuais
+    const filters = getFilters();
+    const payload = { messages: aiMessagesState.slice(-15), filters };
+    btn.disabled = true; btn.textContent = 'Enviando...';
+    const box = document.getElementById('aiChatMessages');
+    if (box) box.setAttribute('aria-busy', 'true');
+    // Indicador de carregamento como mensagem da IA
+    aiLoadingEl = aiAppendMessage('assistant', 'Processando...', []);
+    if (aiLoadingEl) {
+        aiLoadingEl.classList.add('loading');
+        const bubble = aiLoadingEl.querySelector('.bubble');
+        if (bubble) bubble.innerHTML = '<span class="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true"></span>Processando...';
+    }
+    try {
+        const res = await fetch('/api/reports/maintenance/ai-chat', {
+            method: 'POST', headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(payload)
+        });
+        const data = await res.json();
+        const reply = data.reply || (data.message || 'Sem resposta.');
+        // Remover indicador de carregamento
+        if (aiLoadingEl) { try { aiLoadingEl.remove(); } catch {} aiLoadingEl = null; }
+        if (box) box.removeAttribute('aria-busy');
+        aiAppendMessage('assistant', reply, Array.isArray(data.sources) ? data.sources : []);
+        aiMessagesState.push({ role: 'assistant', content: reply });
+    } catch (err) {
+        console.error(err);
+        // Remover indicador de carregamento
+        if (aiLoadingEl) { try { aiLoadingEl.remove(); } catch {} aiLoadingEl = null; }
+        if (box) box.removeAttribute('aria-busy');
+        aiAppendMessage('assistant', 'Ocorreu um erro ao consultar a IA. Verifique a conexão e tente novamente.');
+    } finally {
+        btn.disabled = false; btn.textContent = 'Enviar';
+    }
+}
+
+function aiInit() {
+    const input = document.getElementById('aiChatInput');
+    const btn = document.getElementById('aiChatSend');
+    if (!input || !btn) return;
+    btn.addEventListener('click', aiSendMessage);
+    input.addEventListener('keydown', (e) => { if (e.key === 'Enter') { e.preventDefault(); aiSendMessage(); } });
+    // Mensagem inicial contextual
+    aiAppendMessage('assistant', 'Olá! Posso explicar disponibilidade, utilização, custos, MTTR/MTBF, backlog e consumo com base nos filtros acima. O que você quer analisar?');
+}
+
+// Botões de filtro
+document.getElementById('applyFilters').addEventListener('click', () => { loadAll(); });
+document.getElementById('resetFilters').addEventListener('click', () => {
+    document.getElementById('filterWeek').value='';
+    document.getElementById('filterMonth').value='';
+    document.getElementById('filterYear').value='';
+    document.getElementById('filterCategory').value='';
+    loadAll();
+});
+
+// Inicialização
+window.addEventListener('DOMContentLoaded', () => { loadAll(); aiInit(); });
+</script>
+{% endblock %}

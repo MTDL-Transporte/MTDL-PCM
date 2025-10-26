@@ -1,0 +1,20 @@
+# Python caches
+__pycache__/
+*.pyc
+
+# Virtual environment and local env
+.venv/
+.env
+
+# Build and distribution
+dist/
+build/
+releases/
+temp/
+
+# Databases
+*.db
+*.sqlite3
+
+# Logs
+*.log

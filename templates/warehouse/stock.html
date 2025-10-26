@@ -1,0 +1,695 @@
+{% extends "base.html" %}
+
+{% block page_title %}Controle de Estoque{% endblock %}
+{% block breadcrumb_title %}Controle de Estoque{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <!-- Summary Cards -->
+    <div class="row mb-4">
+        <div class="col-md-3">
+            <div class="card text-center border-0 shadow-sm">
+                <div class="card-body">
+                    <h5 class="card-title text-primary">Total de Itens</h5>
+                    <h2 class="text-primary" id="totalItems">0</h2>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card text-center border-0 shadow-sm">
+                <div class="card-body">
+                    <h5 class="card-title text-warning">Estoque Baixo</h5>
+                    <h2 class="text-warning" id="lowStockItems">0</h2>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card text-center border-0 shadow-sm">
+                <div class="card-body">
+                    <h5 class="card-title text-success">Valor Total</h5>
+                    <h2 class="text-success" id="totalValue">R$ 0,00</h2>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card text-center border-0 shadow-sm">
+                <div class="card-body">
+                    <h5 class="card-title text-info">Movimentações</h5>
+                    <h2 class="text-info" id="monthlyMovements">0</h2>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Filters and Actions -->
+    <div class="row mb-3">
+        <div class="col-md-8">
+            <div class="d-flex gap-3 align-items-end">
+                <div>
+                    <label for="statusFilter" class="form-label">Status</label>
+                    <select class="form-select" id="statusFilter">
+                        <option value="">Todos</option>
+                        <option value="normal">Normal</option>
+                        <option value="baixo">Estoque Baixo</option>
+                    </select>
+                </div>
+                <div class="flex-grow-1">
+                    <label for="searchInput" class="form-label">Buscar</label>
+                    <input type="text" class="form-control" id="searchInput" placeholder="Buscar por material, código ou categoria...">
+                </div>
+            </div>
+        </div>
+        <div class="col-md-4">
+            <div class="d-flex gap-2 align-items-end justify-content-end">
+                <button type="button" class="btn btn-outline-secondary" onclick="clearFilters()">
+                    <i class="bi bi-x-circle"></i> Limpar
+                </button>
+                <button type="button" class="btn btn-primary" onclick="applyFilters()">
+                    <i class="bi bi-funnel"></i> Filtrar
+                </button>
+                <button type="button" class="btn btn-success" onclick="openNewMaterialModal()">
+                    <i class="bi bi-plus-circle"></i> Novo Material
+                </button>
+                <button type="button" class="btn btn-primary" onclick="openStockMovementModal()">
+                    <i class="bi bi-arrow-left-right"></i> Movimentações
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Stock Table -->
+    <div class="card border-0 shadow-sm">
+        <div class="card-body p-0">
+            <div class="table-responsive">
+                <table class="table table-light border-0 mb-0" id="stockTable">
+                    <thead class="table-dark">
+                        <tr>
+                            <th>CÓDIGO</th>
+                            <th>DESCRIÇÃO</th>
+                            <th>UNIDADE</th>
+                            <th>VALOR UNITÁRIO</th>
+                            <th>ESTOQUE MÍN/MÁX</th>
+                            <th>LOCAÇÃO</th>
+                            <th>SALDO ATUAL</th>
+                            <th>STATUS</th>
+                            <th>AÇÕES</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <!-- Dados carregados via JavaScript -->
+                    </tbody>
+                </table>
+            </div>
+            
+            <!-- Pagination -->
+            <div class="d-flex justify-content-between align-items-center p-3 border-top">
+                <div class="text-muted">
+                    Mostrando <span id="itemsCount">0</span> itens
+                </div>
+                <nav>
+                    <ul class="pagination pagination-sm mb-0">
+                        <li class="page-item disabled">
+                            <a class="page-link" href="#" tabindex="-1">Anterior</a>
+                        </li>
+                        <li class="page-item active">
+                            <a class="page-link" href="#">1</a>
+                        </li>
+                        <li class="page-item disabled">
+                            <a class="page-link" href="#">Próximo</a>
+                        </li>
+                    </ul>
+                </nav>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Modal Novo Material -->
+<div class="modal fade" id="materialModal" tabindex="-1">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="materialModalTitle">Novo Material</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <form id="materialForm">
+                    <input type="hidden" id="material-id">
+                    
+                    <div class="row">
+                        <div class="col-md-4">
+                            <label for="material-code" class="form-label">Código *</label>
+                            <input type="text" class="form-control" id="material-code" readonly 
+                                   placeholder="Gerado automaticamente">
+                        </div>
+                        <div class="col-md-4">
+                            <label for="material-reference" class="form-label">Referência</label>
+                            <input type="text" class="form-control" id="material-reference" 
+                                   placeholder="Referência do fabricante">
+                        </div>
+                        <div class="col-md-4">
+                            <label for="material-name" class="form-label">Nome *</label>
+                            <input type="text" class="form-control" id="material-name" required>
+                        </div>
+                    </div>
+                    
+                    <div class="row mt-3">
+                        <div class="col-md-6">
+                            <label for="material-category" class="form-label">Categoria *</label>
+                            <select class="form-select" id="material-category" required>
+                                <option value="">Selecione uma categoria</option>
+                                <option value="Peças">Peças</option>
+                                <option value="Ferramentas">Ferramentas</option>
+                                <option value="Consumíveis">Consumíveis</option>
+                                <option value="Lubrificantes">Lubrificantes</option>
+                                <option value="EPI">EPI</option>
+                                <option value="Outros">Outros</option>
+                            </select>
+                        </div>
+                        <div class="col-md-6">
+                            <label for="material-unit" class="form-label">Unidade *</label>
+                            <select class="form-select" id="material-unit" required>
+                                <option value="">Selecione uma unidade</option>
+                                <option value="UN">Unidade</option>
+                                <option value="PC">Peça</option>
+                                <option value="KG">Quilograma</option>
+                                <option value="L">Litro</option>
+                                <option value="M">Metro</option>
+                                <option value="M²">Metro Quadrado</option>
+                                <option value="M³">Metro Cúbico</option>
+                                <option value="CX">Caixa</option>
+                                <option value="PCT">Pacote</option>
+                            </select>
+                        </div>
+                    </div>
+                    
+                    <div class="mt-3">
+                        <label for="material-description" class="form-label">Descrição</label>
+                        <textarea class="form-control" id="material-description" rows="3" 
+                                  placeholder="Descrição detalhada do material..."></textarea>
+                    </div>
+                    
+                    <div class="row mt-3">
+                        <div class="col-md-4">
+                            <label for="average-consumption" class="form-label">Consumo Médio Mensal</label>
+                            <input type="number" class="form-control" id="average-consumption" 
+                                   min="0" step="0.01" readonly placeholder="Calculado automaticamente">
+                        </div>
+                        <div class="col-md-4">
+                            <label for="minimum-stock" class="form-label">Estoque Mínimo *</label>
+                            <input type="number" class="form-control" id="minimum-stock" 
+                                   min="0" step="0.01" required>
+                        </div>
+                        <div class="col-md-4">
+                            <label for="maximum-stock" class="form-label">Estoque Máximo *</label>
+                            <input type="number" class="form-control" id="maximum-stock" 
+                                   min="0" step="0.01" required>
+                        </div>
+                    </div>
+                    
+                    <div class="row mt-3">
+                        <div class="col-md-6">
+                            <label for="unit-price" class="form-label">Preço Unitário</label>
+                            <div class="input-group">
+                                <span class="input-group-text">R$</span>
+                                <input type="number" class="form-control" id="unit-price" 
+                                       min="0" step="0.01" placeholder="0,00">
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <label for="material-location" class="form-label">Localização</label>
+                            <input type="text" class="form-control" id="material-location" 
+                                   placeholder="Ex: Prateleira A1, Setor 2">
+                        </div>
+                    </div>
+                    
+                    <div class="row mt-3">
+                        <div class="col-md-12">
+                            <label for="material-status" class="form-label">Status</label>
+                            <select class="form-select" id="material-status">
+                                <option value="Ativo">Ativo</option>
+                                <option value="Inativo">Inativo</option>
+                                <option value="Descontinuado">Descontinuado</option>
+                            </select>
+                        </div>
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                <button type="button" class="btn btn-primary" onclick="saveMaterial()">Salvar</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Modal de Movimentações de Estoque -->
+    <div class="modal fade" id="stockMovementModal" tabindex="-1">
+        <div class="modal-dialog modal-lg">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">Movimentações de Estoque</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <form id="stockMovementForm">
+                    <div class="mb-3">
+                        <label for="materialSelect" class="form-label">Material</label>
+                        <select class="form-select" id="materialSelect" name="material_id" required>
+                            <option value="">Selecione um material...</option>
+                        </select>
+                    </div>
+                    <div class="mb-3">
+                        <label for="movementType" class="form-label">Tipo de Movimentação</label>
+                        <select class="form-select" id="movementType" name="movement_type" required>
+                            <option value="">Selecione...</option>
+                            <option value="Entrada">Entrada</option>
+                            <option value="Saída">Saída</option>
+                        </select>
+                    </div>
+                    <div class="mb-3">
+                        <label for="quantity" class="form-label">Quantidade</label>
+                        <input type="number" class="form-control" id="quantity" name="quantity" min="0.01" step="0.01" required>
+                    </div>
+                    <div class="mb-3">
+                        <label for="reason" class="form-label">Motivo</label>
+                        <textarea class="form-control" id="reason" name="reason" rows="2" placeholder="Descreva o motivo da movimentação"></textarea>
+                    </div>
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label for="referenceDocument" class="form-label">Documento de Referência</label>
+                                <input type="text" class="form-control" id="referenceDocument" name="reference_document" placeholder="Ex: NF-001, OS-123">
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label for="unitPrice" class="form-label">Valor Unitário</label>
+                                <div class="input-group">
+                                    <span class="input-group-text">R$</span>
+                                    <input type="number" class="form-control" id="unitPrice" name="unit_price" min="0" step="0.01" placeholder="0,00">
+                                </div>
+                                <div class="form-text">Informar apenas para movimentações de entrada</div>
+                            </div>
+                        </div>
+                    </div>
+                    <!-- Novos campos -->
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label for="costCenter" class="form-label">Centro de Custo *</label>
+                                <select class="form-select" id="costCenter" name="cost_center" required>
+                                    <option value="">Selecione o centro de custo...</option>
+                                    <option value="55000001001">Produção</option>
+                                    <option value="55000002001">Qualidade</option>
+                                    <option value="55000003001">Segurança (SESMT)</option>
+                                    <option value="55000004001">Manutenção</option>
+                                    <option value="55000005001">Logística</option>
+                                    <option value="55000006001">Recursos Humanos (RH)</option>
+                                    <option value="55000007001">Financeiro</option>
+                                    <option value="55000008001">Comercial/Vendas</option>
+                                    <option value="55000009001">Tecnologia da Informação (TI)</option>
+                                    <option value="55000010001">Engenharia</option>
+                                    <option value="55000011001">Almoxarifado</option>
+                                    <option value="55000012001">Compras</option>
+                                    <option value="55000013001">Jurídico</option>
+                                    <option value="55000014001">Marketing</option>
+                                    <option value="55000015001">Pesquisa e Desenvolvimento</option>
+                                    <option value="55000016001">Atendimento ao Cliente</option>
+                                    <option value="55000017001">Planejamento Estratégico</option>
+                                    <option value="55000018001">Expedição</option>
+                                    <option value="55000019001">Facilities/Serviços Gerais</option>
+                                    <option value="55000020001">Sustentabilidade/Meio Ambiente</option>
+                                </select>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label for="equipmentSelect" class="form-label">Equipamento *</label>
+                                <select class="form-select" id="equipmentSelect" name="equipment_id" required>
+                                    <option value="">Selecione um equipamento...</option>
+                                </select>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="mb-3">
+                        <label for="notes" class="form-label">Observações</label>
+                        <textarea class="form-control" id="notes" name="notes" rows="2" placeholder="Observações adicionais"></textarea>
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                <button type="button" class="btn btn-primary" onclick="saveStockMovement()">Registrar</button>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+let stockData = [];
+let equipmentList = [];
+
+document.addEventListener('DOMContentLoaded', function() {
+    loadStockData();
+    loadMaterialOptions();
+    loadEquipmentOptions();
+    
+    // Add event listeners for filters
+    document.getElementById('statusFilter').addEventListener('change', renderStockTable);
+    document.getElementById('searchInput').addEventListener('input', renderStockTable);
+
+    // Preencher Centro de Custo ao selecionar equipamento
+    const equipmentSelectEl = document.getElementById('equipmentSelect');
+    if (equipmentSelectEl) {
+        equipmentSelectEl.addEventListener('change', updateCostCenterFromEquipment);
+    }
+});
+
+async function loadStockData() {
+    try {
+        const response = await axios.get('/api/warehouse/stock');
+        stockData = response.data;
+        renderStockTable();
+        updateSummaryCards();
+    } catch (error) {
+        console.error('Erro ao carregar dados de estoque:', error);
+        showAlert('Erro ao carregar dados de estoque', 'error');
+    }
+}
+
+function renderStockTable() {
+    const tbody = document.querySelector('#stockTable tbody');
+    tbody.innerHTML = '';
+    
+    // Apply filters
+    let filteredData = stockData;
+    
+    // Status filter
+    const statusFilter = document.getElementById('statusFilter').value;
+    if (statusFilter === 'baixo') {
+        filteredData = filteredData.filter(item => item.is_low_stock);
+    } else if (statusFilter === 'normal') {
+        filteredData = filteredData.filter(item => !item.is_low_stock);
+    }
+    
+    // Search filter
+    const searchTerm = document.getElementById('searchInput').value.toLowerCase();
+    if (searchTerm) {
+        filteredData = filteredData.filter(item => 
+            (item.name || '').toLowerCase().includes(searchTerm) ||
+            (item.code || '').toLowerCase().includes(searchTerm) ||
+            (item.category || '').toLowerCase().includes(searchTerm)
+        );
+    }
+    
+    // Update items count
+    document.getElementById('itemsCount').textContent = filteredData.length;
+    
+    if (filteredData.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="9" class="text-center text-muted py-4">Nenhum item encontrado</td></tr>';
+        return;
+    }
+
+    filteredData.forEach(item => {
+        const row = tbody.insertRow();
+        const statusClass = item.is_low_stock ? 'danger' : 'success';
+        const statusText = item.is_low_stock ? 'Baixo' : 'Normal';
+        
+        row.innerHTML = `
+            <td class="fw-bold">${item.code || 'N/A'}</td>
+            <td>
+                <div class="fw-bold">${item.name || 'N/A'}</div>
+                <small class="text-muted">${item.category || 'N/A'}</small>
+            </td>
+            <td>${item.unit || 'UN'}</td>
+            <td>R$ ${(item.average_cost || 0).toFixed(2)}</td>
+            <td>
+                <div>Mín: ${item.minimum_stock || 0}</div>
+                <div>Máx: ${item.maximum_stock || 0}</div>
+            </td>
+            <td>${item.location || 'N/A'}</td>
+            <td class="fw-bold ${item.is_low_stock ? 'text-danger' : ''}">${item.current_stock || 0}</td>
+            <td><span class="badge bg-${statusClass}">${statusText}</span></td>
+            <td>
+                <button class="btn btn-sm btn-outline-primary" onclick="showStockMovementModal(${item.id})" title="Editar" aria-label="Editar estoque">
+                    <i class="bi bi-pencil-square"></i>
+                </button>
+            </td>
+        `;
+    });
+}
+
+function updateSummaryCards() {
+    document.getElementById('totalItems').textContent = stockData.length;
+    document.getElementById('lowStockItems').textContent = stockData.filter(item => item.is_low_stock).length;
+    
+    const totalValue = stockData.reduce((sum, item) => sum + (item.current_stock * item.average_cost), 0);
+    document.getElementById('totalValue').textContent = `R$ ${totalValue.toFixed(2)}`;
+    
+    // Movimentações mensais seria obtida de outra API
+    document.getElementById('monthlyMovements').textContent = '0';
+}
+
+async function loadMaterialOptions() {
+    try {
+        const response = await axios.get('/api/warehouse/materials');
+        const materials = response.data;
+        
+        const select = document.getElementById('materialSelect');
+        select.innerHTML = '<option value="">Selecione um material...</option>';
+        
+        materials.forEach(material => {
+            const option = document.createElement('option');
+            option.value = material.id;
+            option.textContent = `${material.name} (${material.code})`;
+            select.appendChild(option);
+        });
+    } catch (error) {
+        console.error('Erro ao carregar materiais:', error);
+    }
+}
+
+// Carregar equipamentos para o select
+async function loadEquipmentOptions() {
+    try {
+        const response = await axios.get('/api/maintenance/equipment/list');
+        equipmentList = response.data;
+        const equipment = equipmentList;
+        const equipmentSelect = document.getElementById('equipmentSelect');
+        if (equipmentSelect) {
+            equipmentSelect.innerHTML = '<option value="">Selecione um equipamento...</option>';
+            equipment.forEach(eq => {
+                const option = document.createElement('option');
+                option.value = eq.id;
+                option.textContent = `${eq.prefix ? `${eq.prefix} - ` : ''}${eq.name}`;
+                equipmentSelect.appendChild(option);
+            });
+        }
+    } catch (error) {
+        console.error('Erro ao carregar equipamentos:', error);
+    }
+}
+
+function clearFilters() {
+    document.getElementById('statusFilter').value = '';
+    document.getElementById('searchInput').value = '';
+    renderStockTable();
+}
+
+function applyFilters() {
+    renderStockTable();
+}
+
+function updateCostCenterFromEquipment() {
+    const equipmentSelect = document.getElementById('equipmentSelect');
+    const costCenterSelect = document.getElementById('costCenter');
+    if (!equipmentSelect || !costCenterSelect) return;
+    const selectedId = parseInt(equipmentSelect.value);
+    if (!selectedId || equipmentList.length === 0) return;
+    const eq = equipmentList.find(item => item.id === selectedId);
+    if (eq && eq.cost_center) {
+        costCenterSelect.value = eq.cost_center;
+    }
+}
+
+function showStockMovementModal(materialId = null) {
+    document.getElementById('stockMovementForm').reset();
+    if (materialId) {
+        document.getElementById('materialSelect').value = materialId;
+    }
+    new bootstrap.Modal(document.getElementById('stockMovementModal')).show();
+}
+
+// Função para abrir modal de movimentação de estoque (sem material pré-selecionado)
+function openStockMovementModal() {
+    document.getElementById('stockMovementForm').reset();
+    const dateInput = document.getElementById('movementDate');
+    if (dateInput) {
+        const today = new Date();
+        const yyyy = today.getFullYear();
+        const mm = String(today.getMonth() + 1).padStart(2, '0');
+        const dd = String(today.getDate()).padStart(2, '0');
+        dateInput.value = `${yyyy}-${mm}-${dd}`;
+    }
+    new bootstrap.Modal(document.getElementById('stockMovementModal')).show();
+}
+
+async function saveStockMovement() {
+    try {
+        const form = document.getElementById('stockMovementForm');
+        const formData = new FormData(form);
+        
+        const movementData = {
+            material_id: parseInt(formData.get('material_id')),
+            movement_type: formData.get('movement_type'),
+            quantity: parseFloat(formData.get('quantity')),
+            reason: formData.get('reason') || '',
+            reference_document: formData.get('reference_document') || '',
+            notes: formData.get('notes') || '',
+            unit_price: parseFloat(formData.get('unit_price')) || null,
+            cost_center: formData.get('cost_center') || null,
+            equipment_id: formData.get('equipment_id') ? parseInt(formData.get('equipment_id')) : null,
+            date: formData.get('date') || null
+        };
+
+        // Validar dados
+        if (!movementData.material_id || !movementData.movement_type || !movementData.quantity) {
+            showAlert('Por favor, preencha todos os campos obrigatórios', 'warning');
+            return;
+        }
+
+        if (movementData.quantity <= 0) {
+            showAlert('A quantidade deve ser maior que zero', 'warning');
+            return;
+        }
+
+        // Validações específicas para Saída
+        if (movementData.movement_type === 'Saída') {
+            if (!movementData.cost_center) {
+                showAlert('Selecione o Centro de Custo para saída de estoque.', 'warning');
+                return;
+            }
+            if (!movementData.equipment_id) {
+                showAlert('Selecione o Equipamento para saída de estoque.', 'warning');
+                return;
+            }
+        }
+
+        const response = await fetch('/warehouse/stock-movements', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify(movementData)
+        });
+
+        const result = await response.json();
+
+        if (response.ok) {
+            showAlert(result.message || 'Movimentação registrada com sucesso!', 'success');
+            
+            // Fechar modal
+            const modal = bootstrap.Modal.getInstance(document.getElementById('stockMovementModal'));
+            modal.hide();
+            
+            // Recarregar dados
+            await loadStockData();
+            renderStockTable();
+            
+            // Limpar formulário
+            form.reset();
+        } else {
+            showAlert(result.detail || 'Erro ao registrar movimentação', 'error');
+        }
+    } catch (error) {
+        console.error('Erro ao salvar movimentação:', error);
+        showAlert('Erro ao conectar com o servidor', 'error');
+    }
+}
+
+// Abrir modal de novo material
+function openNewMaterialModal() {
+    document.getElementById('materialModalTitle').textContent = 'Novo Material';
+    document.getElementById('materialForm').reset();
+    document.getElementById('material-id').value = '';
+    document.getElementById('material-code').value = '';
+    document.getElementById('material-reference').value = '';
+    document.getElementById('average-consumption').value = '';
+    document.getElementById('material-status').value = 'Ativo';
+    
+    const modal = new bootstrap.Modal(document.getElementById('materialModal'));
+    modal.show();
+}
+
+// Salvar material
+async function saveMaterial() {
+    try {
+        const formData = {
+            name: document.getElementById('material-name').value,
+            reference: document.getElementById('material-reference').value,
+            category: document.getElementById('material-category').value,
+            unit: document.getElementById('material-unit').value,
+            description: document.getElementById('material-description').value,
+            minimum_stock: parseFloat(document.getElementById('minimum-stock').value),
+            maximum_stock: parseFloat(document.getElementById('maximum-stock').value),
+            unit_price: parseFloat(document.getElementById('unit-price').value) || null,
+            location: document.getElementById('material-location').value,
+            status: document.getElementById('material-status').value
+        };
+        
+        const materialId = document.getElementById('material-id').value;
+        let response;
+        
+        if (materialId) {
+            response = await axios.put(`/api/warehouse/materials/${materialId}`, formData);
+        } else {
+            response = await axios.post('/api/warehouse/materials', formData);
+        }
+        
+        showAlert('Material salvo com sucesso!', 'success');
+        bootstrap.Modal.getInstance(document.getElementById('materialModal')).hide();
+        loadStockData(); // Recarregar dados do estoque
+        updateSummaryCards();
+    } catch (error) {
+        console.error('Erro ao salvar material:', error);
+        showAlert('Erro ao salvar material', 'danger');
+    }
+}
+
+// Função para mostrar alertas
+function showAlert(message, type = 'info') {
+    const alertContainer = document.getElementById('alert-container') || createAlertContainer();
+    
+    const alertDiv = document.createElement('div');
+    alertDiv.className = `alert alert-${type} alert-dismissible fade show`;
+    alertDiv.innerHTML = `
+        ${message}
+        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+    `;
+    
+    alertContainer.appendChild(alertDiv);
+    
+    // Auto remove after 5 seconds
+    setTimeout(() => {
+        if (alertDiv.parentNode) {
+            alertDiv.remove();
+        }
+    }, 5000);
+}
+
+function createAlertContainer() {
+    const container = document.createElement('div');
+    container.id = 'alert-container';
+    container.style.position = 'fixed';
+    container.style.top = '20px';
+    container.style.right = '20px';
+    container.style.zIndex = '9999';
+    container.style.maxWidth = '400px';
+    document.body.appendChild(container);
+    return container;
+}
+</script>
+{% endblock %}

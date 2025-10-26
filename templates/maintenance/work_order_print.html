@@ -1,0 +1,412 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Ordem de Intervenção - {{ work_order.id }}</title>
+    <style>
+        @page {
+            size: A4;
+            margin: 1cm;
+        }
+        
+        body {
+            font-family: Arial, sans-serif;
+            font-size: 10px;
+            line-height: 1.2;
+            margin: 0;
+            padding: 0;
+        }
+        
+        .header {
+            text-align: center;
+            background-color: #d3d3d3;
+            padding: 8px;
+            font-weight: bold;
+            font-size: 14px;
+            margin-bottom: 10px;
+        }
+        
+        .order-info {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 10px;
+        }
+        
+        .order-number {
+            border: 1px solid #000;
+            padding: 5px;
+            width: 150px;
+        }
+        
+        .order-date {
+            border: 1px solid #000;
+            padding: 5px;
+            width: 100px;
+        }
+        
+        .section {
+            border: 1px solid #000;
+            margin-bottom: 10px;
+            padding: 5px;
+        }
+        
+        .section-title {
+            font-weight: bold;
+            background-color: #f0f0f0;
+            padding: 3px;
+            margin: -5px -5px 5px -5px;
+        }
+        
+        .equipment-info {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 10px;
+        }
+        
+        .field {
+            margin-bottom: 5px;
+        }
+        
+        .field-label {
+            font-weight: bold;
+            display: inline-block;
+            width: 80px;
+        }
+        
+        .field-value {
+            border-bottom: 1px solid #000;
+            display: inline-block;
+            min-width: 150px;
+            padding-bottom: 2px;
+        }
+        
+        .tasks-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 10px;
+        }
+        
+        .tasks-table th,
+        .tasks-table td {
+            border: 1px solid #000;
+            padding: 5px;
+            text-align: left;
+        }
+        
+        .tasks-table th {
+            background-color: #f0f0f0;
+            font-weight: bold;
+        }
+        
+        .checkbox {
+            width: 15px;
+            height: 15px;
+            border: 1px solid #000;
+            display: inline-block;
+            text-align: center;
+        }
+        
+        .materials-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 10px;
+        }
+        
+        .materials-table th,
+        .materials-table td {
+            border: 1px solid #000;
+            padding: 5px;
+            text-align: left;
+        }
+        
+        .materials-table th {
+            background-color: #f0f0f0;
+            font-weight: bold;
+        }
+        
+        .signatures {
+            display: grid;
+            grid-template-columns: 1fr 1fr 1fr;
+            gap: 20px;
+            margin-top: 30px;
+        }
+        
+        .signature-box {
+            text-align: center;
+            border-top: 1px solid #000;
+            padding-top: 5px;
+            margin-top: 40px;
+        }
+        
+        .page-break {
+            page-break-before: always;
+        }
+        
+        .final-question {
+            border: 1px solid #000;
+            padding: 10px;
+            margin-top: 20px;
+            text-align: center;
+        }
+    </style>
+</head>
+<body>
+    <!-- Página 1 -->
+    <div class="header">ORDEM INTERVENÇÃO</div>
+    
+    <div class="order-info">
+        <div class="order-number">
+            <strong>Nº:</strong> {{ work_order.id }}
+        </div>
+        <div class="order-date">
+            <strong>Data:</strong><br>
+            {{ work_order.created_at.strftime('%d/%m/%Y') }}
+        </div>
+    </div>
+    
+    <div class="section">
+        <div class="field">
+            <span class="field-label">Para:</span>
+            <span class="field-value">{{ work_order.assigned_to or 'Manutenção' }}</span>
+            <span class="margin-left-50"><strong>Telefone:</strong></span>
+            <span class="field-value width-100"></span>
+            <span class="margin-left-30"><strong>Fax:</strong></span>
+            <span class="field-value width-100"></span>
+        </div>
+        <div class="field">
+            <span class="field-label">ATT:</span>
+            <span class="field-value">{{ work_order.technician_name or 'Manutenção Preventiva' }}</span>
+        </div>
+    </div>
+    
+    <div class="section">
+        <div class="section-title">Identificação da Unidade de Equipamento</div>
+        <div class="equipment-info">
+            <div>
+                <div class="field">
+                    <span class="field-label">Nº Inventário:</span>
+                    <span class="field-value">{{ work_order.equipment.prefix }}</span>
+                </div>
+                <div class="field">
+                    <span class="field-label">Descrição:</span>
+                    <span class="field-value">{{ work_order.equipment.name }}</span>
+                </div>
+            </div>
+            <div>
+                <div class="field">
+                    <span class="field-label">Matrícula:</span>
+                    <span class="field-value">{{ work_order.equipment.serial_number or '' }}</span>
+                </div>
+                <div class="field">
+                    <span class="field-label">Nº Chassi:</span>
+                    <span class="field-value">{{ work_order.equipment.chassis_number or '' }}</span>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <div class="section">
+        <div class="section-title">Tipo de Intervenção</div>
+        <div class="field">
+            <span class="field-label">{{ work_order.type }}</span>
+            <span class="margin-left-100"><strong>Centro Planejamento:</strong></span>
+            <span class="field-value">MTDL</span>
+        </div>
+        <div class="field margin-top-10">
+            <span class="field-label">Centro Planejamento/Responsável:</span>
+            <span class="field-value">MTDL-001</span>
+            <span class="margin-left-50"><strong>Sobretaxa:</strong></span>
+            <span class="field-value">MEFCO</span>
+        </div>
+    </div>
+    
+    <div class="section">
+        <div class="section-title">Dados sobre o Equipamento</div>
+        <div class="field">
+            <span class="field-label">Nº Km's de trabalho à data:</span>
+            <span class="field-value">{{ work_order.equipment.current_horimeter or '0' }}</span>
+            <span class="margin-left-50"><strong>Nº horas de trabalho à data:</strong></span>
+            <span class="field-value"></span>
+        </div>
+        <div class="field">
+            <span class="field-label">Última intervenção feita às/aos:</span>
+            <span class="field-value"></span>
+        </div>
+    </div>
+    
+    <div class="section">
+        <div class="section-title">Localização do Equipamento</div>
+        <div class="field">
+            <span class="field-value width-300">{{ work_order.equipment.location or 'MTDL - Pátio Principal' }}</span>
+        </div>
+        <div class="field">
+            <span class="field-label">Observações:</span>
+            <span class="field-value width-400"></span>
+        </div>
+    </div>
+    
+    <div class="section">
+        <div class="section-title">Intervenção/Serviço Solicitado</div>
+        <div class="field">
+            <span class="field-label">Tipo de avaria:</span>
+            <span class="field-value width-300">{{ work_order.description }}</span>
+            <span class="margin-left-50"><strong>CC Pagador:</strong></span>
+            <span class="field-value"></span>
+        </div>
+    </div>
+    
+    <div class="section">
+        <div class="section-title">Lista de Tarefas</div>
+        <table class="tasks-table">
+            <thead>
+                <tr>
+                    <th class="width-60">Categoria</th>
+                    <th>Tarefa</th>
+                    <th class="width-30">✓</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for task in work_order.tasks %}
+                <tr>
+                    <td>{{ task.category or '' }}</td>
+                    <td>{{ task.description }}</td>
+                    <td class="checkbox"></td>
+                </tr>
+                {% else %}
+                <tr><td></td><td>Trocar filtro de óleo do motor</td><td class="checkbox"></td></tr>
+                <tr><td></td><td>Coletar amostra motor</td><td class="checkbox"></td></tr>
+                <tr><td></td><td>Drenar reservatório de ar</td><td class="checkbox"></td></tr>
+                <tr><td></td><td>Executar lubrificação geral</td><td class="checkbox"></td></tr>
+                <tr><td></td><td>Verificar carga do extintor de incêndio</td><td class="checkbox"></td></tr>
+                <tr><td></td><td>Apertar porcas das rodas</td><td class="checkbox"></td></tr>
+                <tr><td></td><td>Calibrar pneus</td><td class="checkbox"></td></tr>
+                <tr><td></td><td>Verificar desgaste dos pneus</td><td class="checkbox"></td></tr>
+                <tr><td></td><td>Verificar correia e tensor do motor</td><td class="checkbox"></td></tr>
+                <tr><td></td><td>Drenar filtro separador água-combustível</td><td class="checkbox"></td></tr>
+                <tr><td></td><td>Trocar o filtro de combustível</td><td class="checkbox"></td></tr>
+                <tr><td></td><td>Verificar o nível de óleo do motor</td><td class="checkbox"></td></tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+    
+    <!-- Página 2 -->
+    <div class="page-break">
+        <div class="header">ORDEM INTERVENÇÃO</div>
+        
+        <div class="order-info">
+            <div class="order-number">
+                <strong>Nº:</strong> {{ work_order.id }}
+            </div>
+            <div class="order-date">
+                <strong>Data:</strong><br>
+                Fl. 2/2
+            </div>
+        </div>
+        
+        <div class="section">
+            <div class="section-title">Materiais</div>
+            <table class="materials-table">
+                <thead>
+                    <tr>
+                        <th class="width-80">Código</th>
+                        <th>Materiais</th>
+                        <th class="width-80">Quantidade</th>
+                        <th class="width-30">✓</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for material in work_order.materials %}
+                    <tr>
+                        <td>{{ material.code }}</td>
+                        <td>{{ material.name }}</td>
+                        <td>{{ material.quantity }}</td>
+                        <td class="checkbox"></td>
+                    </tr>
+                    {% else %}
+                    <tr><td>40424520</td><td>ÓLEO LUBRIFICANTE 85W140 200L</td><td>38,5</td><td class="checkbox"></td></tr>
+                    <tr><td>FP533000</td><td>FILTRO ÓLEO</td><td>1</td><td class="checkbox"></td></tr>
+                    <tr><td>40445682</td><td>URSA ELC NF PREMIX 50/50 1L</td><td>31,5</td><td class="checkbox"></td></tr>
+                    <tr><td>F 2R061678TA</td><td>FILTRO SECADOR AR</td><td>1</td><td class="checkbox"></td></tr>
+                    <tr><td>F2S0129620A</td><td>FILTRO AR SECUNDÁRIO</td><td>1</td><td class="checkbox"></td></tr>
+                    <tr><td>40424560</td><td>LUBRIFICANT OIL 15W40 1L</td><td>33,8</td><td class="checkbox"></td></tr>
+                    <tr><td>F2S0129620</td><td>FILTRO AR PRIMÁRIO</td><td>1</td><td class="checkbox"></td></tr>
+                    <tr><td>FCU22018</td><td>FILTRO AC</td><td>2</td><td class="checkbox"></td></tr>
+                    <tr><td>F2T2127177D</td><td>FILTRO SEPARADOR COMBUSTÍVEL</td><td>1</td><td class="checkbox"></td></tr>
+                    <tr><td>F2T2127177B</td><td>FILTRO COMBUSTÍVEL</td><td>1</td><td class="checkbox"></td></tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        
+        <div class="section">
+            <div class="section-title">Índice de Disponibilidade</div>
+            <div class="field">
+                <span class="field-label">Equipamento imobilizado:</span>
+                <span class="field-value width-100"></span>
+                <span class="margin-left-50"><strong>Data:</strong></span>
+                <span class="field-value width-100"></span>
+                <span class="margin-left-50"><strong>Horas:</strong></span>
+                <span class="field-value width-100"></span>
+                <span class="margin-left-50"><strong>Prioridade:</strong></span>
+                <span class="field-value width-100"></span>
+            </div>
+            <div class="field">
+                <span class="field-label">Reparação/Intervenção concluída (dia):</span>
+                <span class="field-value width-100"></span>
+                <span class="margin-left-50"><strong>às:</strong></span>
+                <span class="field-value width-100"></span>
+            </div>
+        </div>
+        
+        <div class="section">
+            <div class="section-title">Confirmação Fornecedor</div>
+            <div class="field">
+                <span class="field-label">Data:</span>
+                <span class="field-value width-150"></span>
+                <span class="margin-left-100"><strong>Ass:</strong></span>
+                <span class="field-value width-200"></span>
+            </div>
+        </div>
+        
+        <div class="section">
+            <div class="section-title">Contacto em Obra</div>
+            <div class="field">
+                <span class="field-label">Interlocutor em Obra:</span>
+                <span class="field-value width-300"></span>
+            </div>
+            <div class="field">
+                <span class="field-label">Telefone:</span>
+                <span class="field-value width-150"></span>
+                <span class="margin-left-100"><strong>Fax:</strong></span>
+                <span class="field-value width-150"></span>
+            </div>
+        </div>
+        
+        <div class="signatures">
+            <div>
+                <div class="signature-title">EXECUTANTE</div>
+                <div class="signature-box">(Assinatura)</div>
+                <div class="signature-date">___/___/______</div>
+            </div>
+            <div>
+                <div class="signature-title">ENCARREGADO / DIR. OBRA</div>
+                <div class="signature-box">(Assinatura)</div>
+                <div class="signature-date">___/___/______</div>
+            </div>
+            <div>
+                <div class="signature-title">RESPONSÁVEL OFICINA</div>
+                <div class="signature-box">(Assinatura)</div>
+                <div class="signature-date">___/___/______</div>
+            </div>
+        </div>
+        
+        <div class="final-question">
+            <strong>Equipamento está liberado para trabalho?</strong>
+            <span class="margin-left-50">SIM <span class="checkbox"></span></span>
+            <span class="margin-left-50">NÃO <span class="checkbox"></span></span>
+        </div>
+    </div>
+</body>
+</html>

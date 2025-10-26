@@ -1,0 +1,373 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>🔥 TESTE FINAL - 11 CAMPOS 🔥</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <style>
+        body { background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); }
+        .debug-panel {
+            background: #ffffff;
+            border: 3px solid #ff6b6b;
+            border-radius: 15px;
+            padding: 25px;
+            margin: 20px 0;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.3);
+        }
+        .log-entry {
+            padding: 10px 15px;
+            margin: 5px 0;
+            border-radius: 8px;
+            font-family: 'Courier New', monospace;
+            font-size: 14px;
+            font-weight: bold;
+        }
+        .log-info { background: #e3f2fd; border-left: 5px solid #2196f3; }
+        .log-success { background: #e8f5e8; border-left: 5px solid #4caf50; }
+        .log-warning { background: #fff3e0; border-left: 5px solid #ff9800; }
+        .log-error { background: #ffebee; border-left: 5px solid #f44336; }
+        .version-banner {
+            background: #ff6b6b;
+            color: white;
+            padding: 20px;
+            text-align: center;
+            font-size: 24px;
+            font-weight: bold;
+            margin-bottom: 20px;
+            border-radius: 10px;
+            animation: pulse 2s infinite;
+        }
+        @keyframes pulse {
+            0% { transform: scale(1); }
+            50% { transform: scale(1.05); }
+            100% { transform: scale(1); }
+        }
+        #logContainer {
+            max-height: 500px;
+            overflow-y: auto;
+            border: 2px solid #ddd;
+            padding: 15px;
+            background: white;
+            border-radius: 10px;
+        }
+        .field-count {
+            background: #4ecdc4;
+            color: white;
+            padding: 10px;
+            border-radius: 10px;
+            text-align: center;
+            font-size: 18px;
+            font-weight: bold;
+            margin: 10px 0;
+        }
+    </style>
+</head>
+<body>
+    <div class="container-fluid">
+        <div class="version-banner">
+            🔥 VERSÃO FINAL - TESTE DOS 11 CAMPOS 🔥
+        </div>
+        
+        <div class="row">
+            <div class="col-md-6">
+                <div class="debug-panel">
+                    <h3>📋 CAMPOS ESPERADOS (11 TOTAL)</h3>
+                    <div class="field-count">
+                        ✅ material-id (hidden)<br>
+                        ✅ material-code (input)<br>
+                        ✅ material-name (input)<br>
+                        ✅ material-reference (input)<br>
+                        ✅ material-category (SELECT)<br>
+                        ✅ material-unit (SELECT)<br>
+                        ✅ material-unit-price (input)<br>
+                        ✅ material-description (textarea)<br>
+                        ✅ minimum-stock (input)<br>
+                        ✅ maximum-stock (input)<br>
+                        ✅ material-status (SELECT)
+                    </div>
+                </div>
+
+                <div class="debug-panel">
+                    <h4>🧪 Testes Disponíveis</h4>
+                    <div class="d-grid gap-3">
+                        <button class="btn btn-primary btn-lg" onclick="testDOMElements()">
+                            🔍 1. Testar Elementos DOM (Deve encontrar 11/11)
+                        </button>
+                        <button class="btn btn-success btn-lg" onclick="testEditMaterial()">
+                            ⚡ 2. Testar Função editMaterial (Deve preencher 11/11)
+                        </button>
+                        <button class="btn btn-info btn-lg" onclick="testModalOpen()">
+                            🪟 3. Testar Abertura do Modal
+                        </button>
+                        <button class="btn btn-warning btn-lg" onclick="clearLogs()">
+                            🧹 Limpar Logs
+                        </button>
+                    </div>
+                </div>
+
+                <div class="debug-panel">
+                    <h4>📝 Logs de Debug</h4>
+                    <div id="logContainer"></div>
+                </div>
+            </div>
+
+            <div class="col-md-6">
+                <!-- Modal de Edição de Material -->
+                <div class="modal fade" id="editMaterialModal" tabindex="-1">
+                    <div class="modal-dialog modal-lg">
+                        <div class="modal-content">
+                            <div class="modal-header bg-primary text-white">
+                                <h5 class="modal-title">🔧 Editar Material - TESTE FINAL</h5>
+                                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+                            </div>
+                            <div class="modal-body">
+                                <form id="materialForm">
+                                    <!-- 1. material-id (hidden) -->
+                                    <input type="hidden" id="material-id">
+                                    
+                                    <div class="row">
+                                        <!-- 2. material-code -->
+                                        <div class="col-md-4">
+                                            <label for="material-code" class="form-label">Código *</label>
+                                            <input type="text" class="form-control" id="material-code" readonly 
+                                                   placeholder="Gerado automaticamente">
+                                        </div>
+                                        <!-- 3. material-reference -->
+                                        <div class="col-md-4">
+                                            <label for="material-reference" class="form-label">Referência</label>
+                                            <input type="text" class="form-control" id="material-reference" 
+                                                   placeholder="Referência do fabricante">
+                                        </div>
+                                        <!-- 4. material-name -->
+                                        <div class="col-md-4">
+                                            <label for="material-name" class="form-label">Nome *</label>
+                                            <input type="text" class="form-control" id="material-name" required>
+                                        </div>
+                                    </div>
+                                    
+                                    <div class="row mt-3">
+                                        <!-- 5. material-category (SELECT) -->
+                                        <div class="col-md-6">
+                                            <label for="material-category" class="form-label">Categoria *</label>
+                                            <select class="form-select" id="material-category" required>
+                                                <option value="">Selecione uma categoria</option>
+                                                <option value="Peças">Peças</option>
+                                                <option value="Ferramentas">Ferramentas</option>
+                                                <option value="Consumíveis">Consumíveis</option>
+                                                <option value="Lubrificantes">Lubrificantes</option>
+                                                <option value="EPI">EPI</option>
+                                                <option value="Outros">Outros</option>
+                                            </select>
+                                        </div>
+                                        <!-- 6. material-unit (SELECT) -->
+                                        <div class="col-md-6">
+                                            <label for="material-unit" class="form-label">Unidade *</label>
+                                            <select class="form-select" id="material-unit" required>
+                                                <option value="">Selecione uma unidade</option>
+                                                <option value="UN">Unidade</option>
+                                                <option value="PC">Peça</option>
+                                                <option value="KG">Quilograma</option>
+                                                <option value="L">Litro</option>
+                                                <option value="M">Metro</option>
+                                                <option value="M²">Metro Quadrado</option>
+                                                <option value="M³">Metro Cúbico</option>
+                                                <option value="CX">Caixa</option>
+                                                <option value="PCT">Pacote</option>
+                                            </select>
+                                        </div>
+                                    </div>
+                                    
+                                    <!-- 8. material-description -->
+                                    <div class="mt-3">
+                                        <label for="material-description" class="form-label">Descrição</label>
+                                        <textarea class="form-control" id="material-description" rows="3" 
+                                                  placeholder="Descrição detalhada do material..."></textarea>
+                                    </div>
+                                    
+                                    <div class="row mt-3">
+                                        <!-- 7. material-unit-price -->
+                                        <div class="col-md-3">
+                                            <label for="material-unit-price" class="form-label">Valor Unitário (R$)</label>
+                                            <input type="number" class="form-control" id="material-unit-price" 
+                                                   min="0" step="0.01" placeholder="0,00">
+                                        </div>
+                                        <!-- 9. minimum-stock -->
+                                        <div class="col-md-3">
+                                            <label for="minimum-stock" class="form-label">Estoque Mínimo *</label>
+                                            <input type="number" class="form-control" id="minimum-stock" 
+                                                   min="0" step="0.01" required>
+                                        </div>
+                                        <!-- 10. maximum-stock -->
+                                        <div class="col-md-3">
+                                            <label for="maximum-stock" class="form-label">Estoque Máximo *</label>
+                                            <input type="number" class="form-control" id="maximum-stock" 
+                                                   min="0" step="0.01" required>
+                                        </div>
+                                        <!-- 11. material-status (SELECT) -->
+                                        <div class="col-md-3">
+                                            <label for="material-status" class="form-label">Status</label>
+                                            <select class="form-select" id="material-status">
+                                                <option value="Ativo">Ativo</option>
+                                                <option value="Inativo">Inativo</option>
+                                                <option value="Descontinuado">Descontinuado</option>
+                                            </select>
+                                        </div>
+                                    </div>
+                                </form>
+                            </div>
+                            <div class="modal-footer">
+                                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                                <button type="button" class="btn btn-primary">Salvar</button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script>
+        // Inicialização
+        document.addEventListener('DOMContentLoaded', function() {
+            addLog('🚀 PÁGINA FINAL CARREGADA - VERSÃO COM 11 CAMPOS', 'success');
+            addLog('📋 Esta é a versão definitiva com TODOS os campos da página principal', 'info');
+            addLog('🎯 Execute o teste 1 para verificar se encontra 11/11 elementos', 'warning');
+        });
+
+        function addLog(message, type = 'info') {
+            const logContainer = document.getElementById('logContainer');
+            const logEntry = document.createElement('div');
+            logEntry.className = `log-entry log-${type}`;
+            
+            const timestamp = new Date().toLocaleTimeString();
+            logEntry.textContent = `[${timestamp}] ${message}`;
+            
+            logContainer.appendChild(logEntry);
+            logContainer.scrollTop = logContainer.scrollHeight;
+        }
+
+        function clearLogs() {
+            document.getElementById('logContainer').innerHTML = '';
+            addLog('🧹 Logs limpos', 'info');
+        }
+
+        function testDOMElements() {
+            addLog('🧪 TESTANDO ELEMENTOS DOM - VERSÃO FINAL...', 'info');
+            
+            const elementsToTest = [
+                'material-id', 'material-code', 'material-name', 'material-reference',
+                'material-category', 'material-unit', 'material-unit-price', 'material-description',
+                'minimum-stock', 'maximum-stock', 'material-status'
+            ];
+            
+            let foundElements = 0;
+            
+            elementsToTest.forEach((elementId, index) => {
+                const element = document.getElementById(elementId);
+                if (element) {
+                    addLog(`✅ ${index + 1}/11 - Elemento encontrado: ${elementId} (${element.tagName})`, 'success');
+                    foundElements++;
+                } else {
+                    addLog(`❌ ${index + 1}/11 - Elemento NÃO encontrado: ${elementId}`, 'error');
+                }
+            });
+            
+            if (foundElements === 11) {
+                addLog(`🎉 SUCESSO! Total: ${foundElements}/${elementsToTest.length} elementos encontrados`, 'success');
+            } else {
+                addLog(`⚠️ PROBLEMA! Total: ${foundElements}/${elementsToTest.length} elementos encontrados`, 'error');
+            }
+        }
+
+        function testEditMaterial() {
+            addLog('🧪 TESTANDO FUNÇÃO editMaterial - VERSÃO FINAL...', 'info');
+            
+            // Simular abertura do modal
+            const modal = new bootstrap.Modal(document.getElementById('editMaterialModal'));
+            modal.show();
+            addLog('✅ Modal aberto', 'success');
+            
+            // Testar requisição à API
+            setTimeout(() => {
+                addLog('🧪 Iniciando teste da API...', 'info');
+                
+                const apiUrl = 'http://localhost:8000/warehouse/api/materials/1';
+                addLog(`📡 Fazendo requisição para: ${apiUrl}`, 'info');
+                
+                fetch(apiUrl)
+                    .then(response => {
+                        addLog(`✅ Resposta recebida - Status: ${response.status}`, 'success');
+                        return response.json();
+                    })
+                    .then(data => {
+                        addLog(`📦 Dados: ${JSON.stringify(data)}`, 'info');
+                        
+                        // Preencher campos
+                        addLog('🔄 Preenchendo TODOS os 11 campos...', 'info');
+                        
+                        const fields = [
+                            { id: 'material-id', value: data.id, label: '1. ID' },
+                            { id: 'material-code', value: data.code, label: '2. Código' },
+                            { id: 'material-name', value: data.name, label: '3. Nome' },
+                            { id: 'material-reference', value: data.reference, label: '4. Referência' },
+                            { id: 'material-category', value: data.category, label: '5. Categoria' },
+                            { id: 'material-unit', value: data.unit, label: '6. Unidade' },
+                            { id: 'material-unit-price', value: data.unit_price, label: '7. Preço unitário' },
+                            { id: 'material-description', value: data.description, label: '8. Descrição' },
+                            { id: 'minimum-stock', value: data.minimum_stock, label: '9. Estoque mínimo' },
+                            { id: 'maximum-stock', value: data.maximum_stock, label: '10. Estoque máximo' },
+                            { id: 'material-status', value: data.is_active ? 'Ativo' : 'Inativo', label: '11. Status' }
+                        ];
+                        
+                        let filled = 0;
+                        fields.forEach(field => {
+                            const element = document.getElementById(field.id);
+                            if (element) {
+                                element.value = field.value || '';
+                                addLog(`✅ ${field.label}: "${field.value}"`, 'success');
+                                filled++;
+                            } else {
+                                addLog(`❌ ${field.label} - Campo não encontrado: ${field.id}`, 'error');
+                            }
+                        });
+                        
+                        if (filled === 11) {
+                            addLog(`🎉 SUCESSO TOTAL! Preenchimento: ${filled}/${fields.length} campos`, 'success');
+                        } else {
+                            addLog(`⚠️ PROBLEMA! Preenchimento: ${filled}/${fields.length} campos`, 'error');
+                        }
+                    })
+                    .catch(error => {
+                        addLog(`❌ Erro na API: ${error.message}`, 'error');
+                    });
+            }, 1000);
+        }
+
+        function testModalOpen() {
+            addLog('🧪 Testando abertura do modal...', 'info');
+            
+            const modalElement = document.getElementById('editMaterialModal');
+            if (modalElement) {
+                addLog('✅ Elemento modal encontrado', 'success');
+                
+                const modal = new bootstrap.Modal(modalElement);
+                modal.show();
+                addLog('✅ Modal aberto com sucesso', 'success');
+                
+                setTimeout(() => {
+                    const isVisible = modalElement.classList.contains('show');
+                    if (isVisible) {
+                        addLog('✅ Modal está visível', 'success');
+                    } else {
+                        addLog('❌ Modal não está visível', 'error');
+                    }
+                }, 1000);
+            } else {
+                addLog('❌ Elemento modal não encontrado', 'error');
+            }
+        }
+    </script>
+</body>
+</html>

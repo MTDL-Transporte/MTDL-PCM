@@ -1,0 +1,1006 @@
+{% extends "base.html" %}
+
+{% block title %}Ordens de Serviço - MTDL-PCM{% endblock %}
+
+{% block page_title %}Ordens de Serviço{% endblock %}
+{% block breadcrumb_title %}Ordens de Serviço{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <!-- Alertas de Manutenção Preventiva -->
+    <div class="card shadow-sm mb-4" id="preventive-alerts-card" class="hidden">
+        <div class="card-header bg-warning text-dark d-flex justify-content-between align-items-center">
+            <div>
+                <i class="bi bi-exclamation-triangle-fill me-2"></i>
+                <strong>Alertas de Manutenção Preventiva</strong>
+                <span class="badge bg-danger ms-2" id="alerts-count">0</span>
+            </div>
+            <button class="btn btn-sm btn-outline-dark" onclick="refreshPreventiveAlerts()">
+                <i class="bi bi-arrow-clockwise"></i> Atualizar
+            </button>
+        </div>
+        <div class="card-body p-0">
+            <div id="preventive-alerts-container">
+                <!-- Alertas serão carregados aqui -->
+            </div>
+        </div>
+    </div>
+
+    <!-- Filtros e Ações em uma única linha -->
+    <div class="d-flex align-items-center gap-2 flex-nowrap overflow-auto w-100">
+        <div class="d-flex align-items-center gap-2 flex-nowrap">
+            <div class="width-150">
+                <select class="form-select" id="filter-status">
+                    <option value="">Status</option>
+                    <option value="Aberta">Aberta</option>
+                    <option value="Em andamento">Em andamento</option>
+                    <option value="Fechada">Fechada</option>
+                </select>
+            </div>
+            <div class="width-200">
+                <select class="form-select" id="filter-equipment">
+                    <option value="">Equipamentos</option>
+                </select>
+            </div>
+            <div class="width-150">
+                <select class="form-select" id="filter-technician">
+                    <option value="">Técnico</option>
+                </select>
+            </div>
+            <div class="width-150">
+                <input type="date" class="form-control" id="filter-opened-date" placeholder="Data abertura">
+            </div>
+            <div class="width-200">
+                <input type="text" class="form-control" id="filter-number" placeholder="# Número OS">
+            </div>
+            <div class="width-200">
+                <input type="text" class="form-control" id="search-input" placeholder="Buscar..." autocomplete="off">
+            </div>
+        </div>
+        <div class="d-flex align-items-center gap-2 ms-auto">
+            <button class="btn btn-outline-secondary" onclick="clearFilters()">
+                <i class="bi bi-arrow-clockwise"></i> Limpar
+            </button>
+            <button class="btn btn-outline-primary" onclick="applyFilters()">
+                <i class="bi bi-funnel"></i> Filtrar
+            </button>
+            <button class="btn btn-success" onclick="openNewWorkOrderModal()">
+                <i class="bi bi-plus"></i> Nova OS
+            </button>
+        </div>
+    </div>
+
+    <!-- Lista de Ordens de Serviço -->
+    <div class="card shadow-sm mt-4">
+        <div class="card-body p-0">
+            <div class="table-responsive">
+                <table class="table table-light border-0 mb-0" id="work-orders-table">
+                    <thead>
+                        <tr>
+                            <th class="border-0 ps-4">ORDEM</th>
+                            <th class="border-0">EQUIPAMENTO</th>
+                            <th class="border-0">DESCRIÇÃO</th>
+                            <th class="border-0">STATUS</th>
+                            <th class="border-0">TÉCNICO</th>
+                            <th class="border-0">DATA ABERTURA</th>
+                            <th class="border-0">PRIORIDADE</th>
+                            <th class="border-0 pe-4">AÇÕES</th>
+                        </tr>
+                    </thead>
+                    <tbody id="work-orders-tbody">
+                        <tr>
+                            <td colspan="8" class="text-center py-5">
+                                <div class="text-muted">
+                                    <i class="bi bi-clipboard-data fs-1 d-block mb-2"></i>
+                                    Nenhuma ordem de serviço encontrada
+                                </div>
+                            </td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+            
+            <!-- Paginação -->
+            <div class="d-flex justify-content-center py-3 border-top">
+                <nav aria-label="Paginação">
+                    <ul class="pagination pagination-sm mb-0" id="pagination">
+                    </ul>
+                </nav>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Modal Nova/Editar OS -->
+<div class="modal fade" id="workOrderModal" tabindex="-1">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="workOrderModalTitle">Nova Ordem de Serviço</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <form id="workOrderForm">
+                    <input type="hidden" id="work-order-id">
+                    
+                    <div class="mt-2">
+                        <label for="work-order-title" class="form-label">Título *</label>
+                        <input type="text" class="form-control" id="work-order-title" required placeholder="Ex.: Corretiva - Equipamento X">
+                    </div>
+                    
+                    <div class="row">
+                        <div class="col-md-6">
+                            <label for="equipment-select" class="form-label">Equipamento *</label>
+                            <select class="form-select" id="equipment-select" required>
+                                <option value="">Selecione um equipamento</option>
+                            </select>
+                        </div>
+                        <div class="col-md-6">
+                            <label for="priority-select" class="form-label">Prioridade *</label>
+                            <select class="form-select" id="priority-select" required>
+                                <option value="Baixa">Baixa</option>
+                                <option value="Normal" selected>Normal</option>
+                                <option value="Alta">Alta</option>
+                                <option value="Crítica">Crítica</option>
+                            </select>
+                        </div>
+                    </div>
+                    
+                    <div class="row mt-3">
+                        <div class="col-md-6">
+                            <label for="maintenance-type" class="form-label">Tipo de Manutenção *</label>
+                            <select class="form-select" id="maintenance-type" required>
+                                <option value="Corretiva">Corretiva</option>
+                                <option value="Preventiva">Preventiva</option>
+                                <option value="Preditiva">Preditiva</option>
+                            </select>
+                        </div>
+                        <div class="col-md-6">
+                            <label for="maintenance-cause" class="form-label">Causa da Manutenção</label>
+                            <select class="form-select" id="maintenance-cause">
+                                <option value="">Selecione a causa</option>
+                                <option value="Falha operacional">Falha operacional</option>
+                                <option value="Desgaste natural">Desgaste natural</option>
+                                <option value="Ambas">Ambas (Falha + Desgaste)</option>
+                            </select>
+                        </div>
+                    </div>
+                    
+                    <div class="row mt-3">
+                        <div class="col-md-6">
+                            <label for="technician-select" class="form-label">Técnico Responsável</label>
+                            <select class="form-select" id="technician-select">
+                                <option value="">Selecione um técnico</option>
+                            </select>
+                        </div>
+                        <div class="col-md-6">
+                            <label for="horimeter" class="form-label">Horímetro (na abertura)</label>
+                            <input type="number" class="form-control" id="horimeter" min="0" step="0.1" placeholder="Ex.: 1234.5">
+                            <small class="form-text text-muted">Informe o valor do horímetro no momento da abertura.</small>
+                        </div>
+                        <!-- Espaço reservado para futuras funcionalidades -->
+                    </div>
+                    
+                    <div class="mt-3">
+                        <label for="description" class="form-label">Descrição do Problema *</label>
+                        <textarea class="form-control" id="description" rows="3" required 
+                                  placeholder="Descreva detalhadamente o problema ou serviço a ser executado..."></textarea>
+                    </div>
+                    
+                    <div class="mt-3">
+                        <label for="observations" class="form-label">Observações</label>
+                        <textarea class="form-control" id="observations" rows="2" 
+                                  placeholder="Observações adicionais..."></textarea>
+                    </div>
+                    
+                    <div class="row mt-3">
+                        <div class="col-md-6">
+                            <label for="estimated-hours" class="form-label">Horas Estimadas</label>
+                            <input type="number" class="form-control" id="estimated-hours" 
+                                   min="0" step="0.5" placeholder="0.0">
+                        </div>
+                        <div class="col-md-6">
+                            <label for="due-date" class="form-label">Data Prevista</label>
+                            <input type="datetime-local" class="form-control" id="due-date">
+                        </div>
+                    </div>
+                    
+                    <div class="row mt-3">
+                        <div class="col-md-6">
+                            <label for="start-datetime" class="form-label">Data/Hora de Início</label>
+                            <input type="datetime-local" class="form-control" id="start-datetime">
+                            <small class="form-text text-muted">Registre quando a manutenção foi iniciada</small>
+                        </div>
+                        <div class="col-md-6">
+                            <label for="end-datetime" class="form-label">Data/Hora de Término</label>
+                            <input type="datetime-local" class="form-control" id="end-datetime">
+                            <small class="form-text text-muted">Registre quando a manutenção foi concluída</small>
+                        </div>
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                <button type="button" class="btn btn-primary" onclick="saveWorkOrder()">Salvar</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Modal Detalhes da OS -->
+<div class="modal fade" id="workOrderDetailsModal" tabindex="-1">
+    <div class="modal-dialog modal-xl">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="workOrderDetailsTitle">Detalhes da OS</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body" id="workOrderDetailsBody">
+                <!-- Conteúdo carregado dinamicamente -->
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Fechar</button>
+                <button type="button" class="btn btn-warning" onclick="editWorkOrder(currentWorkOrderId)">Editar</button>
+                <button type="button" class="btn btn-success" onclick="changeWorkOrderStatus()">Alterar Status</button>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+let currentPage = 1;
+let totalPages = 1;
+let currentWorkOrderId = null;
+
+// Carregar lista de ordens de serviço
+async function loadWorkOrders(page = 1) {
+    try {
+        const filters = getFilters();
+        const params = new URLSearchParams();
+        
+        // Adicionar apenas parâmetros que a API aceita
+        if (filters.status) params.append('status', filters.status);
+        if (filters.equipment_id) params.append('equipment_id', filters.equipment_id);
+        if (filters.technician_id) params.append('technician_id', filters.technician_id);
+        if (filters.opened_date) params.append('opened_date', filters.opened_date);
+        if (filters.number) params.append('number', filters.number);
+        
+        const response = await axios.get(`/maintenance/api/work-orders?${params}`);
+        const workOrders = response.data;
+        
+        displayWorkOrders(workOrders);
+        // Como a API não retorna paginação, vamos simular
+        updatePagination(1, 1, workOrders.length);
+        
+        currentPage = 1;
+        totalPages = 1;
+    } catch (error) {
+        console.error('Erro ao carregar ordens de serviço:', error);
+        showAlert('Erro ao carregar ordens de serviço', 'danger');
+    }
+}
+
+// Exibir ordens de serviço na tabela
+function displayWorkOrders(workOrders) {
+    const tbody = document.getElementById('work-orders-tbody');
+    
+    if (!workOrders || workOrders.length === 0) {
+        tbody.innerHTML = `
+            <tr>
+                <td colspan="8" class="text-center py-5">
+                    <div class="text-muted">
+                        <i class="bi bi-clipboard-data fs-1 d-block mb-2"></i>
+                        Nenhuma ordem de serviço encontrada
+                    </div>
+                </td>
+            </tr>
+        `;
+        return;
+    }
+    
+    let html = '';
+    workOrders.forEach(wo => {
+        const statusBadge = getStatusBadge(wo.status);
+        const priorityBadge = getPriorityBadge(wo.priority);
+        const openDate = new Date(wo.created_at).toLocaleDateString('pt-BR');
+        
+        html += `
+            <tr class="border-bottom">
+                <td class="ps-4 py-2">
+                    <div class="fw-semibold">${wo.number || 'N/A'}</div>
+                </td>
+                <td class="py-2">
+                    <div class="fw-semibold">${wo.equipment_prefix ? wo.equipment_prefix : (wo.equipment_name || 'N/A')}</div>
+                    ${wo.equipment_prefix ? `<small class="text-muted">${wo.equipment_name || ''}</small>` : ''}
+                </td>
+                <td class="py-2">
+                    <div class="text-truncate max-width-250" title="${wo.description}">
+                        ${wo.description}
+                    </div>
+                </td>
+                <td class="py-2">${statusBadge}</td>
+                <td class="py-2">${wo.technician_name || 'Não atribuído'}</td>
+                <td class="py-2">${openDate}</td>
+                <td class="py-2">${priorityBadge}</td>
+                <td class="pe-4 py-2">
+                    <div class="btn-group btn-group-sm">
+                        <button class="btn btn-outline-primary btn-sm" onclick="viewWorkOrder(${wo.id})" 
+                                title="Visualizar" aria-label="Visualizar ordem de serviço">
+                            <i class="bi bi-eye"></i>
+                        </button>
+                        <button class="btn btn-outline-info btn-sm" onclick="printWorkOrder(${wo.id})" 
+                                title="Imprimir" aria-label="Imprimir ordem de serviço">
+                            <i class="bi bi-printer"></i>
+                        </button>
+                        <button class="btn btn-outline-secondary btn-sm" onclick="editWorkOrder(${wo.id})" 
+                                title="Editar" aria-label="Editar ordem de serviço">
+                            <i class="bi bi-pencil"></i>
+                        </button>
+                        <button class="btn btn-outline-danger btn-sm" onclick="deleteWorkOrder(${wo.id}, '${wo.number}')" 
+                                title="Excluir" aria-label="Excluir ordem de serviço" ${wo.status === 'Em andamento' ? 'disabled' : ''}>
+                            <i class="bi bi-trash"></i>
+                        </button>
+                    </div>
+                </td>
+            </tr>
+        `;
+    });
+    
+    tbody.innerHTML = html;
+}
+
+// Obter badge de status
+function getStatusBadge(status) {
+    const badges = {
+        'Aberta': 'bg-primary',
+        'Em andamento': 'bg-warning text-dark',
+        'Fechada': 'bg-success'
+    };
+    return `<span class="badge ${badges[status] || 'bg-secondary'}">${status}</span>`;
+}
+
+// Obter badge de prioridade
+function getPriorityBadge(priority) {
+    const badges = {
+        'Baixa': 'bg-info',
+        'Média': 'bg-warning text-dark',
+        'Alta': 'bg-danger',
+        'Crítica': 'bg-dark'
+    };
+    return `<span class="badge ${badges[priority] || 'bg-secondary'}">${priority}</span>`;
+}
+
+// Obter filtros atuais
+function getFilters() {
+    const statusEl = document.getElementById('filter-status');
+    const equipmentEl = document.getElementById('filter-equipment');
+    const technicianEl = document.getElementById('filter-technician');
+    const openedDateEl = document.getElementById('filter-opened-date');
+    const numberEl = document.getElementById('filter-number');
+    const searchEl = document.getElementById('search-input');
+    
+    return {
+        status: statusEl ? statusEl.value : '',
+        equipment_id: equipmentEl ? equipmentEl.value : '',
+        technician_id: technicianEl ? technicianEl.value : '',
+        opened_date: openedDateEl ? openedDateEl.value : '',
+        number: numberEl ? numberEl.value.trim() : '',
+        search: searchEl ? searchEl.value.trim() : ''
+    };
+}
+
+// Aplicar filtros
+function applyFilters() {
+    loadWorkOrders(1);
+}
+
+// Limpar filtros
+function clearFilters() {
+    const ids = ['filter-status','filter-equipment','filter-technician','filter-opened-date','filter-number','search-input'];
+    ids.forEach(id => {
+        const el = document.getElementById(id);
+        if (el) el.value = '';
+    });
+    loadWorkOrders(1);
+}
+
+// Abrir modal de nova OS
+function openNewWorkOrderModal() {
+    document.getElementById('workOrderModalTitle').textContent = 'Nova Ordem de Serviço';
+    document.getElementById('workOrderForm').reset();
+    document.getElementById('work-order-id').value = '';
+    
+    // Defaults alinhados com o schema
+    const prioritySelect = document.getElementById('priority-select');
+    if (prioritySelect) prioritySelect.value = 'Normal';
+    const typeSelect = document.getElementById('maintenance-type');
+    if (typeSelect) typeSelect.value = 'Corretiva';
+    
+    const modal = new bootstrap.Modal(document.getElementById('workOrderModal'));
+    modal.show();
+}
+
+// Expor função globalmente para uso em atributos onclick
+window.openNewWorkOrderModal = openNewWorkOrderModal;
+
+// Salvar ordem de serviço
+async function saveWorkOrder() {
+    try {
+        const formData = {
+            title: document.getElementById('work-order-title').value,
+            equipment_id: document.getElementById('equipment-select').value,
+            priority: document.getElementById('priority-select').value,
+            type: document.getElementById('maintenance-type').value,
+            maintenance_cause: document.getElementById('maintenance-cause').value || null,
+            technician_id: document.getElementById('technician-select').value || null,
+            description: document.getElementById('description').value,
+            notes: document.getElementById('observations').value,
+            horimeter: parseFloat(document.getElementById('horimeter').value) || null,
+            estimated_hours: parseFloat(document.getElementById('estimated-hours').value) || null,
+            due_date: document.getElementById('due-date').value || null,
+            started_at: document.getElementById('start-datetime').value || null,
+            completed_at: document.getElementById('end-datetime').value || null
+        };
+        
+        const workOrderId = document.getElementById('work-order-id').value;
+        let response;
+        
+        if (workOrderId) {
+            response = await axios.put(`/maintenance/api/work-orders/${workOrderId}`, formData);
+        } else {
+            response = await axios.post('/maintenance/api/work-orders', formData);
+        }
+        
+        showAlert('Ordem de serviço salva com sucesso!', 'success');
+        bootstrap.Modal.getInstance(document.getElementById('workOrderModal')).hide();
+        loadWorkOrders(currentPage);
+    } catch (error) {
+        console.error('Erro ao salvar ordem de serviço:', error);
+        let message = 'Erro ao salvar ordem de serviço';
+        if (error.response && error.response.data) {
+            const detail = error.response.data.detail;
+            if (detail) {
+                if (Array.isArray(detail)) {
+                    message += ': ' + detail.map(d => d.msg).join('; ');
+                } else if (typeof detail === 'string') {
+                    message += ': ' + detail;
+                }
+            }
+        }
+        showAlert(message, 'danger');
+    }
+}
+
+// Carregar equipamentos
+async function loadEquipments() {
+    try {
+        const response = await axios.get('/maintenance/equipment');
+        const equipments = response.data;
+        
+        const selects = ['equipment-select', 'filter-equipment'];
+        selects.forEach(selectId => {
+            const select = document.getElementById(selectId);
+            const currentValue = select.value;
+            
+            // Manter primeira opção
+            const firstOption = select.querySelector('option');
+            select.innerHTML = '';
+            select.appendChild(firstOption);
+            
+            equipments.forEach(equipment => {
+                const option = document.createElement('option');
+                option.value = equipment.id;
+                option.textContent = `${equipment.prefix} - ${equipment.name}`;
+                select.appendChild(option);
+            });
+            
+            select.value = currentValue;
+        });
+    } catch (error) {
+        console.error('Erro ao carregar equipamentos:', error);
+    }
+}
+
+// Carregar técnicos
+async function loadTechnicians() {
+    try {
+        const response = await axios.get('/maintenance/api/technicians/active');
+        const technicians = response.data;
+
+        const selectIds = ['technician-select', 'filter-technician'];
+        for (const id of selectIds) {
+            const select = document.getElementById(id);
+            if (!select) continue;
+            const currentValue = select.value;
+            // Manter primeira opção
+            const firstOption = select.querySelector('option');
+            select.innerHTML = '';
+            if (firstOption) select.appendChild(firstOption);
+            technicians.forEach(technician => {
+                const option = document.createElement('option');
+                option.value = technician.id;
+                option.textContent = `${technician.name} - ${technician.function}`;
+                select.appendChild(option);
+            });
+            select.value = currentValue;
+        }
+    } catch (error) {
+        console.error('Erro ao carregar técnicos:', error);
+    }
+}
+
+// Editar ordem de serviço
+async function editWorkOrder(id) {
+    try {
+        // Fallback: se nenhum id for passado (como no botão do modal de detalhes), usar o id corrente
+        if (!id) {
+            id = currentWorkOrderId;
+        }
+        if (!id) {
+            showAlert('Nenhuma OS selecionada para edição.', 'warning');
+            return;
+        }
+        const response = await axios.get(`/maintenance/api/work-orders/${id}`);
+        const wo = response.data;
+        
+        // Preencher o formulário
+        document.getElementById('workOrderModalTitle').textContent = 'Editar Ordem de Serviço';
+        document.getElementById('work-order-id').value = wo.id;
+        document.getElementById('equipment-select').value = wo.equipment_id || '';
+        document.getElementById('priority-select').value = wo.priority || '';
+        document.getElementById('maintenance-type').value = wo.maintenance_type || '';
+        document.getElementById('maintenance-cause').value = wo.maintenance_cause || '';
+        document.getElementById('technician-select').value = wo.technician_id || '';
+        document.getElementById('description').value = wo.description || '';
+        document.getElementById('observations').value = wo.observations || '';
+        document.getElementById('estimated-hours').value = wo.estimated_hours || '';
+        const horimeterEl = document.getElementById('horimeter');
+        if (horimeterEl) { horimeterEl.value = (wo.horimeter ?? '') }
+        
+        // Formatar datas para datetime-local
+        if (wo.due_date) {
+            const dueDate = new Date(wo.due_date);
+            document.getElementById('due-date').value = dueDate.toISOString().slice(0, 16);
+        }
+        if (wo.started_at) {
+            const startDate = new Date(wo.started_at);
+            document.getElementById('start-datetime').value = startDate.toISOString().slice(0, 16);
+        }
+        if (wo.completed_at) {
+            const endDate = new Date(wo.completed_at);
+            document.getElementById('end-datetime').value = endDate.toISOString().slice(0, 16);
+        }
+        
+        // Mostrar modal
+        const modal = new bootstrap.Modal(document.getElementById('workOrderModal'));
+        modal.show();
+    } catch (error) {
+        console.error('Erro ao carregar ordem de serviço:', error);
+        showAlert('Erro ao carregar dados da ordem de serviço', 'danger');
+    }
+}
+
+// Visualizar detalhes da OS
+async function viewWorkOrder(id) {
+    try {
+        const response = await axios.get(`/maintenance/api/work-orders/${id}`);
+        const wo = response.data;
+        
+        document.getElementById('workOrderDetailsTitle').textContent = `OS ${wo.number}`;
+        
+        const html = `
+            <div class="row">
+                <div class="col-md-6">
+                    <h6>Informações Básicas</h6>
+                    <p><strong>Número:</strong> ${wo.number}</p>
+                    <p><strong>Equipamento:</strong> ${wo.equipment_name || 'N/A'}</p>
+                    <p><strong>Status:</strong> ${getStatusBadge(wo.status)}</p>
+                    <p><strong>Prioridade:</strong> ${getPriorityBadge(wo.priority)}</p>
+                    <p><strong>Tipo:</strong> ${wo.maintenance_type}</p>
+                    <p><strong>Técnico:</strong> ${wo.technician_name || 'Não atribuído'}</p>
+                </div>
+                <div class="col-md-6">
+                    <h6>Datas e Tempo</h6>
+                    <p><strong>Abertura:</strong> ${new Date(wo.created_at).toLocaleString('pt-BR')}</p>
+                    <p><strong>Previsão:</strong> ${wo.due_date ? new Date(wo.due_date).toLocaleString('pt-BR') : 'Não definida'}</p>
+                    <p><strong>Fechamento:</strong> ${wo.completed_at ? new Date(wo.completed_at).toLocaleString('pt-BR') : 'Em aberto'}</p>
+                    <p><strong>Horas Estimadas:</strong> ${wo.estimated_hours || 'Não definido'}</p>
+                    <p><strong>Horas Trabalhadas:</strong> ${wo.total_hours || '0'}</p>
+                </div>
+            </div>
+            <div class="row mt-3">
+                <div class="col-12">
+                    <h6>Descrição</h6>
+                    <p>${wo.description}</p>
+                    ${wo.observations ? `<h6>Observações</h6><p>${wo.observations}</p>` : ''}
+                </div>
+            </div>
+        `;
+        
+        document.getElementById('workOrderDetailsBody').innerHTML = html;
+        currentWorkOrderId = id;
+        
+        const modal = new bootstrap.Modal(document.getElementById('workOrderDetailsModal'));
+        modal.show();
+    } catch (error) {
+        console.error('Erro ao carregar detalhes da OS:', error);
+        showAlert('Erro ao carregar detalhes da ordem de serviço', 'danger');
+    }
+}
+
+// Atualizar paginação
+function updatePagination(currentPage, totalPages, totalItems) {
+    const pagination = document.getElementById('pagination');
+    
+    if (totalPages <= 1) {
+        pagination.innerHTML = '';
+        return;
+    }
+    
+    let html = '';
+    
+    // Botão anterior
+    html += `
+        <li class="page-item ${currentPage === 1 ? 'disabled' : ''}">
+            <a class="page-link" href="#" onclick="loadWorkOrders(${currentPage - 1})">Anterior</a>
+        </li>
+    `;
+    
+    // Páginas
+    for (let i = Math.max(1, currentPage - 2); i <= Math.min(totalPages, currentPage + 2); i++) {
+        html += `
+            <li class="page-item ${i === currentPage ? 'active' : ''}">
+                <a class="page-link" href="#" onclick="loadWorkOrders(${i})">${i}</a>
+            </li>
+        `;
+    }
+    
+    // Botão próximo
+    html += `
+        <li class="page-item ${currentPage === totalPages ? 'disabled' : ''}">
+            <a class="page-link" href="#" onclick="loadWorkOrders(${currentPage + 1})">Próximo</a>
+        </li>
+    `;
+    
+    pagination.innerHTML = html;
+}
+
+// Carregar alertas de manutenção preventiva
+async function loadPreventiveAlerts() {
+    try {
+        const response = await fetch('/maintenance/preventive-alerts');
+        const data = await response.json();
+        
+        if (data.total_alerts > 0) {
+            displayPreventiveAlerts(data);
+            document.getElementById('preventive-alerts-card').style.display = 'block';
+        } else {
+            document.getElementById('preventive-alerts-card').style.display = 'none';
+        }
+    } catch (error) {
+        console.error('Erro ao carregar alertas preventivos:', error);
+    }
+}
+
+// Exibir alertas de manutenção preventiva
+function displayPreventiveAlerts(data) {
+    const container = document.getElementById('preventive-alerts-container');
+    const alertsCount = document.getElementById('alerts-count');
+    
+    alertsCount.textContent = data.total_alerts;
+    
+    let html = '';
+    
+    data.alerts.forEach(alert => {
+        const alertClass = alert.alert_type === 'overdue' ? 'alert-danger' : 'alert-warning';
+        const iconClass = alert.alert_type === 'overdue' ? 'bi-exclamation-triangle-fill' : 'bi-clock-fill';
+        
+        html += `
+            <div class="alert ${alertClass} border-0 rounded-0 mb-0 d-flex justify-content-between align-items-center">
+                <div class="d-flex align-items-center">
+                    <i class="${iconClass} me-2"></i>
+                    <div>
+                        <strong>${alert.equipment_name}</strong> - ${alert.maintenance_type}
+                        <br>
+                        <small>${alert.message}</small>
+                    </div>
+                </div>
+                <div class="d-flex gap-2">
+                    <button class="btn btn-sm btn-outline-primary" onclick="generateWorkOrderFromAlert(${alert.plan_id})">
+                        <i class="bi bi-plus"></i> Gerar OS
+                    </button>
+                    <button class="btn btn-sm btn-outline-secondary" onclick="viewMaintenancePlan(${alert.plan_id})">
+                        <i class="bi bi-eye"></i> Ver Plano
+                    </button>
+                </div>
+            </div>
+        `;
+    });
+    
+    container.innerHTML = html;
+}
+
+// Gerar ordem de serviço a partir de alerta
+async function generateWorkOrderFromAlert(planId) {
+    try {
+        const response = await fetch('/maintenance/generate-work-order-from-alert', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+                plan_id: planId
+            })
+        });
+        
+        const data = await response.json();
+        
+        if (response.ok) {
+            showAlert(data.message, 'success');
+            loadWorkOrders(); // Recarregar lista de OS
+            loadPreventiveAlerts(); // Recarregar alertas
+        } else {
+            showAlert(data.detail || 'Erro ao gerar ordem de serviço', 'danger');
+        }
+    } catch (error) {
+        console.error('Erro ao gerar OS:', error);
+        showAlert('Erro ao gerar ordem de serviço', 'danger');
+    }
+}
+
+// Excluir ordem de serviço
+function deleteWorkOrder(workOrderId, workOrderNumber) {
+    // Criar modal de confirmação
+    const confirmModal = document.createElement('div');
+    confirmModal.className = 'modal fade';
+    confirmModal.id = 'deleteWorkOrderConfirmModal';
+    confirmModal.innerHTML = `
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header bg-danger text-white">
+                    <h5 class="modal-title">
+                        <i class="bi bi-exclamation-triangle me-2"></i>
+                        Confirmar Exclusão
+                    </h5>
+                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <p class="mb-3">
+                        <strong>Tem certeza que deseja excluir a ordem de serviço:</strong>
+                    </p>
+                    <div class="alert alert-warning">
+                        <i class="bi bi-wrench me-2"></i>
+                        <strong>#${workOrderNumber}</strong>
+                    </div>
+                    <p class="text-danger mb-0">
+                        <i class="bi bi-exclamation-circle me-1"></i>
+                        Esta ação não pode ser desfeita!
+                    </p>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">
+                        <i class="bi bi-x me-1"></i>
+                        Cancelar
+                    </button>
+                    <button type="button" class="btn btn-danger" onclick="confirmDeleteWorkOrder(${workOrderId})">
+                        <i class="bi bi-trash me-1"></i>
+                        Excluir Ordem de Serviço
+                    </button>
+                </div>
+            </div>
+        </div>
+    `;
+    
+    // Adicionar modal ao body
+    document.body.appendChild(confirmModal);
+    
+    // Mostrar modal
+    const modal = new bootstrap.Modal(confirmModal);
+    modal.show();
+    
+    // Remover modal do DOM quando fechado
+    confirmModal.addEventListener('hidden.bs.modal', () => {
+        confirmModal.remove();
+    });
+}
+
+// Confirmar exclusão da ordem de serviço
+async function confirmDeleteWorkOrder(workOrderId) {
+    // Fechar modal de confirmação
+    const modal = bootstrap.Modal.getInstance(document.getElementById('deleteWorkOrderConfirmModal'));
+    modal.hide();
+    
+    try {
+        const response = await fetch(`/maintenance/api/work-orders/${workOrderId}`, {
+            method: 'DELETE',
+            headers: {
+                'Content-Type': 'application/json'
+            }
+        });
+        
+        const data = await response.json();
+        
+        if (response.ok) {
+            showAlert(data.message, 'success');
+            loadWorkOrders(); // Recarregar lista de OS
+        } else {
+            showAlert(data.detail || 'Erro ao excluir ordem de serviço', 'danger');
+        }
+    } catch (error) {
+        console.error('Erro ao excluir OS:', error);
+        showAlert('Erro ao excluir ordem de serviço', 'danger');
+    }
+}
+
+// Ver plano de manutenção
+function viewMaintenancePlan(planId) {
+    // Redirecionar para página de planos de manutenção
+    window.location.href = `/maintenance/plans?plan_id=${planId}`;
+}
+
+// Atualizar alertas preventivos
+function refreshPreventiveAlerts() {
+    loadPreventiveAlerts();
+}
+
+// Calcular tempo de parada
+function calculateDowntime() {
+    const startDateTime = document.getElementById('start-datetime').value;
+    const endDateTime = document.getElementById('end-datetime').value;
+    
+    if (startDateTime && endDateTime) {
+        const start = new Date(startDateTime);
+        const end = new Date(endDateTime);
+        
+        if (end > start) {
+            const diffMs = end - start;
+            const diffHours = diffMs / (1000 * 60 * 60);
+            const diffDays = Math.floor(diffHours / 24);
+            const remainingHours = Math.floor(diffHours % 24);
+            const diffMinutes = Math.floor((diffMs % (1000 * 60 * 60)) / (1000 * 60));
+            
+            let downtimeText = '';
+            if (diffDays > 0) {
+                downtimeText += `${diffDays} dia(s), `;
+            }
+            if (remainingHours > 0) {
+                downtimeText += `${remainingHours} hora(s)`;
+            }
+            if (diffMinutes > 0) {
+                downtimeText += ` e ${diffMinutes} minuto(s)`;
+            }
+            
+            // Mostrar o resultado
+            let downtimeDisplay = document.getElementById('downtime-display');
+            if (!downtimeDisplay) {
+                downtimeDisplay = document.createElement('div');
+                downtimeDisplay.id = 'downtime-display';
+                downtimeDisplay.className = 'alert alert-info mt-2';
+                document.getElementById('end-datetime').parentNode.appendChild(downtimeDisplay);
+            }
+            
+            downtimeDisplay.innerHTML = `<strong>Tempo de Parada:</strong> ${downtimeText} (${diffHours.toFixed(2)} horas)`;
+            downtimeDisplay.style.display = 'block';
+        } else {
+            const downtimeDisplay = document.getElementById('downtime-display');
+            if (downtimeDisplay) {
+                downtimeDisplay.style.display = 'none';
+            }
+        }
+    } else {
+        const downtimeDisplay = document.getElementById('downtime-display');
+        if (downtimeDisplay) {
+            downtimeDisplay.style.display = 'none';
+        }
+    }
+}
+
+// Inicializar página
+document.addEventListener('DOMContentLoaded', function() {
+    loadWorkOrders();
+    loadEquipments();
+    loadTechnicians();
+    loadPreventiveAlerts(); // Carregar alertas preventivos
+    
+    // Event listeners para filtros
+    document.getElementById('search-input').addEventListener('keypress', function(e) {
+        if (e.key === 'Enter') {
+            applyFilters();
+        }
+    });
+    
+    // Event listeners para cálculo de tempo de parada
+    document.getElementById('start-datetime').addEventListener('change', calculateDowntime);
+    document.getElementById('end-datetime').addEventListener('change', calculateDowntime);
+});
+
+// Função para imprimir ordem de serviço
+function printWorkOrder(workOrderId) {
+    // Abrir PDF em nova aba para impressão
+    const printUrl = `/maintenance/api/work-orders/${workOrderId}/print`;
+    window.open(printUrl, '_blank');
+}
+
+// Alterar status da OS
+function changeWorkOrderStatus() {
+    try {
+        if (!currentWorkOrderId) {
+            showAlert('Nenhuma OS selecionada. Abra os detalhes de uma OS antes de alterar o status.', 'warning');
+            return;
+        }
+        // Buscar status atual para pré-selecionar
+        axios.get(`/maintenance/api/work-orders/${currentWorkOrderId}`).then(({ data: wo }) => {
+            const existing = document.getElementById('changeWorkOrderStatusModal');
+            if (existing) existing.remove();
+            const modalEl = document.createElement('div');
+            modalEl.className = 'modal fade';
+            modalEl.id = 'changeWorkOrderStatusModal';
+            modalEl.innerHTML = `
+                <div class="modal-dialog">
+                    <div class="modal-content">
+                        <div class="modal-header bg-primary text-white">
+                            <h5 class="modal-title">
+                                <i class="bi bi-arrow-repeat me-2"></i>
+                                Alterar Status da OS #${wo.number}
+                            </h5>
+                            <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+                        </div>
+                        <div class="modal-body">
+                            <div class="mb-3">
+                                <label for="status-select" class="form-label">Novo Status</label>
+                                <select id="status-select" class="form-select">
+                                    <option value="Aberta">Aberta</option>
+                                    <option value="Em andamento">Em andamento</option>
+                                    <option value="Fechada">Fechada</option>
+                                </select>
+                                <small class="form-text text-muted">Ao marcar "Em andamento" ou "Fechada", as datas serão atualizadas automaticamente.</small>
+                            </div>
+                        </div>
+                        <div class="modal-footer">
+                            <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                            <button type="button" class="btn btn-primary" id="confirm-status-change">Salvar</button>
+                        </div>
+                    </div>
+                </div>`;
+            document.body.appendChild(modalEl);
+            const modal = new bootstrap.Modal(modalEl);
+            modal.show();
+            // Pré-selecionar
+            const select = modalEl.querySelector('#status-select');
+            if (select && wo.status) select.value = wo.status;
+            // Ação de salvar
+            const saveBtn = modalEl.querySelector('#confirm-status-change');
+            saveBtn.onclick = async () => {
+                const newStatus = select.value;
+                try {
+                    await axios.put(`/maintenance/api/work-orders/${currentWorkOrderId}`, { status: newStatus });
+                    const successMsg = newStatus === 'Fechada' ? 'Ordem de Manutenção fechada com Sucesso' : 'Status da OS atualizado com sucesso!';
+                    showAlert(successMsg, 'success');
+                    modal.hide();
+                    // Atualizar detalhes e lista
+                    await viewWorkOrder(currentWorkOrderId);
+                    loadWorkOrders(currentPage);
+                } catch (err) {
+                    console.error('Erro ao atualizar status:', err);
+                    let message = 'Erro ao atualizar status da OS';
+                    if (err.response && err.response.data && err.response.data.detail) {
+                        message += ': ' + (Array.isArray(err.response.data.detail) ? err.response.data.detail.map(d => d.msg).join('; ') : err.response.data.detail);
+                    }
+                    showAlert(message, 'danger');
+                }
+            };
+            // Remover modal ao fechar
+            modalEl.addEventListener('hidden.bs.modal', () => modalEl.remove());
+        }).catch(err => {
+            console.error('Erro ao obter OS para alteração de status:', err);
+            showAlert('Erro ao preparar alteração de status.', 'danger');
+        });
+    } catch (error) {
+        console.error('Erro em changeWorkOrderStatus:', error);
+        showAlert('Erro ao alterar status.', 'danger');
+    }
+}
+</script>
+{% endblock %}

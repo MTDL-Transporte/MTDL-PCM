@@ -1,0 +1,27 @@
+# MTDL-PCM - Sistema de Manutenção e Controle de Equipamentos
+# Dependências Python
+
+# Framework Web
+fastapi
+uvicorn
+
+# Banco de Dados
+sqlalchemy
+
+# Templates
+jinja2
+
+# Utilitários
+python-multipart
+python-dotenv
+
+# Desenvolvimento e Testes
+pytest
+httpx
+
+# Data e Hora
+python-dateutil
+
+# Geração de PDF
+weasyprint
+reportlab

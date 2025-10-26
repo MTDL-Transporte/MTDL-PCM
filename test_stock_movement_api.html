@@ -1,0 +1,234 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Teste - API de Movimentação de Estoque</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/axios/dist/axios.min.js"></script>
+</head>
+<body>
+    <div class="container mt-4">
+        <h1>Teste - API de Movimentação de Estoque</h1>
+        
+        <div class="row">
+            <div class="col-md-6">
+                <div class="card">
+                    <div class="card-header">
+                        <h5>Teste de Entrada</h5>
+                    </div>
+                    <div class="card-body">
+                        <button class="btn btn-success" onclick="testEntryMovement()">
+                            Testar Entrada de Estoque
+                        </button>
+                        <div id="entry-result" class="mt-3"></div>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="col-md-6">
+                <div class="card">
+                    <div class="card-header">
+                        <h5>Teste de Saída</h5>
+                    </div>
+                    <div class="card-body">
+                        <button class="btn btn-warning" onclick="testExitMovement()">
+                            Testar Saída de Estoque
+                        </button>
+                        <div id="exit-result" class="mt-3"></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <div class="row mt-4">
+            <div class="col-12">
+                <div class="card">
+                    <div class="card-header">
+                        <h5>Buscar Material</h5>
+                    </div>
+                    <div class="card-body">
+                        <button class="btn btn-info" onclick="searchMaterial()">
+                            Buscar Material por Código
+                        </button>
+                        <div id="search-result" class="mt-3"></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <div class="row mt-4">
+            <div class="col-12">
+                <div class="card">
+                    <div class="card-header">
+                        <h5>Log de Testes</h5>
+                    </div>
+                    <div class="card-body">
+                        <div id="test-log" style="background: #f8f9fa; padding: 1rem; border-radius: 0.375rem; font-family: monospace; white-space: pre-wrap; max-height: 400px; overflow-y: auto;"></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        function log(message) {
+            const logDiv = document.getElementById('test-log');
+            const timestamp = new Date().toLocaleTimeString();
+            logDiv.textContent += `[${timestamp}] ${message}\n`;
+            logDiv.scrollTop = logDiv.scrollHeight;
+            console.log(message);
+        }
+
+        async function searchMaterial() {
+            try {
+                log('Buscando material por código TEST001...');
+                const response = await axios.get('/warehouse/materials/search?code=TEST001');
+                
+                if (response.status === 200) {
+                    log('Material encontrado: ' + JSON.stringify(response.data, null, 2));
+                    document.getElementById('search-result').innerHTML = `
+                        <div class="alert alert-success">
+                            <strong>Material encontrado:</strong><br>
+                            ID: ${response.data.id}<br>
+                            Código: ${response.data.code}<br>
+                            Descrição: ${response.data.description}<br>
+                            Estoque Atual: ${response.data.current_stock}
+                        </div>
+                    `;
+                    return response.data;
+                } else {
+                    log('Material não encontrado');
+                    document.getElementById('search-result').innerHTML = `
+                        <div class="alert alert-warning">Material não encontrado</div>
+                    `;
+                    return null;
+                }
+            } catch (error) {
+                log('Erro ao buscar material: ' + error.message);
+                document.getElementById('search-result').innerHTML = `
+                    <div class="alert alert-danger">Erro: ${error.message}</div>
+                `;
+                return null;
+            }
+        }
+
+        async function testEntryMovement() {
+            try {
+                log('Iniciando teste de entrada de estoque...');
+                
+                // Primeiro, buscar um material
+                const material = await searchMaterial();
+                if (!material) {
+                    log('Não foi possível encontrar material para teste');
+                    return;
+                }
+
+                const movementData = {
+                    material_id: material.id,
+                    movement_type: "Entrada",
+                    quantity: 10,
+                    reason: "Compra",
+                    reference_document: "NF 123456",
+                    unit_price: 52.0,
+                    notes: "Teste de entrada via API"
+                };
+
+                log('Enviando dados de entrada: ' + JSON.stringify(movementData, null, 2));
+
+                const response = await axios.post('/warehouse/stock-movements', movementData);
+                
+                if (response.status === 201) {
+                    log('Entrada registrada com sucesso!');
+                    document.getElementById('entry-result').innerHTML = `
+                        <div class="alert alert-success">
+                            <strong>Entrada registrada com sucesso!</strong><br>
+                            Resposta: ${JSON.stringify(response.data, null, 2)}
+                        </div>
+                    `;
+                } else {
+                    log('Resposta inesperada: ' + response.status);
+                    document.getElementById('entry-result').innerHTML = `
+                        <div class="alert alert-warning">Resposta inesperada: ${response.status}</div>
+                    `;
+                }
+            } catch (error) {
+                log('Erro na entrada: ' + error.message);
+                if (error.response) {
+                    log('Detalhes do erro: ' + JSON.stringify(error.response.data, null, 2));
+                }
+                document.getElementById('entry-result').innerHTML = `
+                    <div class="alert alert-danger">
+                        <strong>Erro:</strong> ${error.message}<br>
+                        ${error.response ? JSON.stringify(error.response.data, null, 2) : ''}
+                    </div>
+                `;
+            }
+        }
+
+        async function testExitMovement() {
+            try {
+                log('Iniciando teste de saída de estoque...');
+                
+                // Primeiro, buscar um material
+                const material = await searchMaterial();
+                if (!material) {
+                    log('Não foi possível encontrar material para teste');
+                    return;
+                }
+
+                if (material.current_stock <= 0) {
+                    log('Material sem estoque suficiente para saída');
+                    document.getElementById('exit-result').innerHTML = `
+                        <div class="alert alert-warning">Material sem estoque suficiente para saída</div>
+                    `;
+                    return;
+                }
+
+                const movementData = {
+                    material_id: material.id,
+                    movement_type: "Saída",
+                    quantity: 1,
+                    reason: "Uso Interno",
+                    reference_document: "REQ 789",
+                    notes: "Teste de saída via API"
+                };
+
+                log('Enviando dados de saída: ' + JSON.stringify(movementData, null, 2));
+
+                const response = await axios.post('/warehouse/stock-movements', movementData);
+                
+                if (response.status === 201) {
+                    log('Saída registrada com sucesso!');
+                    document.getElementById('exit-result').innerHTML = `
+                        <div class="alert alert-success">
+                            <strong>Saída registrada com sucesso!</strong><br>
+                            Resposta: ${JSON.stringify(response.data, null, 2)}
+                        </div>
+                    `;
+                } else {
+                    log('Resposta inesperada: ' + response.status);
+                    document.getElementById('exit-result').innerHTML = `
+                        <div class="alert alert-warning">Resposta inesperada: ${response.status}</div>
+                    `;
+                }
+            } catch (error) {
+                log('Erro na saída: ' + error.message);
+                if (error.response) {
+                    log('Detalhes do erro: ' + JSON.stringify(error.response.data, null, 2));
+                }
+                document.getElementById('exit-result').innerHTML = `
+                    <div class="alert alert-danger">
+                        <strong>Erro:</strong> ${error.message}<br>
+                        ${error.response ? JSON.stringify(error.response.data, null, 2) : ''}
+                    </div>
+                `;
+            }
+        }
+
+        // Inicializar log
+        log('Sistema de teste carregado');
+        log('Pronto para testar a API de movimentação de estoque');
+    </script>
+</body>
+</html>

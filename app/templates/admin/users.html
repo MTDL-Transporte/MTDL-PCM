@@ -1,0 +1,165 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Gestão de Usuários</title>
+  <link rel="stylesheet" href="/static/styles.css" />
+  <style>
+    .container { max-width: 1100px; margin: 24px auto; padding: 0 16px; }
+    .toolbar { display: flex; gap: 12px; flex-wrap: wrap; margin-bottom: 16px; align-items: center; }
+    .toolbar input, .toolbar select { padding: 8px; border: 1px solid #ccc; border-radius: 6px; }
+    .toolbar button { padding: 8px 12px; border: none; border-radius: 6px; background: #1976d2; color: #fff; cursor: pointer; }
+    .toolbar button.secondary { background: #555; }
+    table { width: 100%; border-collapse: collapse; }
+    th, td { border-bottom: 1px solid #e5e5e5; padding: 8px; text-align: left; }
+    th { background: #f7f7f7; }
+    .badge { padding: 2px 6px; border-radius: 4px; font-size: 12px; }
+    .badge.admin { background: #e3f2fd; color: #1976d2; }
+    .badge.user { background: #f1f8e9; color: #558b2f; }
+    .status-on { color: #2e7d32; font-weight: 600; }
+    .status-off { color: #c62828; font-weight: 600; }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h2>Gestão de Usuários</h2>
+
+    <div class="toolbar">
+      <input id="search" type="text" placeholder="Buscar por nome, login, e-mail" />
+      <select id="sector"></select>
+      <select id="is_admin">
+        <option value="">Perfil</option>
+        <option value="true">Admin</option>
+        <option value="false">Usuário</option>
+      </select>
+      <select id="is_active">
+        <option value="">Status</option>
+        <option value="true">Ativo</option>
+        <option value="false">Inativo</option>
+      </select>
+      <button id="btnFilter">Filtrar</button>
+      <button id="btnExport" class="secondary">Exportar CSV</button>
+    </div>
+
+    <table>
+      <thead>
+        <tr>
+          <th>ID</th>
+          <th>Login</th>
+          <th>Nome</th>
+          <th>E-mail</th>
+          <th>Setor</th>
+          <th>Perfil</th>
+          <th>Status</th>
+          <th>Ações</th>
+        </tr>
+      </thead>
+      <tbody id="grid"></tbody>
+    </table>
+  </div>
+
+  <script>
+    const token = getAuthToken();
+
+    function getAuthToken(){
+      const m = document.cookie.match(/(?:^|; )auth_token=([^;]+)/);
+      return m ? decodeURIComponent(m[1]) : null;
+    }
+
+    async function fetchSectors(){
+      const url = `/api/admin/sectors`;
+      const res = await fetch(url, { headers: token ? { Authorization: `Bearer ${token}` } : {} });
+      const data = await res.json();
+      const sel = document.getElementById('sector');
+      sel.innerHTML = `<option value="">Setor</option>` + (data.items||[]).map(s => `<option value="${s.name}">${s.name}</option>`).join('');
+    }
+
+    function buildQuery(){
+      const params = new URLSearchParams();
+      const search = document.getElementById('search').value.trim();
+      const sector = document.getElementById('sector').value;
+      const is_admin = document.getElementById('is_admin').value;
+      const is_active = document.getElementById('is_active').value;
+      if(search) params.append('search', search);
+      if(sector) params.append('sector', sector);
+      if(is_admin) params.append('is_admin', is_admin);
+      if(is_active) params.append('is_active', is_active);
+      return params.toString();
+    }
+
+    async function loadUsers(){
+      const qs = buildQuery();
+      const url = `/api/admin/users${qs ? ('?' + qs) : ''}`;
+      const res = await fetch(url, { headers: token ? { Authorization: `Bearer ${token}` } : {} });
+      const data = await res.json();
+      renderGrid(data.items||[]);
+    }
+
+    function renderGrid(items){
+      const tbody = document.getElementById('grid');
+      tbody.innerHTML = items.map(u => `
+        <tr>
+          <td>${u.id}</td>
+          <td>${u.username}</td>
+          <td>${u.full_name || ''}</td>
+          <td>${u.email || ''}</td>
+          <td>${u.sector || ''}</td>
+          <td><span class="badge ${u.is_admin ? 'admin' : 'user'}">${u.is_admin ? 'Admin' : 'Usuário'}</span></td>
+          <td><span class="${u.is_active ? 'status-on' : 'status-off'}">${u.is_active ? 'Ativo' : 'Inativo'}</span></td>
+          <td>
+            <button onclick="toggleAdmin(${u.id}, ${u.is_admin ? 'false' : 'true'})">${u.is_admin ? 'Remover Admin' : 'Tornar Admin'}</button>
+            <button onclick="toggleActive(${u.id}, ${u.is_active ? 'false' : 'true'})">${u.is_active ? 'Inativar' : 'Ativar'}</button>
+            <button onclick="deleteUser(${u.id})" style="background:#c62828">Excluir</button>
+          </td>
+        </tr>
+      `).join('');
+    }
+
+    async function updateUser(id, payload){
+      const res = await fetch(`/api/admin/users/${id}`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+          ...(token ? { Authorization: `Bearer ${token}` } : {})
+        },
+        body: JSON.stringify(payload)
+      });
+      if(!res.ok){
+        const msg = await res.text();
+        alert('Falha ao atualizar usuário: ' + msg);
+      } else {
+        await loadUsers();
+      }
+    }
+
+    function toggleAdmin(id, is_admin){ updateUser(id, { is_admin }); }
+    function toggleActive(id, is_active){ updateUser(id, { is_active }); }
+
+    async function deleteUser(id){
+      if(!confirm('Confirma excluir o usuário #' + id + '?')) return;
+      const res = await fetch(`/api/admin/users/${id}`, {
+        method: 'DELETE',
+        headers: token ? { Authorization: `Bearer ${token}` } : {}
+      });
+      if(!res.ok){
+        const msg = await res.text();
+        alert('Falha ao excluir: ' + msg);
+      } else {
+        await loadUsers();
+      }
+    }
+
+    document.getElementById('btnFilter').addEventListener('click', loadUsers);
+    document.getElementById('btnExport').addEventListener('click', () => {
+      const qs = buildQuery();
+      window.location.href = `/api/admin/users?${qs ? qs + '&' : ''}format=csv`;
+    });
+
+    (async function init(){
+      await fetchSectors();
+      await loadUsers();
+    })();
+  </script>
+</body>
+</html>

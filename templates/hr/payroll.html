@@ -1,0 +1,165 @@
+{% extends "base.html" %}
+{% block title %}Folha de Pagamento{% endblock %}
+{% block page_title %}Recursos Humanos{% endblock %}
+{% block breadcrumb_title %}Folha de Pagamento{% endblock %}
+
+{% block content %}
+<div class="row">
+  <div class="col-12">
+    <div class="card shadow-sm">
+      <div class="card-header d-flex justify-content-between align-items-center">
+        <h5 class="mb-0">Folha de Pagamento</h5>
+        <div class="d-flex align-items-center gap-2">
+          <input type="number" class="form-control" style="width: 140px" id="payrollFilterEmployee" placeholder="ID Funcionário">
+          <input type="month" class="form-control" style="width: 160px" id="payrollFilterPeriod">
+          <button class="btn btn-outline-secondary" id="btnFilterPayrolls"><i class="bi bi-search"></i></button>
+          <button class="btn btn-primary" id="btnNewPayroll"><i class="bi bi-plus-circle"></i> Gerar Folha</button>
+        </div>
+      </div>
+      <div class="card-body">
+        <div class="table-responsive">
+          <table class="table table-striped table-hover">
+            <thead>
+              <tr>
+                <th>Período</th>
+                <th>Func.</th>
+                <th>Salário Base</th>
+                <th>Hrs Extras</th>
+                <th>Valor Extras</th>
+                <th>Deduções</th>
+                <th>Líquido</th>
+                <th>Processado em</th>
+                <th class="text-end">Ações</th>
+              </tr>
+            </thead>
+            <tbody id="payrollsTableBody"></tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Modal Folha -->
+<div class="modal fade" id="payrollModal" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title">Gerar Folha</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+      </div>
+      <div class="modal-body">
+        <form id="payrollForm">
+          <div class="row g-3">
+            <div class="col-6">
+              <label class="form-label">ID Funcionário</label>
+              <input type="number" id="pr_employee_id" class="form-control" required>
+            </div>
+            <div class="col-6">
+              <label class="form-label">Período</label>
+              <input type="month" id="pr_period" class="form-control" required>
+            </div>
+            <div class="col-6">
+              <label class="form-label">Salário Base</label>
+              <input type="number" step="0.01" id="pr_base_salary" class="form-control" placeholder="Se vazio, usa salário do cadastro">
+            </div>
+            <div class="col-6">
+              <label class="form-label">Horas Extras</label>
+              <input type="number" step="0.1" id="pr_overtime_hours" class="form-control" value="0">
+            </div>
+            <div class="col-6">
+              <label class="form-label">Valor Hrs Extras</label>
+              <input type="number" step="0.01" id="pr_overtime_value" class="form-control" placeholder="Se vazio, calcula 1.5x">
+            </div>
+            <div class="col-6">
+              <label class="form-label">Deduções</label>
+              <input type="number" step="0.01" id="pr_deductions" class="form-control" value="0">
+            </div>
+          </div>
+        </form>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+        <button type="button" class="btn btn-primary" id="savePayrollBtn">Salvar</button>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+const apiHr = '/api/hr';
+
+function idempotencyHeaders() {
+  return { 'X-Idempotency-Key': `${Date.now()}-${Math.random().toString(36).slice(2)}` };
+}
+
+function currency(v){ return window.MTDL ? MTDL.formatCurrency(v) : (v||0).toFixed(2); }
+function fmtDateTime(v){ return window.MTDL ? MTDL.formatDateTime(v) : (v||''); }
+
+async function loadPayrolls() {
+  try {
+    const empId = document.getElementById('payrollFilterEmployee').value || undefined;
+    const period = document.getElementById('payrollFilterPeriod').value || undefined;
+    const res = await axios.get(`${apiHr}/payrolls`, { params: { employee_id: empId, period }, headers: { Accept: 'application/json' } });
+    const tbody = document.getElementById('payrollsTableBody');
+    tbody.innerHTML = '';
+    (res.data || []).forEach(p => {
+      const tr = document.createElement('tr');
+      tr.innerHTML = `
+        <td>${p.period}</td>
+        <td>${p.employee_id}</td>
+        <td>${currency(p.base_salary)}</td>
+        <td>${p.overtime_hours || 0}</td>
+        <td>${currency(p.overtime_value || 0)}</td>
+        <td>${currency(p.deductions || 0)}</td>
+        <td class="fw-bold">${currency(p.net_pay || 0)}</td>
+        <td>${fmtDateTime(p.processed_at)}</td>
+        <td class="text-end">
+          <button class="btn btn-sm btn-outline-danger" onclick="deletePayroll(${p.id})"><i class="bi bi-trash"></i></button>
+        </td>`;
+      tbody.appendChild(tr);
+    });
+  } catch (e) { console.error(e); }
+}
+
+function showPayrollModal(){ bootstrap.Modal.getOrCreateInstance(document.getElementById('payrollModal')).show(); }
+
+async function savePayroll(){
+  try {
+    const payload = {
+      employee_id: parseInt(document.getElementById('pr_employee_id').value),
+      period: document.getElementById('pr_period').value,
+      base_salary: document.getElementById('pr_base_salary').value ? parseFloat(document.getElementById('pr_base_salary').value) : null,
+      overtime_hours: parseFloat(document.getElementById('pr_overtime_hours').value || '0'),
+      overtime_value: document.getElementById('pr_overtime_value').value ? parseFloat(document.getElementById('pr_overtime_value').value) : null,
+      deductions: parseFloat(document.getElementById('pr_deductions').value || '0')
+    };
+    const headers = Object.assign({ 'Content-Type': 'application/json', Accept: 'application/json' }, idempotencyHeaders());
+    await axios.post(`${apiHr}/payrolls`, payload, { headers });
+    bootstrap.Modal.getInstance(document.getElementById('payrollModal')).hide();
+    await loadPayrolls();
+    if (typeof showAlert === 'function') showAlert('Folha gerada com sucesso!', 'success', 3000);
+  } catch (e) { console.error(e); alert('Erro ao gerar folha'); }
+}
+
+async function deletePayroll(id){
+  if (!confirm('Excluir esta folha?')) return;
+  try {
+    const headers = idempotencyHeaders();
+    await axios.delete(`${apiHr}/payrolls/${id}`, { headers });
+    await loadPayrolls();
+  } catch (e){ console.error(e); }
+}
+
+// Eventos
+
+document.getElementById('btnFilterPayrolls').addEventListener('click', loadPayrolls);
+document.getElementById('btnNewPayroll').addEventListener('click', showPayrollModal);
+document.getElementById('savePayrollBtn').addEventListener('click', savePayroll);
+
+// Inicialização
+loadPayrolls();
+</script>
+{% endblock %}

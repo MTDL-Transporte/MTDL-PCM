@@ -1,0 +1,279 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Debug - Movimentação de Estoque</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <style>
+        .hidden {
+            display: none !important;
+        }
+        .debug-info {
+            background: #f8f9fa;
+            border: 1px solid #dee2e6;
+            border-radius: 0.375rem;
+            padding: 1rem;
+            margin: 1rem 0;
+        }
+    </style>
+</head>
+<body>
+    <div class="container mt-4">
+        <h1>Debug - Movimentação de Estoque</h1>
+        
+        <div class="debug-info">
+            <h5>Status dos Elementos:</h5>
+            <div id="debug-output"></div>
+        </div>
+        
+        <button type="button" class="btn btn-primary" onclick="openStockMovementModal()">
+            Abrir Modal de Movimentação
+        </button>
+        
+        <!-- Modal de Movimentação de Estoque -->
+        <div class="modal fade" id="stockMovementModal" tabindex="-1">
+            <div class="modal-dialog modal-lg">
+                <div class="modal-content">
+                    <div class="modal-header">
+                        <h5 class="modal-title">Registrar Movimentação de Estoque</h5>
+                        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                    </div>
+                    <div class="modal-body">
+                        <!-- Material selecionado -->
+                        <div class="mb-3">
+                            <label for="selected-material-description" class="form-label">Material Selecionado</label>
+                            <input type="text" class="form-control" id="selected-material-description" 
+                                   readonly placeholder="Descrição será preenchida automaticamente">
+                            <input type="hidden" id="selected-material-id">
+                        </div>
+                        
+                        <!-- Tipo de movimentação -->
+                        <div class="mb-3">
+                            <label for="movement-type" class="form-label">Tipo de Movimentação *</label>
+                            <select class="form-select" id="movement-type" required onchange="toggleMovementFields()">
+                                <option value="">Selecione o tipo</option>
+                                <option value="Entrada">Entrada</option>
+                                <option value="Saída">Saída</option>
+                            </select>
+                        </div>
+                        
+                        <!-- Quantidade -->
+                        <div class="mb-3">
+                            <label for="movement-quantity" class="form-label">Quantidade *</label>
+                            <input type="number" class="form-control" id="movement-quantity" 
+                                   min="0.01" step="0.01" required>
+                        </div>
+                        
+                        <!-- Campos específicos para ENTRADA -->
+                        <div id="entry-fields" class="hidden">
+                            <div class="mb-3">
+                                <label for="entry-reason" class="form-label">Motivo da Entrada *</label>
+                                <select class="form-select" id="entry-reason">
+                                    <option value="">Selecione o motivo</option>
+                                    <option value="Compra">Compra</option>
+                                    <option value="Devolução">Devolução</option>
+                                    <option value="Transferência">Transferência</option>
+                                    <option value="Ajuste de Inventário">Ajuste de Inventário</option>
+                                    <option value="Doação">Doação</option>
+                                </select>
+                            </div>
+                            
+                            <div class="row">
+                                <div class="col-md-6">
+                                    <div class="mb-3">
+                                        <label for="invoice-number" class="form-label">Número da Nota Fiscal *</label>
+                                        <input type="text" class="form-control" id="invoice-number" 
+                                               placeholder="Ex: NF 123456">
+                                    </div>
+                                </div>
+                                <div class="col-md-6">
+                                    <div class="mb-3">
+                                        <label for="entry-unit-price" class="form-label">Preço Unitário *</label>
+                                        <input type="number" class="form-control" id="entry-unit-price" 
+                                               min="0.01" step="0.01" placeholder="0,00">
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <!-- Campos específicos para SAÍDA -->
+                        <div id="exit-fields" class="hidden">
+                            <div class="mb-3">
+                                <label for="exit-reason" class="form-label">Motivo da Saída *</label>
+                                <select class="form-select" id="exit-reason">
+                                    <option value="">Selecione o motivo</option>
+                                    <option value="Venda">Venda</option>
+                                    <option value="Uso Interno">Uso Interno</option>
+                                    <option value="Transferência">Transferência</option>
+                                    <option value="Perda">Perda</option>
+                                    <option value="Ajuste de Inventário">Ajuste de Inventário</option>
+                                </select>
+                            </div>
+                            
+                            <div class="mb-3">
+                                <label for="requisition-number" class="form-label">Número da Requisição *</label>
+                                <input type="text" class="form-control" id="requisition-number" 
+                                       placeholder="Ex: REQ 123456">
+                            </div>
+                        </div>
+                        
+                        <!-- Observações -->
+                        <div class="mb-3">
+                            <label for="movement-observations" class="form-label">Observações</label>
+                            <textarea class="form-control" id="movement-observations" rows="3" 
+                                      placeholder="Observações adicionais (opcional)"></textarea>
+                        </div>
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                        <button type="button" class="btn btn-primary" onclick="testValidation()">Testar Validação</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script>
+        function openStockMovementModal() {
+            // Simular dados de material
+            document.getElementById('selected-material-description').value = 'Material de Teste';
+            document.getElementById('selected-material-id').value = 'TEST001';
+            
+            const modal = new bootstrap.Modal(document.getElementById('stockMovementModal'));
+            modal.show();
+            
+            updateDebugInfo();
+        }
+
+        function toggleMovementFields() {
+            const movementType = document.getElementById('movement-type').value;
+            const entryFields = document.getElementById('entry-fields');
+            const exitFields = document.getElementById('exit-fields');
+            
+            console.log('toggleMovementFields called with type:', movementType);
+            
+            // Esconder todos os campos primeiro
+            entryFields.style.display = 'none';
+            exitFields.style.display = 'none';
+            
+            // Remover atributo required de todos os campos condicionais
+            const conditionalFields = [
+                'entry-reason', 'invoice-number', 'entry-unit-price',
+                'exit-reason', 'requisition-number'
+            ];
+            
+            conditionalFields.forEach(fieldId => {
+                const field = document.getElementById(fieldId);
+                if (field) {
+                    field.removeAttribute('required');
+                    field.value = ''; // Limpar valor
+                }
+            });
+            
+            // Mostrar campos específicos baseado no tipo
+            if (movementType === 'Entrada') {
+                entryFields.style.display = 'block';
+                document.getElementById('entry-reason').setAttribute('required', 'required');
+                document.getElementById('invoice-number').setAttribute('required', 'required');
+                document.getElementById('entry-unit-price').setAttribute('required', 'required');
+                console.log('Entry fields shown and required attributes set');
+            } else if (movementType === 'Saída') {
+                exitFields.style.display = 'block';
+                document.getElementById('exit-reason').setAttribute('required', 'required');
+                document.getElementById('requisition-number').setAttribute('required', 'required');
+                console.log('Exit fields shown and required attributes set');
+            }
+            
+            updateDebugInfo();
+        }
+
+        function testValidation() {
+            console.log('Testing validation...');
+            
+            // Validação customizada para campos visíveis
+            const materialId = document.getElementById('selected-material-id').value;
+            if (!materialId) {
+                alert('Por favor, selecione um material válido');
+                return;
+            }
+            
+            const movementType = document.getElementById('movement-type').value;
+            if (!movementType) {
+                alert('Por favor, selecione o tipo de movimentação');
+                return;
+            }
+            
+            const quantity = parseFloat(document.getElementById('movement-quantity').value);
+            if (!quantity || quantity <= 0) {
+                alert('Por favor, informe uma quantidade válida');
+                return;
+            }
+            
+            // Validação específica para entrada
+            if (movementType === 'Entrada') {
+                const entryReason = document.getElementById('entry-reason').value;
+                if (!entryReason) {
+                    alert('Por favor, selecione o motivo da entrada');
+                    return;
+                }
+                
+                const invoiceNumber = document.getElementById('invoice-number').value;
+                if (!invoiceNumber) {
+                    alert('Por favor, informe o número da nota fiscal');
+                    return;
+                }
+                
+                const unitPrice = parseFloat(document.getElementById('entry-unit-price').value);
+                if (!unitPrice || unitPrice <= 0) {
+                    alert('Por favor, informe um preço unitário válido');
+                    return;
+                }
+            }
+            
+            // Validação específica para saída
+            if (movementType === 'Saída') {
+                const exitReason = document.getElementById('exit-reason').value;
+                if (!exitReason) {
+                    alert('Por favor, selecione o motivo da saída');
+                    return;
+                }
+                
+                const requisitionNumber = document.getElementById('requisition-number').value;
+                if (!requisitionNumber) {
+                    alert('Por favor, informe o número da requisição');
+                    return;
+                }
+            }
+            
+            alert('Validação passou! Todos os campos obrigatórios estão preenchidos.');
+            console.log('Validation passed successfully');
+        }
+
+        function updateDebugInfo() {
+            const debugOutput = document.getElementById('debug-output');
+            const movementType = document.getElementById('movement-type').value;
+            const entryFields = document.getElementById('entry-fields');
+            const exitFields = document.getElementById('exit-fields');
+            
+            debugOutput.innerHTML = `
+                <p><strong>Tipo de Movimentação:</strong> ${movementType || 'Não selecionado'}</p>
+                <p><strong>Entry Fields Display:</strong> ${entryFields.style.display}</p>
+                <p><strong>Exit Fields Display:</strong> ${exitFields.style.display}</p>
+                <p><strong>Entry Fields Class:</strong> ${entryFields.className}</p>
+                <p><strong>Exit Fields Class:</strong> ${exitFields.className}</p>
+                <p><strong>Timestamp:</strong> ${new Date().toLocaleTimeString()}</p>
+            `;
+        }
+
+        // Atualizar debug info a cada mudança
+        document.addEventListener('DOMContentLoaded', function() {
+            updateDebugInfo();
+            
+            // Adicionar listeners para debug
+            document.getElementById('movement-type').addEventListener('change', updateDebugInfo);
+        });
+    </script>
+</body>
+</html>

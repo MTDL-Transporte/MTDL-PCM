@@ -1,0 +1,999 @@
+{% extends "base.html" %}
+
+{% block title %}Pedidos de Compra - MTDL PCM{% endblock %}
+
+{% block content %}
+<div class="container-fluid py-4">
+    <!-- Header -->
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="d-flex justify-content-between align-items-center">
+                <div>
+                    <h2 class="mb-1">Pedidos de Compra</h2>
+                    <p class="text-muted mb-0">Gerencie pedidos de compra e cotações de fornecedores</p>
+                </div>
+                <button class="btn btn-primary" onclick="showCreateOrderModal()">
+                    <i class="bi bi-plus-circle me-2"></i>Novo Pedido
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Cards de Resumo -->
+    <div class="row mb-4">
+        <div class="col-md-3">
+            <div class="card border-0 shadow-sm">
+                <div class="card-body">
+                    <div class="d-flex align-items-center">
+                        <div class="flex-shrink-0">
+                            <div class="bg-warning bg-opacity-10 p-3 rounded">
+                                <i class="bi bi-clock text-warning fs-4"></i>
+                            </div>
+                        </div>
+                        <div class="flex-grow-1 ms-3">
+                            <h6 class="mb-0 text-muted">Pendentes</h6>
+                            <h4 class="mb-0" id="pendingOrders">0</h4>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card border-0 shadow-sm">
+                <div class="card-body">
+                    <div class="d-flex align-items-center">
+                        <div class="flex-shrink-0">
+                            <div class="bg-info bg-opacity-10 p-3 rounded">
+                                <i class="bi bi-send text-info fs-4"></i>
+                            </div>
+                        </div>
+                        <div class="flex-grow-1 ms-3">
+                            <h6 class="mb-0 text-muted">Enviados</h6>
+                            <h4 class="mb-0" id="sentOrders">0</h4>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card border-0 shadow-sm">
+                <div class="card-body">
+                    <div class="d-flex align-items-center">
+                        <div class="flex-shrink-0">
+                            <div class="bg-success bg-opacity-10 p-3 rounded">
+                                <i class="bi bi-check-circle text-success fs-4"></i>
+                            </div>
+                        </div>
+                        <div class="flex-grow-1 ms-3">
+                            <h6 class="mb-0 text-muted">Confirmados</h6>
+                            <h4 class="mb-0" id="confirmedOrders">0</h4>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card border-0 shadow-sm">
+                <div class="card-body">
+                    <div class="d-flex align-items-center">
+                        <div class="flex-shrink-0">
+                            <div class="bg-primary bg-opacity-10 p-3 rounded">
+                                <i class="bi bi-truck text-primary fs-4"></i>
+                            </div>
+                        </div>
+                        <div class="flex-grow-1 ms-3">
+                            <h6 class="mb-0 text-muted">Entregues</h6>
+                            <h4 class="mb-0" id="deliveredOrders">0</h4>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Filtros e Busca -->
+    <div class="card border-0 shadow-sm mb-4">
+        <div class="card-body">
+            <div class="row g-3">
+                <div class="col-md-3">
+                    <label class="form-label">Status</label>
+                    <select class="form-select" id="statusFilter" onchange="filterByStatus()">
+                        <option value="">Todos os status</option>
+                        <option value="Pendente">Pendente</option>
+                        <option value="Enviado">Enviado</option>
+                        <option value="Confirmado">Confirmado</option>
+                        <option value="Entregue">Entregue</option>
+                        <option value="Cancelado">Cancelado</option>
+                    </select>
+                </div>
+                <div class="col-md-6">
+                    <label class="form-label">Buscar</label>
+                    <div class="input-group">
+                        <span class="input-group-text"><i class="bi bi-search"></i></span>
+                        <input type="text" class="form-control" id="search-input" placeholder="Buscar por número, fornecedor..." onkeyup="applyFilters()">
+                    </div>
+                </div>
+                <div class="col-md-3">
+                    <label class="form-label">&nbsp;</label>
+                    <div class="d-flex gap-2">
+                        <button class="btn btn-outline-secondary flex-fill" onclick="clearFilters()">
+                            <i class="bi bi-arrow-clockwise me-1"></i>Limpar
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Tabela de Pedidos -->
+    <div class="card border-0 shadow-sm">
+        <div class="card-body p-0">
+            <div class="table-responsive">
+                <table class="table table-hover mb-0">
+                    <thead class="table-light">
+                        <tr>
+                            <th class="ps-4 py-3">Número</th>
+                            <th class="py-3">Requisição</th>
+                            <th class="py-3">Fornecedor</th>
+                            <th class="py-3">Valor Total</th>
+                            <th class="py-3">Status</th>
+                            <th class="py-3">Data Entrega</th>
+                            <th class="pe-4 py-3 text-center">Ações</th>
+                        </tr>
+                    </thead>
+                    <tbody id="ordersTableBody">
+                        <!-- Dados serão carregados via JavaScript -->
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Modal Novo Pedido -->
+<div class="modal fade" id="orderModal" tabindex="-1">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Novo Pedido de Compra</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <form id="orderForm">
+                    <div class="row g-3">
+                        <div class="col-md-6">
+                            <label class="form-label">Requisição de Compra *</label>
+                            <select class="form-select" id="orderPurchaseRequest" name="purchase_request_id" required>
+                                <option value="">Selecione uma requisição...</option>
+                            </select>
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label">Fornecedor *</label>
+                            <select class="form-select" id="orderSupplier" name="supplier_id" required>
+                                <option value="">Selecione um fornecedor...</option>
+                            </select>
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label">Valor Total *</label>
+                            <div class="input-group">
+                                <span class="input-group-text">R$</span>
+                                <input type="number" class="form-control" id="orderTotalValue" name="total_value" step="0.01" min="0" required>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label">Data de Entrega</label>
+                            <input type="date" class="form-control" id="orderDeliveryDate" name="delivery_date">
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label">Condições de Pagamento</label>
+                            <select class="form-select" id="orderPaymentTerms" name="payment_terms">
+                                <option value="">Selecione...</option>
+                                <option value="30 dias">30 dias</option>
+                                <option value="45 dias">45 dias</option>
+                                <option value="60 dias">60 dias</option>
+                                <option value="Antecipado">Antecipado</option>
+                            </select>
+                        </div>
+                        <div class="col-12">
+                            <label class="form-label">Observações</label>
+                            <textarea class="form-control" id="orderNotes" name="notes" rows="3" placeholder="Observações adicionais..."></textarea>
+                        </div>
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                <button type="button" class="btn btn-primary" onclick="saveOrder()">Criar Pedido</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Modal Cotações -->
+<div class="modal fade" id="quotationsModal" tabindex="-1">
+    <div class="modal-dialog modal-xl">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Cotações do Pedido</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <!-- Informações do Pedido -->
+                <div class="card mb-4">
+                    <div class="card-body">
+                        <h6 class="card-title">Informações do Pedido</h6>
+                        <div class="row">
+                            <div class="col-md-3">
+                                <strong>Número:</strong> <span id="orderNumber"></span>
+                            </div>
+                            <div class="col-md-3">
+                                <strong>Requisição:</strong> <span id="orderRequest"></span>
+                            </div>
+                            <div class="col-md-3">
+                                <strong>Material:</strong> <span id="orderMaterial"></span>
+                            </div>
+                            <div class="col-md-3">
+                                <strong>Quantidade:</strong> <span id="orderQuantity"></span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Comparativo de Cotações -->
+                <div class="card mb-4" id="quotationsComparison" style="display: none;">
+                    <div class="card-header">
+                        <h6 class="mb-0">
+                            <i class="bi bi-graph-up"></i> Comparativo de Cotações
+                        </h6>
+                    </div>
+                    <div class="card-body">
+                        <div class="row" id="comparisonCards">
+                            <!-- Cards de comparação serão inseridos aqui -->
+                        </div>
+                        <div class="mt-3">
+                            <small class="text-muted">
+                                <i class="bi bi-info-circle"></i> 
+                                Recomendação: Considere não apenas o menor preço, mas também prazo de entrega e histórico do fornecedor.
+                            </small>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Formulário Nova Cotação -->
+                <div class="card border-primary d-none" id="addQuotationCard">
+                    <div class="card-header bg-primary text-white d-flex justify-content-between align-items-center">
+                        <h6 class="mb-0">Nova Cotação</h6>
+                        <button type="button" class="btn btn-sm btn-outline-light" onclick="hideAddQuotationForm()">
+                            <i class="bi bi-x"></i> Cancelar
+                        </button>
+                    </div>
+                    <div class="card-body">
+                        <form id="quotationForm">
+                            <div class="row g-3">
+                                <div class="col-md-6">
+                                    <label class="form-label">Fornecedor *</label>
+                                    <select class="form-select" id="quotationSupplier" name="supplier_id" required>
+                                        <option value="">Selecione um fornecedor...</option>
+                                    </select>
+                                </div>
+                                <div class="col-md-3">
+                                    <label class="form-label">Preço Unitário *</label>
+                                    <div class="input-group">
+                                        <span class="input-group-text">R$</span>
+                                        <input type="number" class="form-control" id="quotationUnitPrice" name="unit_price" step="0.01" min="0" required>
+                                    </div>
+                                </div>
+                                <div class="col-md-3">
+                                    <label class="form-label">Valor Total *</label>
+                                    <div class="input-group">
+                                        <span class="input-group-text">R$</span>
+                                        <input type="number" class="form-control" id="quotationTotalValue" name="total_value" step="0.01" min="0" required readonly>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="row g-3 mt-1">
+                                <div class="col-md-4">
+                                    <label class="form-label">Prazo de Entrega</label>
+                                    <div class="input-group">
+                                        <input type="number" class="form-control" id="quotationDeliveryDays" name="delivery_time" min="1">
+                                        <span class="input-group-text">dias</span>
+                                    </div>
+                                </div>
+                                <div class="col-md-4">
+                                    <label class="form-label">Condições de Pagamento</label>
+                                    <select class="form-select" id="quotationPaymentTerms" name="payment_terms">
+                                        <option value="">Selecione</option>
+                                        <option value="À vista">À vista</option>
+                                        <option value="30 dias">30 dias</option>
+                                        <option value="60 dias">60 dias</option>
+                                        <option value="90 dias">90 dias</option>
+                                        <option value="Parcelado">Parcelado</option>
+                                    </select>
+                                </div>
+                                <div class="col-md-4">
+                                    <label class="form-label">Contato</label>
+                                    <input type="text" class="form-control" id="quotationContactName" name="contact_name" placeholder="Nome do contato" required>
+                                </div>
+                            </div>
+                            <div class="row g-3 mt-1">
+                                <div class="col-12">
+                                    <label class="form-label">Observações</label>
+                                    <textarea class="form-control" id="quotationNotes" name="notes" rows="2" placeholder="Informações adicionais sobre a cotação"></textarea>
+                                </div>
+                            </div>
+                        </form>
+                    </div>
+                    <div class="card-footer">
+                        <button type="button" class="btn btn-primary" onclick="saveQuotation()">
+                            <i class="bi bi-check-circle"></i> Salvar Cotação
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Lista de Cotações -->
+                <div class="card">
+                    <div class="card-header d-flex justify-content-between align-items-center">
+                        <h6 class="mb-0">Cotações Recebidas (<span id="quotationsCount">0</span>)</h6>
+                        <div>
+                            <button type="button" class="btn btn-sm btn-outline-info me-2" onclick="toggleComparison()" id="comparisonBtn" style="display: none;">
+                                <i class="bi bi-bar-chart"></i> Comparar
+                            </button>
+                            <button type="button" class="btn btn-sm btn-success" onclick="showAddQuotationForm()">
+                                <i class="bi bi-plus-circle"></i> Nova Cotação
+                            </button>
+                        </div>
+                    </div>
+                    <div class="card-body">
+                        <div class="table-responsive">
+                            <table class="table table-hover" id="quotationsTable">
+                                <thead class="table-light">
+                                    <tr>
+                                        <th>Fornecedor</th>
+                                        <th>Contato</th>
+                                        <th>Preço Unit.</th>
+                                        <th>Valor Total</th>
+                                        <th>Prazo</th>
+                                        <th>Pagamento</th>
+                                        <th>Status</th>
+                                        <th>Ações</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="quotationsTableBody">
+                                    <!-- Cotações serão carregadas via JavaScript -->
+                                </tbody>
+                            </table>
+                        </div>
+                        <div id="noQuotationsMessage" class="text-center text-muted py-4" style="display: none;">
+                            <i class="bi bi-inbox display-4"></i>
+                            <p class="mt-2">Nenhuma cotação cadastrada ainda.</p>
+                            <p class="small">Clique em "Nova Cotação" para adicionar a primeira cotação.</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+let ordersData = [];
+let currentOrderId = null;
+
+document.addEventListener('DOMContentLoaded', function() {
+    loadOrders();
+    loadApprovedRequests();
+    loadSuppliers();
+});
+
+async function loadOrders() {
+    try {
+        const response = await axios.get('/api/warehouse/purchase-orders');
+        ordersData = response.data;
+        renderOrdersTable();
+        updateSummaryCards();
+    } catch (error) {
+        console.error('Erro ao carregar pedidos:', error);
+        showAlert('Erro ao carregar pedidos de compra', 'danger');
+    }
+}
+
+async function loadApprovedRequests() {
+    try {
+        const response = await axios.get('/api/warehouse/purchase-requests?status=Aprovada');
+        const requests = response.data;
+        
+        const select = document.getElementById('orderPurchaseRequest');
+        select.innerHTML = '<option value="">Selecione uma requisição...</option>';
+        
+        for (const request of requests) {
+            // Verificar se a requisição é elegível para pedido
+            try {
+                const eligibilityResponse = await axios.get(`/api/warehouse/purchase-requests/${request.id}/eligible-for-order`);
+                if (eligibilityResponse.data.eligible) {
+                    const option = document.createElement('option');
+                    option.value = request.id;
+                    option.textContent = `#${request.id} - ${request.material_name} (${request.quantity} ${request.material_unit || ''})`;
+                    select.appendChild(option);
+                }
+            } catch (error) {
+                console.error(`Erro ao verificar elegibilidade da requisição ${request.id}:`, error);
+            }
+        }
+    } catch (error) {
+        console.error('Erro ao carregar requisições aprovadas:', error);
+    }
+}
+
+async function loadSuppliers() {
+    try {
+        const response = await axios.get('/api/warehouse/suppliers');
+        const suppliers = response.data;
+        
+        // Carregar no select do pedido
+        const orderSelect = document.getElementById('orderSupplier');
+        orderSelect.innerHTML = '<option value="">Selecione um fornecedor...</option>';
+        
+        // Carregar no select da cotação
+        const quotationSelect = document.getElementById('quotationSupplier');
+        quotationSelect.innerHTML = '<option value="">Selecione um fornecedor...</option>';
+        
+        suppliers.forEach(supplier => {
+            const orderOption = document.createElement('option');
+            orderOption.value = supplier.id;
+            orderOption.textContent = supplier.name;
+            orderSelect.appendChild(orderOption);
+            
+            const quotationOption = document.createElement('option');
+            quotationOption.value = supplier.id;
+            quotationOption.textContent = supplier.name;
+            quotationSelect.appendChild(quotationOption);
+        });
+    } catch (error) {
+        console.error('Erro ao carregar fornecedores:', error);
+    }
+}
+
+function renderOrdersTable() {
+    const tbody = document.getElementById('ordersTableBody');
+    const searchTerm = document.getElementById('search-input').value.toLowerCase();
+    const statusFilter = document.getElementById('statusFilter').value;
+    
+    let filteredData = ordersData.filter(order => {
+        const matchesSearch = !searchTerm || 
+            order.number.toLowerCase().includes(searchTerm) ||
+            (order.supplier_name && order.supplier_name.toLowerCase().includes(searchTerm));
+        
+        const matchesStatus = !statusFilter || order.status === statusFilter;
+        
+        return matchesSearch && matchesStatus;
+    });
+    
+    if (filteredData.length === 0) {
+        tbody.innerHTML = `
+            <tr>
+                <td colspan="7" class="text-center py-5">
+                    <div class="text-muted">
+                        <i class="bi bi-clipboard-data fs-1 d-block mb-2"></i>
+                        Nenhum pedido encontrado
+                    </div>
+                </td>
+            </tr>
+        `;
+        return;
+    }
+    
+    tbody.innerHTML = '';
+    filteredData.forEach(order => {
+        const row = tbody.insertRow();
+        const statusClass = getStatusClass(order.status);
+        const orderDate = order.created_at ? new Date(order.created_at).toLocaleDateString('pt-BR') : 'N/A';
+        const deliveryDate = order.delivery_date ? new Date(order.delivery_date).toLocaleDateString('pt-BR') : 'N/A';
+        
+        row.innerHTML = `
+            <td class="ps-4 py-3">
+                <div class="fw-semibold">${order.number}</div>
+                <small class="text-muted">${orderDate}</small>
+            </td>
+            <td class="py-3">#${order.purchase_request_id}</td>
+            <td class="py-3">${order.supplier_name || 'N/A'}</td>
+            <td class="py-3">R$ ${(order.total_value || 0).toFixed(2)}</td>
+            <td class="py-3"><span class="badge bg-${statusClass}">${order.status}</span></td>
+            <td class="py-3">${deliveryDate}</td>
+            <td class="pe-4 py-3 text-center">
+                <div class="btn-group btn-group-sm">
+                    <button class="btn btn-outline-primary btn-sm" onclick="viewQuotations(${order.id})" title="Cotações">
+                        <i class="bi bi-currency-dollar"></i>
+                    </button>
+                    <button class="btn btn-outline-info btn-sm" onclick="viewOrder(${order.id})" title="Visualizar">
+                        <i class="bi bi-eye"></i>
+                    </button>
+                    <div class="btn-group btn-group-sm">
+                        <button class="btn btn-outline-secondary btn-sm dropdown-toggle" data-bs-toggle="dropdown">
+                            <i class="bi bi-gear"></i>
+                        </button>
+                        <ul class="dropdown-menu">
+                            <li><a class="dropdown-item" href="#" onclick="updateOrderStatus(${order.id}, 'Enviado')">Marcar como Enviado</a></li>
+                            <li><a class="dropdown-item" href="#" onclick="updateOrderStatus(${order.id}, 'Confirmado')">Marcar como Confirmado</a></li>
+                            <li><a class="dropdown-item" href="#" onclick="updateOrderStatus(${order.id}, 'Entregue')">Marcar como Entregue</a></li>
+                            <li><hr class="dropdown-divider"></li>
+                            <li><a class="dropdown-item text-danger" href="#" onclick="updateOrderStatus(${order.id}, 'Cancelado')">Cancelar Pedido</a></li>
+                        </ul>
+                    </div>
+                </div>
+            </td>
+        `;
+    });
+}
+
+function getStatusClass(status) {
+    switch(status?.toLowerCase()) {
+        case 'pendente': return 'warning';
+        case 'enviado': return 'info';
+        case 'confirmado': return 'success';
+        case 'entregue': return 'primary';
+        case 'cancelado': return 'danger';
+        default: return 'secondary';
+    }
+}
+
+function updateSummaryCards() {
+    document.getElementById('pendingOrders').textContent = ordersData.filter(order => order.status === 'Pendente').length;
+    document.getElementById('sentOrders').textContent = ordersData.filter(order => order.status === 'Enviado').length;
+    document.getElementById('confirmedOrders').textContent = ordersData.filter(order => order.status === 'Confirmado').length;
+    document.getElementById('deliveredOrders').textContent = ordersData.filter(order => order.status === 'Entregue').length;
+}
+
+function filterByStatus() {
+    renderOrdersTable();
+}
+
+function clearFilters() {
+    document.getElementById('statusFilter').value = '';
+    document.getElementById('search-input').value = '';
+    renderOrdersTable();
+}
+
+function applyFilters() {
+    renderOrdersTable();
+}
+
+function showCreateOrderModal() {
+    currentOrderId = null;
+    document.getElementById('orderForm').reset();
+    loadApprovedRequests(); // Recarregar requisições elegíveis
+    document.querySelector('#orderModal .modal-title').textContent = 'Novo Pedido de Compra';
+    new bootstrap.Modal(document.getElementById('orderModal')).show();
+}
+
+async function saveOrder() {
+    try {
+        const form = document.getElementById('orderForm');
+        const formData = new FormData(form);
+        
+        const orderData = {
+            purchase_request_id: parseInt(formData.get('purchase_request_id')),
+            supplier_id: parseInt(formData.get('supplier_id')),
+            total_value: parseFloat(formData.get('total_value')),
+            delivery_date: formData.get('delivery_date') || null,
+            payment_terms: formData.get('payment_terms') || null,
+            notes: formData.get('notes') || null
+        };
+        
+        const response = await axios.post('/api/warehouse/purchase-orders', orderData);
+        
+        if (response.status === 201) {
+            showAlert('Pedido de compra criado com sucesso!', 'success');
+            
+            const modal = bootstrap.Modal.getInstance(document.getElementById('orderModal'));
+            modal.hide();
+            
+            await loadOrders();
+            form.reset();
+        }
+        
+    } catch (error) {
+        console.error('Erro ao salvar pedido:', error);
+        
+        if (error.response && error.response.data && error.response.data.detail) {
+            showAlert(error.response.data.detail, 'danger');
+        } else {
+            showAlert('Erro ao salvar pedido. Tente novamente.', 'danger');
+        }
+    }
+}
+
+async function updateOrderStatus(orderId, newStatus) {
+    if (!confirm(`Tem certeza que deseja alterar o status para "${newStatus}"?`)) {
+        return;
+    }
+    
+    try {
+        const response = await axios.put(`/api/warehouse/purchase-orders/${orderId}/status`, {
+            status: newStatus
+        });
+        
+        if (response.status === 200) {
+            showAlert('Status atualizado com sucesso!', 'success');
+            await loadOrders();
+        }
+        
+    } catch (error) {
+        console.error('Erro ao atualizar status:', error);
+        
+        if (error.response && error.response.data && error.response.data.detail) {
+            showAlert(error.response.data.detail, 'danger');
+        } else {
+            showAlert('Erro ao atualizar status. Tente novamente.', 'danger');
+        }
+    }
+}
+
+async function viewQuotations(orderId) {
+    currentOrderId = orderId;
+    
+    try {
+        // Carregar dados do pedido
+        const orderResponse = await axios.get(`/api/warehouse/purchase-orders/${orderId}`);
+        const order = orderResponse.data;
+        
+        // Atualizar informações do pedido
+        document.getElementById('orderNumber').textContent = order.number;
+        document.getElementById('orderRequest').textContent = `#${order.purchase_request_id}`;
+        document.getElementById('orderMaterial').textContent = order.material_description || 'N/A';
+        document.getElementById('orderQuantity').textContent = order.quantity || 'N/A';
+        
+        // Carregar cotações
+        await loadQuotations(orderId);
+        
+        new bootstrap.Modal(document.getElementById('quotationsModal')).show();
+        
+    } catch (error) {
+        console.error('Erro ao carregar cotações:', error);
+        showAlert('Erro ao carregar cotações', 'danger');
+    }
+}
+
+async function loadQuotations(orderId) {
+    try {
+        const response = await axios.get(`/api/warehouse/purchase-orders/${orderId}/quotations`);
+        const quotations = response.data;
+        
+        // Atualizar contador de cotações
+        document.getElementById('quotationsCount').textContent = quotations.length;
+        
+        const tbody = document.getElementById('quotationsTableBody');
+        const noQuotationsMessage = document.getElementById('noQuotationsMessage');
+        const comparisonBtn = document.getElementById('comparisonBtn');
+        
+        if (quotations.length === 0) {
+            tbody.innerHTML = '';
+            noQuotationsMessage.style.display = 'block';
+            comparisonBtn.style.display = 'none';
+            return;
+        }
+        
+        noQuotationsMessage.style.display = 'none';
+        comparisonBtn.style.display = quotations.length >= 2 ? 'inline-block' : 'none';
+        
+        // Ordenar cotações por valor total para identificar a melhor
+        const sortedQuotations = [...quotations].sort((a, b) => (a.total_value || 0) - (b.total_value || 0));
+        const lowestPrice = sortedQuotations[0]?.total_value;
+        
+        tbody.innerHTML = '';
+        quotations.forEach((quotation) => {
+            const row = tbody.insertRow();
+            const isLowest = quotation.total_value === lowestPrice && quotations.length > 1;
+            const statusBadge = quotation.is_selected ? 
+                '<span class="badge bg-primary">Selecionada</span>' : 
+                (isLowest ? '<span class="badge bg-success">Melhor Preço</span>' : '<span class="badge bg-secondary">Pendente</span>');
+            
+            row.innerHTML = `
+                <td class="py-3">
+                    <div class="fw-semibold">${quotation.supplier_name || 'N/A'}</div>
+                    ${isLowest && !quotation.is_selected ? '<small class="text-success"><i class="bi bi-star-fill"></i> Melhor oferta</small>' : ''}
+                </td>
+                <td class="py-3">
+                    <div>${quotation.contact_name || 'N/A'}</div>
+                    <small class="text-muted">${quotation.contact_phone || ''}</small>
+                </td>
+                <td class="py-3">R$ ${(quotation.unit_price || 0).toFixed(2)}</td>
+                <td class="py-3">
+                    <div class="fw-semibold">R$ ${(quotation.total_value || 0).toFixed(2)}</div>
+                </td>
+                <td class="py-3">${quotation.delivery_time ? quotation.delivery_time + ' dias' : 'N/A'}</td>
+                <td class="py-3">${quotation.payment_terms || 'N/A'}</td>
+                <td class="py-3">${statusBadge}</td>
+                <td class="py-3">
+                    <div class="btn-group btn-group-sm">
+                        ${!quotation.is_selected ? 
+                            `<button class="btn btn-outline-success btn-sm" onclick="selectQuotation(${quotation.id})" title="Selecionar">
+                                <i class="bi bi-check-circle"></i>
+                            </button>` : ''
+                        }
+                        <button class="btn btn-outline-info btn-sm" onclick="viewQuotationDetails(${quotation.id})" title="Detalhes">
+                            <i class="bi bi-eye"></i>
+                        </button>
+                        <button class="btn btn-outline-danger btn-sm" onclick="deleteQuotation(${quotation.id})" title="Excluir">
+                            <i class="bi bi-trash"></i>
+                        </button>
+                    </div>
+                </td>
+            `;
+        });
+        
+        // Armazenar cotações para comparação
+        window.currentQuotations = quotations;
+        
+    } catch (error) {
+        console.error('Erro ao carregar cotações:', error);
+        showAlert('Erro ao carregar cotações', 'danger');
+    }
+}
+
+function showQuotationForm() {
+    document.getElementById('quotationForm').style.display = 'block';
+    document.getElementById('quotationForm').reset();
+    
+    // Calcular valor total automaticamente
+    const unitPriceInput = document.getElementById('quotationUnitPrice');
+    const totalValueInput = document.getElementById('quotationTotalValue');
+    
+    unitPriceInput.addEventListener('input', function() {
+        const quantity = parseFloat(document.getElementById('orderQuantity').textContent) || 1;
+        const unitPrice = parseFloat(this.value) || 0;
+        totalValueInput.value = (unitPrice * quantity).toFixed(2);
+    });
+}
+
+function hideQuotationForm() {
+    document.getElementById('quotationForm').style.display = 'none';
+    document.getElementById('quotationForm').reset();
+}
+
+function showAddQuotationForm() {
+    showQuotationForm();
+}
+
+function hideAddQuotationForm() {
+    hideQuotationForm();
+}
+
+function toggleComparison() {
+    const comparisonDiv = document.getElementById('quotationsComparison');
+    const isVisible = comparisonDiv.style.display !== 'none';
+    
+    if (isVisible) {
+        comparisonDiv.style.display = 'none';
+        document.getElementById('comparisonBtn').innerHTML = '<i class="bi bi-bar-chart"></i> Comparar';
+    } else {
+        generateComparison();
+        comparisonDiv.style.display = 'block';
+        document.getElementById('comparisonBtn').innerHTML = '<i class="bi bi-eye-slash"></i> Ocultar';
+    }
+}
+
+function generateComparison() {
+    const quotations = window.currentQuotations || [];
+    const comparisonCards = document.getElementById('comparisonCards');
+    
+    if (quotations.length < 2) {
+        comparisonCards.innerHTML = '<div class="col-12"><p class="text-muted">É necessário pelo menos 2 cotações para comparação.</p></div>';
+        return;
+    }
+    
+    // Ordenar por valor total
+    const sortedQuotations = [...quotations].sort((a, b) => (a.total_value || 0) - (b.total_value || 0));
+    
+    comparisonCards.innerHTML = '';
+    sortedQuotations.forEach((quotation, index) => {
+        const isLowest = index === 0;
+        const isFastest = sortedQuotations.every(q => (quotation.delivery_time || 999) <= (q.delivery_time || 999));
+        
+        const cardClass = isLowest ? 'border-success' : (index === 1 ? 'border-warning' : 'border-secondary');
+        const headerClass = isLowest ? 'bg-success text-white' : (index === 1 ? 'bg-warning text-dark' : 'bg-secondary text-white');
+        
+        comparisonCards.innerHTML += `
+            <div class="col-md-4 mb-3">
+                <div class="card ${cardClass}">
+                    <div class="card-header ${headerClass} text-center">
+                        <h6 class="mb-0">${quotation.supplier_name}</h6>
+                        ${isLowest ? '<small><i class="bi bi-trophy"></i> Melhor Preço</small>' : ''}
+                        ${isFastest && !isLowest ? '<small><i class="bi bi-lightning"></i> Mais Rápido</small>' : ''}
+                    </div>
+                    <div class="card-body">
+                        <div class="text-center mb-3">
+                            <h4 class="text-primary">R$ ${(quotation.total_value || 0).toFixed(2)}</h4>
+                            <small class="text-muted">Valor Total</small>
+                        </div>
+                        <ul class="list-unstyled">
+                            <li><strong>Preço Unit.:</strong> R$ ${(quotation.unit_price || 0).toFixed(2)}</li>
+                            <li><strong>Prazo:</strong> ${quotation.delivery_time || 'N/A'} dias</li>
+                            <li><strong>Pagamento:</strong> ${quotation.payment_terms || 'N/A'}</li>
+                            <li><strong>Contato:</strong> ${quotation.contact_name || 'N/A'}</li>
+                        </ul>
+                        ${quotation.notes ? `<div class="mt-2"><small class="text-muted">${quotation.notes}</small></div>` : ''}
+                    </div>
+                    <div class="card-footer text-center">
+                        ${!quotation.is_selected ? 
+                            `<button class="btn btn-sm btn-outline-success" onclick="selectQuotation(${quotation.id})">
+                                <i class="bi bi-check-circle"></i> Selecionar
+                            </button>` : 
+                            '<span class="badge bg-primary">Selecionada</span>'
+                        }
+                    </div>
+                </div>
+            </div>
+        `;
+    });
+}
+
+async function saveQuotation() {
+    try {
+        const form = document.getElementById('quotationForm');
+        const formData = new FormData(form);
+        
+        const quotationData = {
+            supplier_id: parseInt(formData.get('supplier_id')), 
+            supplier_name: document.querySelector('#quotationSupplier option:checked')?.text || '',
+            contact_name: formData.get('contact_name') || '',
+            contact_phone: formData.get('contact_phone') || '',
+            total_value: parseFloat(formData.get('total_value')),
+            delivery_time: formData.get('delivery_time') ? parseInt(formData.get('delivery_time')) : null,
+            payment_terms: formData.get('payment_terms') || null,
+            notes: formData.get('notes') || null
+        };
+        
+        if (!quotationData.supplier_id || !quotationData.total_value || !quotationData.contact_name || !quotationData.contact_phone) {
+            showAlert('Preencha fornecedor, valor total e contato (nome/telefone).', 'danger');
+            return;
+        }
+        
+        const response = await axios.post(`/api/warehouse/purchase-orders/${currentOrderId}/quotations`, quotationData);
+        
+        if (response.status === 200 || response.status === 201) {
+            showAlert('Cotação adicionada com sucesso!', 'success');
+            hideAddQuotationForm();
+            await loadQuotations(currentOrderId);
+        }
+        
+    } catch (error) {
+        console.error('Erro ao salvar cotação:', error);
+        
+        if (error.response && error.response.data && error.response.data.detail) {
+            showAlert(error.response.data.detail, 'danger');
+        } else {
+            showAlert('Erro ao salvar cotação. Tente novamente.', 'danger');
+        }
+    }
+}
+
+async function selectQuotation(quotationId) {
+    try {
+        const response = await fetch(`/api/warehouse/quotations/${quotationId}/select`, {
+            method: 'PUT',
+            headers: {
+                'Content-Type': 'application/json'
+            }
+        });
+
+        if (response.ok) {
+            showAlert('Cotação selecionada com sucesso!', 'success');
+            // Recarregar as cotações para atualizar o status
+            const currentOrderId = document.getElementById('quotationsModal').dataset.orderId;
+            if (currentOrderId) {
+                loadQuotations(currentOrderId);
+            }
+        } else {
+            const error = await response.json();
+            showAlert(error.detail || 'Erro ao selecionar cotação', 'error');
+        }
+    } catch (error) {
+        console.error('Erro ao selecionar cotação:', error);
+        showAlert('Erro de conexão ao selecionar cotação', 'error');
+    }
+}
+
+async function deleteQuotation(quotationId) {
+    if (!confirm('Tem certeza que deseja excluir esta cotação?')) {
+        return;
+    }
+
+    try {
+        const response = await fetch(`/api/warehouse/quotations/${quotationId}`, {
+            method: 'DELETE'
+        });
+
+        if (response.ok) {
+            showAlert('Cotação excluída com sucesso!', 'success');
+            // Recarregar as cotações
+            const currentOrderId = document.getElementById('quotationsModal').dataset.orderId;
+            if (currentOrderId) {
+                loadQuotations(currentOrderId);
+            }
+        } else {
+            const error = await response.json();
+            showAlert(error.detail || 'Erro ao excluir cotação', 'error');
+        }
+    } catch (error) {
+        console.error('Erro ao excluir cotação:', error);
+        showAlert('Erro de conexão ao excluir cotação', 'error');
+    }
+}
+
+function viewOrder(orderId) {
+    // Redirecionar para página de detalhes do pedido ou abrir modal
+    window.location.href = `/warehouse/purchase_orders/${orderId}`;
+}
+
+async function generateOrderPDF(orderId) {
+    try {
+        const response = await fetch(`/api/warehouse/purchase-orders/${orderId}/pdf`);
+        
+        if (response.ok) {
+            const blob = await response.blob();
+            const url = window.URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `pedido_compra_${orderId}.pdf`;
+            document.body.appendChild(a);
+            a.click();
+            window.URL.revokeObjectURL(url);
+            document.body.removeChild(a);
+            showAlert('PDF gerado com sucesso!', 'success');
+        } else {
+            const error = await response.json();
+            showAlert(error.detail || 'Erro ao gerar PDF', 'error');
+        }
+    } catch (error) {
+        console.error('Erro ao gerar PDF:', error);
+        showAlert('Erro de conexão ao gerar PDF', 'error');
+    }
+}
+
+function showAlert(message, type = 'info') {
+    // Criar um toast Bootstrap para melhor UX
+    const toastContainer = document.getElementById('toastContainer') || createToastContainer();
+    
+    const toastId = 'toast_' + Date.now();
+    const bgClass = type === 'success' ? 'bg-success' : type === 'error' ? 'bg-danger' : 'bg-info';
+    const icon = type === 'success' ? 'bi-check-circle' : type === 'error' ? 'bi-exclamation-triangle' : 'bi-info-circle';
+    
+    const toastHTML = `
+        <div id="${toastId}" class="toast ${bgClass} text-white" role="alert" aria-live="assertive" aria-atomic="true">
+            <div class="toast-header ${bgClass} text-white border-0">
+                <i class="bi ${icon} me-2"></i>
+                <strong class="me-auto">Sistema</strong>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="toast" aria-label="Close"></button>
+            </div>
+            <div class="toast-body">
+                ${message}
+            </div>
+        </div>
+    `;
+    
+    toastContainer.insertAdjacentHTML('beforeend', toastHTML);
+    
+    const toastElement = document.getElementById(toastId);
+    const toast = new bootstrap.Toast(toastElement, {
+        autohide: true,
+        delay: 5000
+    });
+    
+    toast.show();
+    
+    // Remover o toast do DOM após ser ocultado
+    toastElement.addEventListener('hidden.bs.toast', function() {
+        toastElement.remove();
+    });
+}
+
+function createToastContainer() {
+    const container = document.createElement('div');
+    container.id = 'toastContainer';
+    container.className = 'toast-container position-fixed top-0 end-0 p-3';
+    container.style.zIndex = '1055';
+    document.body.appendChild(container);
+    return container;
+}
+</script>
+{% endblock %}

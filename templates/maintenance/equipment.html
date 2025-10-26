@@ -1,0 +1,1417 @@
+{% extends "base.html" %}
+
+{% block page_title %}Equipamentos{% endblock %}
+{% block breadcrumb_title %}Equipamentos{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <!-- Status de carregamento -->
+    <div id="loadingStatus" class="alert alert-info">
+        <i class="bi bi-hourglass-split"></i> Carregando equipamentos...
+    </div>
+
+    <!-- Lista de Equipamentos -->
+    <div class="card shadow-sm">
+        <div class="card-header d-flex justify-content-between align-items-center">
+            <h5 class="mb-0">Lista de Equipamentos</h5>
+            <button type="button" class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#equipmentModal">
+                <i class="fas fa-plus"></i> Adicionar Equipamento
+            </button>
+        </div>
+        <div class="card-body p-0">
+            <div class="table-responsive">
+                <table class="table table-striped mb-0" id="equipmentTable">
+                    <thead class="table-dark">
+                            <tr>
+                                <th>ID</th>
+                                <th>Equipamento</th>
+                                <th>Nome</th>
+                                <th>Modelo</th>
+                                <th>Fabricante</th>
+                                <th>Status</th>
+                                <th>Classe</th>
+                                <th>Horímetro</th>
+                                <th>Localização</th>
+                                <th>Ações</th>
+                            </tr>
+                        </thead>
+                    <tbody id="equipmentTableBody">
+                        <tr>
+                            <td colspan="9" class="text-center py-4 text-muted">
+                                <i class="bi bi-gear fs-2 d-block mb-2"></i>
+                                Carregando equipamentos...
+                            </td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Modal para adicionar/editar equipamento -->
+<div class="modal fade" id="equipmentModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="equipmentModalLabel">Adicionar Equipamento</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <form id="equipmentForm">
+                    <input type="hidden" id="equipmentId" value="">
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label for="equipmentPrefix" class="form-label">Prefixo *</label>
+                                <input type="text" class="form-control" id="equipmentPrefix" required>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label for="equipmentName" class="form-label">Nome *</label>
+                                <input type="text" class="form-control" id="equipmentName" required>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label for="equipmentModel" class="form-label">Modelo</label>
+                                <input type="text" class="form-control" id="equipmentModel">
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label for="equipmentManufacturer" class="form-label">Fabricante</label>
+                                <input type="text" class="form-control" id="equipmentManufacturer">
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="row">
+                        <div class="col-md-4">
+                            <div class="mb-3">
+                                <label for="equipmentYear" class="form-label">Ano</label>
+                                <input type="number" class="form-control" id="equipmentYear" min="1900" max="2030">
+                            </div>
+                        </div>
+                        <div class="col-md-8">
+                            <div class="mb-3">
+                                <label for="equipmentSerial" class="form-label">Número de Série</label>
+                                <input type="text" class="form-control" id="equipmentSerial">
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label for="equipmentMobilizationDate" class="form-label">Data de Mobilização</label>
+                                <input type="date" class="form-control" id="equipmentMobilizationDate">
+                                <div class="form-text">Data de chegada ao canteiro</div>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label for="equipmentInitialHorimeter" class="form-label">Horímetro Inicial</label>
+                                <input type="number" class="form-control" id="equipmentInitialHorimeter" step="0.1" min="0">
+                                <div class="form-text">Horímetro na mobilização (horas)</div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label for="equipmentLocation" class="form-label">Localização</label>
+                                <input type="text" class="form-control" id="equipmentLocation">
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label for="equipmentCostCenter" class="form-label">Centro de Custo</label>
+                                <input type="text" class="form-control" id="equipmentCostCenter" list="costCenterOptions">
+                                <datalist id="costCenterOptions">
+                                    <option value="55000001001">Produção</option>
+                                    <option value="55000002001">Qualidade</option>
+                                    <option value="55000003001">Segurança (SESMT)</option>
+                                    <option value="55000004001">Manutenção</option>
+                                    <option value="55000005001">Logística</option>
+                                    <option value="55000006001">Recursos Humanos (RH)</option>
+                                    <option value="55000007001">Financeiro</option>
+                                    <option value="55000008001">Comercial/Vendas</option>
+                                    <option value="55000009001">Tecnologia da Informação (TI)</option>
+                                    <option value="55000010001">Engenharia</option>
+                                    <option value="55000011001">Almoxarifado</option>
+                                    <option value="55000012001">Compras</option>
+                                    <option value="55000013001">Jurídico</option>
+                                    <option value="55000014001">Marketing</option>
+                                    <option value="55000015001">Pesquisa e Desenvolvimento</option>
+                                    <option value="55000016001">Atendimento ao Cliente</option>
+                                    <option value="55000017001">Planejamento Estratégico</option>
+                                    <option value="55000018001">Expedição</option>
+                                    <option value="55000019001">Facilities/Serviços Gerais</option>
+                                    <option value="55000020001">Sustentabilidade/Meio Ambiente</option>
+                                </datalist>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label for="equipmentClass" class="form-label">Classe</label>
+                                <select class="form-select" id="equipmentClass">
+                                    <option value="">Selecione a classe</option>
+                                    <option value="linha_amarela">Linha Amarela</option>
+                                    <option value="linha_branca">Linha Branca</option>
+                                    <option value="linha_verde">Linha Verde</option>
+                                    <option value="linha_azul">Linha Azul</option>
+                                    <option value="linha_cinza_preta">Linha Cinza/Preta</option>
+                                    <option value="linha_vermelha">Linha Vermelha</option>
+                                </select>
+                                <div class="form-text">Define a cor da linha na tabela</div>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label for="equipmentStatus" class="form-label">Status</label>
+                                <select class="form-select" id="equipmentStatus">
+                                    <option value="">Selecione o status</option>
+                                    <option value="ativo">Ativo</option>
+                                    <option value="inativo">Inativo</option>
+                                    <option value="manutencao">Em Manutenção</option>
+                                    <option value="operacional">Operacional</option>
+                                </select>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Frota: Própria/Terceirizada -->
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label class="form-label">Frota</label>
+                                <div class="d-flex align-items-center gap-4">
+                                    <div class="form-check">
+                                        <input class="form-check-input" type="radio" name="equipmentFleet" id="fleetOwn" value="Propria">
+                                        <label class="form-check-label" for="fleetOwn">Própria</label>
+                                    </div>
+                                    <div class="form-check">
+                                        <input class="form-check-input" type="radio" name="equipmentFleet" id="fleetThird" value="Terceirizada">
+                                        <label class="form-check-label" for="fleetThird">Terceirizada</label>
+                                    </div>
+                                </div>
+                                <div class="form-text">Selecione o tipo de frota do equipamento</div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- CNPJ e Nome da Empresa -->
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label for="equipmentCNPJ" class="form-label">CNPJ</label>
+                                <div class="input-group">
+                                    <span class="input-group-text"><i class="fas fa-id-card"></i></span>
+                                    <input type="text" class="form-control" id="equipmentCNPJ" placeholder="00.000.000/0000-00" maxlength="18" autocomplete="off">
+                                    <span class="input-group-text bg-light" id="cnpjStatus" title="Status" style="display:none;">
+                                        <i class="fas fa-spinner fa-spin" id="cnpjSpinner" style="display:none;"></i>
+                                        <i class="fas fa-check text-success" id="cnpjOk" style="display:none;"></i>
+                                        <i class="fas fa-times text-danger" id="cnpjError" style="display:none;"></i>
+                                    </span>
+                                </div>
+                                <div class="form-text">Digite o CNPJ para validar e preencher o nome.</div>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label for="equipmentCompanyLegalName" class="form-label">Nome da Empresa</label>
+                                <input type="text" class="form-control" id="equipmentCompanyLegalName" placeholder="Razão Social" readonly>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label for="equipmentCategory" class="form-label">Categoria</label>
+                                <select class="form-select" id="equipmentCategory">
+                                    <option value="">Selecione a categoria</option>
+                                    <option value="Escavadeira Hidraulica">Escavadeira Hidraulica</option>
+                                    <option value="Retroescavadeira">Retroescavadeira</option>
+                                    <option value="Pá carregadeira">Pá carregadeira</option>
+                                    <option value="Rolo compactador">Rolo compactador</option>
+                                    <option value="Motoniveladora">Motoniveladora</option>
+                                    <option value="Perfuratriz">Perfuratriz</option>
+                                    <option value="Betoneira">Betoneira</option>
+                                    <option value="Usina de asfalto">Usina de asfalto</option>
+                                    <option value="Caminhões">Caminhões</option>
+                                    <option value="Tratores">Tratores</option>
+                                    <option value="Outros">Outros</option>
+                                </select>
+                                <div class="form-text">Tipo específico do equipamento</div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- Franquia Mensal -->
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label for="equipmentMonthlyQuota" class="form-label">Franquia Mensal (horas)</label>
+                                <input type="number" class="form-control" id="equipmentMonthlyQuota" step="0.1" min="0" placeholder="Ex.: 180">
+                                <div class="form-text">Horas previstas de uso por mês (ex.: 180, 220)</div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label for="equipmentDescription" class="form-label">Descrição</label>
+                        <textarea class="form-control" id="equipmentDescription" rows="3"></textarea>
+                    </div>
+
+                    <!-- Geração de Planos de Manutenção desativada: planos serão criados manualmente -->
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                <button type="button" class="btn btn-primary" onclick="saveEquipment()">Salvar</button>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+console.log('Script de equipamentos carregado!');
+
+// Utilitários CNPJ
+function onlyDigits(str) {
+    return (str || '').replace(/\D+/g, '');
+}
+function formatCNPJ(digits) {
+    const d = onlyDigits(digits).slice(0, 14);
+    if (d.length <= 2) return d;
+    if (d.length <= 5) return d.replace(/(\d{2})(\d+)/, '$1.$2');
+    if (d.length <= 8) return d.replace(/(\d{2})(\d{3})(\d+)/, '$1.$2.$3');
+    if (d.length <= 12) return d.replace(/(\d{2})(\d{3})(\d{3})(\d{1,4})/, '$1.$2.$3/$4');
+    return d.replace(/(\d{2})(\d{3})(\d{3})(\d{4})(\d{1,2}).*/, '$1.$2.$3/$4-$5');
+}
+function debounce(fn, wait) {
+    let t;
+    return function(...args) {
+        clearTimeout(t);
+        t = setTimeout(() => fn.apply(this, args), wait);
+    };
+}
+function updateCNPJStatus(state) {
+    const statusEl = document.getElementById('cnpjStatus');
+    const spinner = document.getElementById('cnpjSpinner');
+    const ok = document.getElementById('cnpjOk');
+    const err = document.getElementById('cnpjError');
+    if (!statusEl) return;
+    const hide = el => { if (el) el.style.display = 'none'; };
+    hide(spinner); hide(ok); hide(err);
+    if (state === 'loading') {
+        statusEl.style.display = '';
+        if (spinner) spinner.style.display = '';
+    } else if (state === 'ok') {
+        statusEl.style.display = '';
+        if (ok) ok.style.display = '';
+    } else if (state === 'error') {
+        statusEl.style.display = '';
+        if (err) err.style.display = '';
+    } else {
+        statusEl.style.display = 'none';
+    }
+}
+
+const debouncedValidateCNPJ = debounce(async (digits) => {
+    try {
+        updateCNPJStatus('loading');
+        const resp = await fetch(`/maintenance/equipment/validate-cnpj?cnpj=${digits}`);
+        const data = await resp.json();
+        if (data && data.valid) {
+            document.getElementById('equipmentCompanyLegalName').value = data.company_name || '';
+            updateCNPJStatus('ok');
+        } else {
+            updateCNPJStatus('error');
+            document.getElementById('equipmentCompanyLegalName').value = '';
+            if (data && data.error) {
+                showAlert(data.error, 'warning');
+            }
+        }
+    } catch (e) {
+        console.error('Erro ao validar CNPJ:', e);
+        updateCNPJStatus('error');
+    }
+}, 600);
+
+function handleCNPJInput(e) {
+    const input = e.target;
+    const digits = onlyDigits(input.value).slice(0, 14);
+    input.value = formatCNPJ(digits);
+    if (digits.length === 14) {
+        debouncedValidateCNPJ(digits);
+    } else {
+        updateCNPJStatus('idle');
+        const nameField = document.getElementById('equipmentCompanyLegalName');
+        if (nameField) nameField.value = '';
+    }
+}
+
+document.addEventListener('DOMContentLoaded', function() {
+    console.log('DOM carregado, iniciando carregamento de equipamentos...');
+    loadEquipment();
+    
+    // Resetar modal quando abrir para novo equipamento
+    const equipmentModal = document.getElementById('equipmentModal');
+    equipmentModal.addEventListener('show.bs.modal', function (event) {
+        // Verificar se é modo de edição através de uma variável global
+        if (!window.isEditMode) {
+            // Modo de criação - resetar formulário
+            document.getElementById('equipmentModalLabel').textContent = 'Adicionar Equipamento';
+            document.getElementById('equipmentId').value = '';
+            document.getElementById('equipmentForm').reset();
+            updateCNPJStatus('idle');
+        }
+        // Resetar a variável após usar
+        window.isEditMode = false;
+    });
+
+    // Listener de CNPJ para máscara e validação remota
+    const cnpjInput = document.getElementById('equipmentCNPJ');
+    if (cnpjInput) {
+        cnpjInput.addEventListener('input', handleCNPJInput);
+    }
+
+});
+
+function loadEquipment() {
+    console.log('Função loadEquipment chamada');
+    
+    const loadingStatus = document.getElementById('loadingStatus');
+    const tbody = document.getElementById('equipmentTableBody');
+    
+    console.log('Elementos encontrados:', {
+        loadingStatus: !!loadingStatus,
+        tbody: !!tbody
+    });
+    
+    // Fazer requisição para a API
+    fetch('/maintenance/equipment/list')
+        .then(response => {
+            console.log('Resposta recebida:', response.status, response.statusText);
+            if (!response.ok) {
+                throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+            }
+            return response.json();
+        })
+        .then(data => {
+            console.log('Dados recebidos:', data);
+            
+            // Esconder status de carregamento
+            if (loadingStatus) {
+                loadingStatus.style.display = 'none';
+            }
+            
+            // Limpar tbody
+            tbody.innerHTML = '';
+            
+            if (!data || data.length === 0) {
+                console.log('Nenhum equipamento encontrado');
+                tbody.innerHTML = `
+                    <tr>
+                        <td colspan="9" class="text-center py-4 text-muted">
+                            <i class="bi bi-gear fs-2 d-block mb-2"></i>
+                            Nenhum equipamento encontrado
+                        </td>
+                    </tr>
+                `;
+                return;
+            }
+            
+            console.log(`Exibindo ${data.length} equipamentos`);
+            
+            // Adicionar cada equipamento
+            data.forEach((equipment, index) => {
+                console.log(`Processando equipamento ${index + 1}: ${equipment.name || 'Sem nome'} (ID: ${equipment.id})`);
+                
+                const currentHorimeter = equipment.current_horimeter || equipment.initial_horimeter || 0;
+                const horimeterDisplay = equipment.initial_horimeter ? 
+                    `${currentHorimeter.toFixed(1)}h` : 
+                    'Não definido';
+                
+                const row = document.createElement('tr');
+                
+                // Aplicar cor da linha baseada na classe (expandido)
+                const classMap = {
+                    'linha_amarela': { label: 'Linha Amarela', badge: 'warning', row: '#fff3cd' },
+                    'linha_branca': { label: 'Linha Branca', badge: 'light text-dark', row: '#f8f9fa' },
+                    'linha_verde': { label: 'Linha Verde', badge: 'success', row: '#d4edda' },
+                    'linha_azul': { label: 'Linha Azul', badge: 'primary', row: '#cfe2ff' },
+                    'linha_cinza_preta': { label: 'Linha Cinza/Preta', badge: 'secondary', row: '#e2e3e5' },
+                    'linha_vermelha': { label: 'Linha Vermelha', badge: 'danger', row: '#f8d7da' }
+                };
+                const classInfo = classMap[equipment.equipment_class];
+                if (classInfo && classInfo.row) {
+                    row.style.backgroundColor = classInfo.row;
+                }
+                
+                row.innerHTML = `
+                    <td>${equipment.id || 'N/A'}</td>
+                    <td><strong>${equipment.prefix || equipment.codigo || 'N/A'}</strong></td>
+                    <td>${equipment.name || equipment.nome || 'N/A'}</td>
+                    <td>${equipment.model || equipment.modelo || 'N/A'}</td>
+                    <td>${equipment.manufacturer || equipment.fabricante || 'N/A'}</td>
+                    <td>
+                        <span class="badge bg-${getStatusColor(equipment.status)}">
+                            ${equipment.status || 'N/A'}
+                        </span>
+                    </td>
+                    <td>
+                        ${equipment.equipment_class ? 
+                            (() => { 
+                                const cls = equipment.equipment_class;
+                                const label = cls === 'linha_amarela' ? 'Linha Amarela' :
+                                              cls === 'linha_branca' ? 'Linha Branca' :
+                                              cls === 'linha_verde' ? 'Linha Verde' :
+                                              cls === 'linha_azul' ? 'Linha Azul' :
+                                              cls === 'linha_cinza_preta' ? 'Linha Cinza/Preta' :
+                                              cls === 'linha_vermelha' ? 'Linha Vermelha' : cls;
+                                const badge = cls === 'linha_amarela' ? 'warning' :
+                                              cls === 'linha_branca' ? 'light text-dark' :
+                                              cls === 'linha_verde' ? 'success' :
+                                              cls === 'linha_azul' ? 'primary' :
+                                              cls === 'linha_cinza_preta' ? 'secondary' :
+                                              cls === 'linha_vermelha' ? 'danger' : 'secondary';
+                                return `<span class=\"badge bg-${badge}\">${label}</span>`;
+                            })() : 
+                            '<span class=\"text-muted\">Não definida</span>'
+                        }
+                    </td>
+                    <td>
+                        <div class="d-flex flex-column">
+                            <span class="fw-bold">${horimeterDisplay}</span>
+                            ${equipment.mobilization_date ? 
+                                `<small class="text-muted">Desde: ${new Date(equipment.mobilization_date).toLocaleDateString('pt-BR')}</small>` : 
+                                '<small class="text-muted">Não mobilizado</small>'
+                            }
+                        </div>
+                    </td>
+                    <td>${equipment.location || equipment.localizacao || 'N/A'}</td>
+                    <td>
+                        <div class="btn-group btn-group-sm" role="group">
+                            <button type="button" class="btn btn-outline-primary" onclick="editEquipment(${equipment.id})" title="Editar" aria-label="Editar equipamento">
+                                <i class="fas fa-edit"></i>
+                            </button>
+                            <button type="button" class="btn btn-outline-secondary" onclick="viewTechnicalProfile(${equipment.id})" title="Perfil Técnico" aria-label="Perfil técnico">
+                                <i class="fas fa-clipboard-list"></i>
+                            </button>
+                            <button type="button" class="btn btn-outline-info" onclick="viewHorimeterHistory(${equipment.id})" title="Histórico de Horímetro" aria-label="Ver histórico de horímetro">
+                                <i class="fas fa-clock"></i>
+                            </button>
+                            <button type="button" class="btn btn-outline-success" onclick="addHorimeterEntry(${equipment.id})" title="Lançar Horímetro" aria-label="Lançar horímetro">
+                                <i class="fas fa-plus"></i>
+                            </button>
+                            <button type="button" class="btn btn-outline-danger" onclick="deleteEquipment(${equipment.id}, '${equipment.name}')" title="Excluir" aria-label="Excluir equipamento">
+                                <i class="fas fa-trash"></i>
+                            </button>
+                        </div>
+                    </td>
+                `;
+                tbody.appendChild(row);
+            });
+            
+            console.log('Equipamentos adicionados à tabela com sucesso');
+        })
+        .catch(error => {
+            console.error('Erro ao carregar equipamentos:', error);
+            
+            // Esconder status de carregamento
+            if (loadingStatus) {
+                loadingStatus.style.display = 'none';
+            }
+            
+            // Mostrar erro
+            tbody.innerHTML = `
+                <tr>
+                    <td colspan="9" class="text-center py-4 text-danger">
+                        <i class="bi bi-exclamation-triangle fs-2 d-block mb-2"></i>
+                        Erro ao carregar equipamentos: ${error.message}
+                    </td>
+                </tr>
+            `;
+        });
+}
+
+function getStatusColor(status) {
+    switch(status) {
+        case 'Ativo': return 'success';
+        case 'Inativo': return 'secondary';
+        case 'Manutenção': return 'warning';
+        case 'Quebrado': return 'danger';
+        default: return 'primary';
+    }
+}
+
+function saveEquipment() {
+    const form = document.getElementById('equipmentForm');
+    const equipmentId = document.getElementById('equipmentId').value;
+    const isEdit = equipmentId && equipmentId !== '';
+    
+    
+    const equipmentData = {
+        prefix: document.getElementById('equipmentPrefix').value,
+        name: document.getElementById('equipmentName').value,
+        model: document.getElementById('equipmentModel').value,
+        manufacturer: document.getElementById('equipmentManufacturer').value,
+        year: document.getElementById('equipmentYear').value ? parseInt(document.getElementById('equipmentYear').value) : null,
+        serial_number: document.getElementById('equipmentSerial').value,
+        mobilization_date: document.getElementById('equipmentMobilizationDate').value,
+        initial_horimeter: document.getElementById('equipmentInitialHorimeter').value ? parseFloat(document.getElementById('equipmentInitialHorimeter').value) : null,
+        location: document.getElementById('equipmentLocation').value,
+        cost_center: document.getElementById('equipmentCostCenter').value,
+        equipment_class: document.getElementById('equipmentClass').value,
+        category: document.getElementById('equipmentCategory').value,
+        fleet: (document.querySelector('input[name="equipmentFleet"]:checked') ? document.querySelector('input[name="equipmentFleet"]:checked').value : null),
+        cnpj: onlyDigits(document.getElementById('equipmentCNPJ').value) || null,
+        company_legal_name: document.getElementById('equipmentCompanyLegalName').value,
+        monthly_quota: document.getElementById('equipmentMonthlyQuota').value ? parseFloat(document.getElementById('equipmentMonthlyQuota').value) : null,
+        status: document.getElementById('equipmentStatus').value,
+        description: document.getElementById('equipmentDescription').value
+    };
+    
+    // Remover campos vazios
+    Object.keys(equipmentData).forEach(key => {
+        if (equipmentData[key] === '' || equipmentData[key] === null) {
+            delete equipmentData[key];
+        }
+    });
+    
+    const url = isEdit ? `/maintenance/equipment/${equipmentId}` : '/maintenance/equipment';
+    const method = isEdit ? 'PUT' : 'POST';
+    
+    fetch(url, {
+        method: method,
+        headers: {
+            'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(equipmentData)
+    })
+    .then(async response => {
+        const ct = response.headers.get('content-type') || '';
+        let payload;
+        try {
+            payload = ct.includes('application/json') ? await response.json() : await response.text();
+        } catch (_) {
+            payload = await response.text();
+        }
+        if (!response.ok) {
+            const msg = typeof payload === 'string' ? payload : (payload.detail || payload.message || `Erro ao ${isEdit ? 'atualizar' : 'criar'} equipamento`);
+            throw new Error(msg);
+        }
+        return payload;
+    })
+    .then(async (data) => {
+        console.log(`Equipamento ${isEdit ? 'atualizado' : 'criado'}:`, data);
+        // Fechar modal e limpar formulário após o pós-processamento
+        const modal = bootstrap.Modal.getInstance(document.getElementById('equipmentModal'));
+        modal && modal.hide();
+        loadEquipment();
+        form.reset();
+        document.getElementById('equipmentId').value = '';
+        showAlert(`Equipamento ${isEdit ? 'atualizado' : 'criado'} com sucesso!`, 'success');
+    })
+    .catch(error => {
+        console.error(`Erro ao ${isEdit ? 'atualizar' : 'criar'} equipamento:`, error);
+        const msg = (error && error.message) ? error.message : (error && error.detail) ? error.detail : `Erro ao ${isEdit ? 'atualizar' : 'criar'} equipamento`;
+        showAlert(msg, 'danger');
+    });
+}
+
+function editEquipment(equipmentId) {
+    console.log('Editar equipamento:', equipmentId);
+    
+    // Definir que estamos em modo de edição
+    window.isEditMode = true;
+    
+    // Buscar dados do equipamento
+    fetch(`/maintenance/equipment/${equipmentId}`)
+        .then(response => {
+            if (!response.ok) {
+                throw new Error('Equipamento não encontrado');
+            }
+            return response.json();
+        })
+        .then(equipment => {
+            console.log('Dados do equipamento carregados:', equipment);
+            
+            // Preencher formulário com todos os dados
+            document.getElementById('equipmentId').value = equipment.id || '';
+            document.getElementById('equipmentPrefix').value = equipment.prefix || '';
+            document.getElementById('equipmentName').value = equipment.name || '';
+            document.getElementById('equipmentModel').value = equipment.model || '';
+            document.getElementById('equipmentManufacturer').value = equipment.manufacturer || '';
+            document.getElementById('equipmentYear').value = equipment.year || '';
+            document.getElementById('equipmentSerial').value = equipment.serial_number || '';
+            document.getElementById('equipmentMobilizationDate').value = equipment.mobilization_date ? equipment.mobilization_date.split('T')[0] : '';
+            document.getElementById('equipmentInitialHorimeter').value = equipment.initial_horimeter || '';
+            document.getElementById('equipmentLocation').value = equipment.location || '';
+            document.getElementById('equipmentCostCenter').value = equipment.cost_center || '';
+            document.getElementById('equipmentClass').value = equipment.equipment_class || '';
+            document.getElementById('equipmentCategory').value = equipment.category || '';
+            // CNPJ e razão social
+            try {
+                const cnpjDigits = (equipment.cnpj || '').toString();
+                document.getElementById('equipmentCNPJ').value = formatCNPJ(onlyDigits(cnpjDigits));
+                document.getElementById('equipmentCompanyLegalName').value = equipment.company_legal_name || '';
+                updateCNPJStatus('idle');
+            } catch (e) {
+                console.warn('Falha ao preencher CNPJ:', e);
+            }
+            // Selecionar frota se existir
+            try {
+                const fleetVal = equipment.fleet || '';
+                const radios = document.querySelectorAll('input[name="equipmentFleet"]');
+                radios.forEach(r => r.checked = false);
+                if (fleetVal) {
+                    const radio = document.querySelector(`input[name="equipmentFleet"][value="${fleetVal}"]`);
+                    if (radio) radio.checked = true;
+                }
+            } catch (e) {
+                console.warn('Falha ao preencher frota:', e);
+            }
+            document.getElementById('equipmentMonthlyQuota').value = equipment.monthly_quota || '';
+            document.getElementById('equipmentStatus').value = equipment.status || '';
+            document.getElementById('equipmentDescription').value = equipment.description || '';
+            
+            // Definir título do modal para edição
+            document.getElementById('equipmentModalLabel').textContent = 'Editar Equipamento';
+            
+            // Abrir modal
+            const modal = new bootstrap.Modal(document.getElementById('equipmentModal'));
+            modal.show();
+        })
+        .catch(error => {
+            console.error('Erro ao carregar equipamento:', error);
+            showAlert('Erro ao carregar dados do equipamento', 'danger');
+            // Resetar modo de edição em caso de erro
+            window.isEditMode = false;
+        });
+}
+
+function viewHorimeterHistory(equipmentId) {
+    console.log('Ver histórico de horímetro:', equipmentId);
+    
+    // Buscar histórico de horímetro
+    fetch(`/api/maintenance/equipment/${equipmentId}/horimeter/history`)
+        .then(response => {
+            if (!response.ok) {
+                throw new Error('Erro ao carregar histórico');
+            }
+            return response.json();
+        })
+        .then(data => {
+            console.log('Histórico de horímetro carregado:', data);
+            
+            // Criar modal de histórico
+            const historyModal = document.createElement('div');
+            historyModal.className = 'modal fade';
+            historyModal.id = 'horimeterHistoryModal';
+            
+            let historyTableRows = '';
+            if (data.logs && data.logs.length > 0) {
+                historyTableRows = data.logs.map(log => `
+                    <tr>
+                        <td>${new Date(log.recorded_at).toLocaleDateString('pt-BR')}</td>
+                        <td>${data.equipment_prefix}</td>
+                        <td class="text-end">${((log.new_value != null ? log.new_value : (log.previous_value != null ? log.previous_value : 0))).toFixed(1)} h</td>
+                        <td class="text-end ${((log.difference != null ? log.difference : 0) >= 0) ? 'text-success' : 'text-danger'}">${((log.difference != null ? log.difference : 0) >= 0 ? '+' : '')}${(log.difference != null ? log.difference : 0).toFixed(1)} h</td>
+                        <td>${log.recorded_by || 'N/A'}</td>
+                        <td>
+                            ${log.source === 'fueling' 
+                                ? '<span class="badge bg-warning text-dark"><i class="fas fa-gas-pump me-1"></i>Abastecimento</span>' 
+                                : (log.source === 'work_order' 
+                                    ? '<span class="badge bg-secondary"><i class="fas fa-tools me-1"></i>Ordem de Serviço</span>' 
+                                    : '<span class="badge bg-primary"><i class="fas fa-clock me-1"></i>Leitura</span>')}
+                        </td>
+                        <td>${log.notes || '-'}</td>
+                    </tr>
+                `).join('');
+            } else {
+                historyTableRows = `
+                    <tr>
+                        <td colspan="7" class="text-center text-muted py-4">
+                            <i class="fas fa-clock fa-2x mb-2"></i><br>
+                            Nenhum registro de horímetro encontrado
+                        </td>
+                    </tr>
+                `;
+            }
+            
+            historyModal.innerHTML = `
+                <div class="modal-dialog modal-xl">
+                    <div class="modal-content">
+                        <div class="modal-header bg-info text-white">
+                            <h5 class="modal-title">
+                                <i class="fas fa-clock me-2"></i>
+                                Histórico de Horímetro - ${data.equipment_prefix}
+                                <small class="ms-2 opacity-75">(Horímetro Inicial: ${data.initial_horimeter.toFixed(1)}h)</small>
+                            </h5>
+                            <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+                        </div>
+                        <div class="modal-body">
+                            <!-- Informações do Equipamento -->
+                            <div class="row mb-4">
+                                <div class="col-md-6">
+                                    <div class="card border-primary">
+                                        <div class="card-body">
+                                            <h6 class="card-title text-primary">
+                                                <i class="fas fa-tools me-2"></i>Equipamento
+                                            </h6>
+                                            <p class="card-text mb-1">
+                                                <strong>Prefixo:</strong> ${data.equipment_prefix}
+                                            </p>
+                                            <p class="card-text mb-1">
+                                                <strong>Nome:</strong> ${data.equipment_name}
+                                            </p>
+                                            <p class="card-text mb-1">
+                                                <strong>Horímetro Inicial:</strong> ${data.initial_horimeter.toFixed(1)} horas
+                                            </p>
+                                            <p class="card-text mb-0">
+                                                <strong>Data de Mobilização:</strong> ${data.mobilization_date ? new Date(data.mobilization_date).toLocaleDateString('pt-BR') : 'Não informada'}
+                                            </p>
+                                        </div>
+                                    </div>
+                                </div>
+                                <div class="col-md-6">
+                                    <div class="card border-success">
+                                        <div class="card-body">
+                                            <h6 class="card-title text-success">
+                                                <i class="fas fa-chart-line me-2"></i>Estatísticas do Horímetro
+                                            </h6>
+                                            <p class="card-text mb-1">
+                                                <strong>Horímetro Atual:</strong> ${data.current_horimeter.toFixed(1)} horas
+                                            </p>
+                                            <p class="card-text mb-1">
+                                                <strong>Total Trabalhado:</strong> ${(data.current_horimeter - data.initial_horimeter).toFixed(1)} horas
+                                            </p>
+                                            <p class="card-text mb-1">
+                                                <strong>Total de Registros:</strong> ${data.total_logs}
+                                            </p>
+                                            <p class="card-text mb-0">
+                                                <strong>Período:</strong> ${data.logs && data.logs.length > 0 ? 
+                                                    `${new Date(data.logs[data.logs.length - 1].recorded_at).toLocaleDateString('pt-BR')} - ${new Date(data.logs[0].recorded_at).toLocaleDateString('pt-BR')}` : 
+                                                    'N/A'
+                                                }
+                                            </p>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            <!-- Tabela de Histórico -->
+                            <div class="table-responsive">
+                                <table class="table table-striped table-hover">
+                                    <thead class="table-dark">
+                                        <tr>
+                                            <th><i class="fas fa-calendar me-1"></i>Data da Leitura</th>
+                                            <th><i class="fas fa-tag me-1"></i>Prefixo do Equipamento</th>
+                                            <th class="text-end"><i class="fas fa-clock me-1"></i>Horímetro Registrado</th>
+                                            <th class="text-end"><i class="fas fa-plus me-1"></i>Horas Trabalhadas</th>
+                                            <th><i class="fas fa-user me-1"></i>Registrado por</th>
+                                            <th><i class="fas fa-share-alt me-1"></i>Origem</th>
+                                            <th><i class="fas fa-sticky-note me-1"></i>Observações</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        ${historyTableRows}
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                        <div class="modal-footer">
+                            <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">
+                                <i class="fas fa-times me-1"></i>Fechar
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            `;
+            
+            // Remover modal anterior se existir
+            const existingModal = document.getElementById('horimeterHistoryModal');
+            if (existingModal) {
+                existingModal.remove();
+            }
+            
+            // Adicionar modal ao DOM
+            document.body.appendChild(historyModal);
+            
+            // Mostrar modal
+            const modal = new bootstrap.Modal(historyModal);
+            modal.show();
+            
+            // Remover modal do DOM quando fechado
+            historyModal.addEventListener('hidden.bs.modal', () => {
+                historyModal.remove();
+            });
+        })
+        .catch(error => {
+            console.error('Erro ao carregar histórico de horímetro:', error);
+            showAlert('Erro ao carregar histórico de horímetro', 'danger');
+        });
+}
+
+function addHorimeterEntry(equipmentId) {
+    // Buscar informações do equipamento e horímetro atual
+    fetch(`/api/maintenance/equipment/${equipmentId}/horimeter`)
+        .then(response => response.json())
+        .then(data => {
+            if (data.detail) {
+                throw new Error(data.detail);
+            }
+            
+            // Criar modal de lançamento de horímetro
+            const horimeterModal = document.createElement('div');
+            horimeterModal.className = 'modal fade';
+            horimeterModal.id = 'horimeterModal';
+            
+            const isFirstEntry = !data.has_previous_logs;
+            const currentDate = new Date().toISOString().split('T')[0];
+            
+            horimeterModal.innerHTML = `
+                <div class="modal-dialog modal-lg">
+                    <div class="modal-content">
+                        <div class="modal-header bg-primary text-white">
+                            <h5 class="modal-title">
+                                <i class="fas fa-clock me-2"></i>
+                                Lançamento de Horímetro
+                            </h5>
+                            <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+                        </div>
+                        <div class="modal-body">
+                            <form id="horimeterForm">
+                                <!-- Informações do Equipamento -->
+                                <div class="row mb-3">
+                                    <div class="col-md-6">
+                                        <label class="form-label fw-bold">Equipamento:</label>
+                                        <div class="input-group">
+                                            <span class="input-group-text">
+                                                <i class="fas fa-tools"></i>
+                                            </span>
+                                            <input type="text" class="form-control" value="${data.equipment_prefix}" readonly>
+                                        </div>
+                                    </div>
+                                    <div class="col-md-6">
+                                        <label class="form-label fw-bold">Nome:</label>
+                                        <input type="text" class="form-control" value="${data.equipment_name}" readonly>
+                                    </div>
+                                </div>
+                                
+                                <!-- Horímetro Atual -->
+                                ${!isFirstEntry ? `
+                                <div class="alert alert-info">
+                                    <div class="row">
+                                        <div class="col-md-6">
+                                            <strong>Horímetro Atual:</strong> ${data.current_horimeter.toFixed(1)} horas
+                                        </div>
+                                        <div class="col-md-6">
+                                            <strong>Última Atualização:</strong> ${data.last_horimeter_update ? new Date(data.last_horimeter_update).toLocaleDateString('pt-BR') : 'N/A'}
+                                        </div>
+                                    </div>
+                                </div>
+                                ` : `
+                                <div class="alert alert-warning">
+                                    <i class="fas fa-info-circle me-2"></i>
+                                    <strong>Primeiro lançamento de horímetro para este equipamento</strong>
+                                </div>
+                                `}
+                                
+                                <!-- Data do Lançamento -->
+                                <div class="row mb-3">
+                                    <div class="col-md-6">
+                                        <label for="recordedDate" class="form-label fw-bold">
+                                            <i class="fas fa-calendar me-1"></i>
+                                            Data do Lançamento:
+                                        </label>
+                                        <input type="date" class="form-control" id="recordedDate" value="${currentDate}" required>
+                                    </div>
+                                    <div class="col-md-6">
+                                        <label for="recordedBy" class="form-label fw-bold">
+                                            <i class="fas fa-user me-1"></i>
+                                            Responsável:
+                                        </label>
+                                        <input type="text" class="form-control" id="recordedBy" placeholder="Nome do responsável" required>
+                                    </div>
+                                </div>
+                                
+                                <!-- Novo Valor do Horímetro -->
+                                <div class="row mb-3">
+                                    <div class="col-md-6">
+                                        <label for="newValue" class="form-label fw-bold">
+                                            <i class="fas fa-clock me-1"></i>
+                                            ${isFirstEntry ? 'Valor Inicial do Horímetro:' : 'Novo Valor do Horímetro:'}
+                                        </label>
+                                        <div class="input-group">
+                                            <input type="number" class="form-control" id="newValue" 
+                                                   step="0.1" min="${isFirstEntry ? '0' : data.current_horimeter + 0.1}" 
+                                                   placeholder="${isFirstEntry ? 'Ex: 1250.5' : 'Deve ser maior que ' + data.current_horimeter.toFixed(1)}" 
+                                                   required>
+                                            <span class="input-group-text">horas</span>
+                                        </div>
+                                        ${!isFirstEntry ? `
+                                        <small class="text-muted">
+                                            Valor deve ser maior que ${data.current_horimeter.toFixed(1)} horas
+                                        </small>
+                                        ` : ''}
+                                    </div>
+                                    <div class="col-md-6" id="differenceDisplay" class="hidden">
+                                        <label class="form-label fw-bold">
+                                            <i class="fas fa-plus me-1"></i>
+                                            Diferença:
+                                        </label>
+                                        <div class="input-group">
+                                            <input type="text" class="form-control bg-light" id="difference" readonly>
+                                            <span class="input-group-text">horas</span>
+                                        </div>
+                                    </div>
+                                </div>
+                                
+                                <!-- Observações -->
+                                <div class="mb-3">
+                                    <label for="notes" class="form-label fw-bold">
+                                        <i class="fas fa-sticky-note me-1"></i>
+                                        Observações:
+                                    </label>
+                                    <textarea class="form-control" id="notes" rows="3" 
+                                              placeholder="Observações sobre o lançamento (opcional)"></textarea>
+                                </div>
+                            </form>
+                        </div>
+                        <div class="modal-footer">
+                            <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">
+                                <i class="fas fa-times me-1"></i>
+                                Cancelar
+                            </button>
+                            <button type="button" id="horimeterSubmitBtn" class="btn btn-primary" onclick="submitHorimeterEntry(${equipmentId})">
+                                <i class="fas fa-save me-1"></i>
+                                Lançar Horímetro
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            `;
+            
+            // Adicionar modal ao DOM
+            document.body.appendChild(horimeterModal);
+            
+            // Configurar eventos
+            const newValueInput = document.getElementById('newValue');
+            const differenceInput = document.getElementById('difference');
+            const differenceDisplay = document.getElementById('differenceDisplay');
+            
+            // Calcular diferença em tempo real (apenas para lançamentos posteriores)
+            if (!isFirstEntry) {
+                newValueInput.addEventListener('input', function() {
+                    const newValue = parseFloat(this.value);
+                    if (!isNaN(newValue) && newValue > data.current_horimeter) {
+                        const diff = newValue - data.current_horimeter;
+                        differenceInput.value = diff.toFixed(1);
+                        differenceDisplay.style.display = 'block';
+                    } else {
+                        differenceDisplay.style.display = 'none';
+                    }
+                });
+            }
+            
+            // Mostrar modal
+            const modal = new bootstrap.Modal(horimeterModal);
+            modal.show();
+            
+            // Remover modal do DOM quando fechado
+            horimeterModal.addEventListener('hidden.bs.modal', function() {
+                document.body.removeChild(horimeterModal);
+            });
+            
+        })
+        .catch(error => {
+            console.error('Erro ao carregar informações do horímetro:', error);
+            showAlert('Erro ao carregar informações do equipamento', 'danger');
+        });
+}
+
+function deleteEquipment(equipmentId, equipmentName) {
+    // Criar modal de confirmação
+    const confirmModal = document.createElement('div');
+    confirmModal.className = 'modal fade';
+    confirmModal.id = 'deleteConfirmModal';
+    confirmModal.innerHTML = `
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header bg-danger text-white">
+                    <h5 class="modal-title">
+                        <i class="fas fa-exclamation-triangle me-2"></i>
+                        Confirmar Exclusão
+                    </h5>
+                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <p class="mb-3">
+                        <strong>Tem certeza que deseja excluir o equipamento:</strong>
+                    </p>
+                    <div class="alert alert-warning">
+                        <i class="fas fa-tools me-2"></i>
+                        <strong>${equipmentName}</strong>
+                    </div>
+                    <p class="text-danger mb-0">
+                        <i class="fas fa-exclamation-circle me-1"></i>
+                        Esta ação não pode ser desfeita!
+                    </p>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">
+                        <i class="fas fa-times me-1"></i>
+                        Cancelar
+                    </button>
+                    <button type="button" class="btn btn-danger" onclick="confirmDelete(${equipmentId})">
+                        <i class="fas fa-trash me-1"></i>
+                        Excluir Equipamento
+                    </button>
+                </div>
+            </div>
+        </div>
+    `;
+    
+    // Adicionar modal ao body
+    document.body.appendChild(confirmModal);
+    
+    // Mostrar modal
+    const modal = new bootstrap.Modal(confirmModal);
+    modal.show();
+    
+    // Remover modal do DOM quando fechado
+    confirmModal.addEventListener('hidden.bs.modal', () => {
+        confirmModal.remove();
+    });
+}
+
+function confirmDelete(equipmentId) {
+    // Fechar modal de confirmação
+    const modal = bootstrap.Modal.getInstance(document.getElementById('deleteConfirmModal'));
+    modal.hide();
+    
+    // Fazer requisição DELETE
+    fetch(`/maintenance/equipment/${equipmentId}`, {
+        method: 'DELETE',
+        headers: {
+            'Content-Type': 'application/json'
+        }
+    })
+    .then(async response => {
+        if (response.ok) {
+            return response.json();
+        } else {
+            // Tentar extrair a mensagem de erro do JSON
+            let errorMessage = `Erro ${response.status}: ${response.statusText}`;
+            try {
+                const errorData = await response.json();
+                console.log('Dados do erro:', JSON.stringify(errorData, null, 2));
+                errorMessage = errorData.detail || errorData.message || errorMessage;
+            } catch (parseError) {
+                console.log('Não foi possível fazer parse do JSON de erro, usando mensagem padrão');
+            }
+            throw new Error(errorMessage);
+        }
+    })
+    .then(data => {
+        showAlert('Equipamento excluído com sucesso!', 'success');
+        // Recarregar a lista de equipamentos
+        loadEquipment();
+    })
+    .catch(error => {
+        console.error('Erro ao excluir equipamento:', error);
+        const errorMessage = error.message || 'Erro ao excluir equipamento';
+        showAlert(errorMessage, 'danger');
+    });
+}
+
+function viewTechnicalProfile(equipmentId) {
+    // Remover modal existente, se houver
+    const existing = document.getElementById('technicalProfileModal');
+    if (existing) {
+        const inst = bootstrap.Modal.getInstance(existing);
+        if (inst) inst.hide();
+        existing.remove();
+    }
+
+    // Buscar perfil técnico
+    fetch(`/api/maintenance/equipment/${equipmentId}/technical-profile`)
+        .then(async response => {
+            if (!response.ok) {
+                let msg = `Erro ${response.status}: ${response.statusText}`;
+                try { const err = await response.json(); msg = err.detail || msg; } catch (_) {}
+                throw new Error(msg);
+            }
+            return response.json();
+        })
+        .then(data => {
+            const eq = data.equipment || {};
+            const profile = data.profile || {};
+            const summary = profile.summary || {};
+            const components = profile.components || {};
+            const maintenance = profile.maintenance || {};
+            const criticalPoints = Array.isArray(profile.critical_points) ? profile.critical_points : [];
+
+            const makeList = (arr) => (Array.isArray(arr) && arr.length ? arr.map(i => `<li>${i}</li>`).join('') : '<li class="text-muted">Não informado</li>');
+            const renderMaintenance = (section, title, icon) => {
+                if (!section) return '';
+                const actionsList = makeList(section.common_actions);
+                return `
+                    <div class="col-md-4 mb-3">
+                        <div class="card border-secondary h-100">
+                            <div class="card-header bg-light">
+                                <i class="${icon} me-2"></i>${title}
+                            </div>
+                            <div class="card-body">
+                                <p class="mb-2"><strong>Objetivo:</strong> ${section.objective || '—'}</p>
+                                ${section.frequency ? `<p class="mb-2"><strong>Frequência:</strong> ${section.frequency}</p>` : ''}
+                                <div class="mb-2"><strong>Ações Comuns:</strong><ul class="mb-0">${actionsList}</ul></div>
+                                ${section.benefit ? `<p class="text-success mb-1"><i class="fas fa-check-circle me-1"></i>${section.benefit}</p>` : ''}
+                                ${section.drawback ? `<p class="text-danger mb-0"><i class="fas fa-exclamation-circle me-1"></i>${section.drawback}</p>` : ''}
+                            </div>
+                        </div>
+                    </div>
+                `;
+            };
+
+            const electricalList = makeList(components.electrical);
+            const hydraulicList = makeList(components.hydraulic);
+            const powertrainList = makeList(components.powertrain);
+            const structuralList = makeList(components.structural);
+
+            const modal = document.createElement('div');
+            modal.className = 'modal fade';
+            modal.id = 'technicalProfileModal';
+            modal.innerHTML = `
+                <div class="modal-dialog modal-xl">
+                    <div class="modal-content">
+                        <div class="modal-header">
+                            <h5 class="modal-title">
+                                <i class="fas fa-clipboard-list me-2"></i>
+                                Perfil Técnico — ${summary.prefix || eq.prefix || ''} ${summary.name || eq.name || ''}
+                            </h5>
+                            <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                        </div>
+                        <div class="modal-body">
+                            <div class="row g-3">
+                                <div class="col-md-6">
+                                    <div class="card h-100">
+                                        <div class="card-header bg-light"><i class="fas fa-info-circle me-2"></i>Resumo</div>
+                                        <div class="card-body">
+                                            <div class="row">
+                                                <div class="col-6"><strong>Prefixo:</strong> ${summary.prefix || eq.prefix || '—'}</div>
+                                                <div class="col-6"><strong>Categoria:</strong> ${summary.category || eq.category || '—'}</div>
+                                                <div class="col-6"><strong>Modelo:</strong> ${summary.model || eq.model || '—'}</div>
+                                                <div class="col-6"><strong>Fabricante:</strong> ${summary.manufacturer || eq.manufacturer || '—'}</div>
+                                                <div class="col-6"><strong>Ano:</strong> ${summary.year || eq.year || '—'}</div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                                <div class="col-md-6">
+                                    <div class="card h-100">
+                                        <div class="card-header bg-light"><i class="fas fa-cubes me-2"></i>Componentes</div>
+                                        <div class="card-body">
+                                            <div class="row">
+                                                <div class="col-md-6"><strong>Elétrico</strong><ul>${electricalList}</ul></div>
+                                                <div class="col-md-6"><strong>Hidráulico</strong><ul>${hydraulicList}</ul></div>
+                                                <div class="col-md-6"><strong>Transmissão</strong><ul>${powertrainList}</ul></div>
+                                                <div class="col-md-6"><strong>Estrutural</strong><ul>${structuralList}</ul></div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="mt-3">
+                                <div class="card">
+                                    <div class="card-header bg-light"><i class="fas fa-wrench me-2"></i>Manutenção</div>
+                                    <div class="card-body">
+                                        <div class="row">
+                                            ${renderMaintenance(maintenance.preventive, 'Preventiva', 'fas fa-tools')}
+                                            ${renderMaintenance(maintenance.predictive, 'Preditiva', 'fas fa-chart-line')}
+                                            ${renderMaintenance(maintenance.corrective, 'Corretiva', 'fas fa-hammer')}
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="mt-3">
+                                <div class="card">
+                                    <div class="card-header bg-light"><i class="fas fa-exclamation-triangle me-2"></i>Pontos Críticos</div>
+                                    <div class="card-body">
+                                        ${criticalPoints.length ? `<ul class="mb-0">${criticalPoints.map(p => `<li>${p}</li>`).join('')}</ul>` : '<span class="text-muted">Nenhum ponto crítico informado</span>'}
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="modal-footer">
+                            <button type="button" class="btn btn-warning" onclick="regenerateEquipmentTechnicalProfile(${eq.id || equipmentId})">
+                                <i class="fas fa-sync-alt me-1"></i>Regenerar Perfil
+                            </button>
+                            <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">
+                                <i class="fas fa-times me-1"></i>Fechar
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            `;
+
+            document.body.appendChild(modal);
+            const bsModal = new bootstrap.Modal(modal);
+            bsModal.show();
+            modal.addEventListener('hidden.bs.modal', () => { modal.remove(); });
+        })
+        .catch(error => {
+            console.error('Erro ao carregar perfil técnico:', error);
+            showAlert(error.message || 'Erro ao carregar perfil técnico', 'danger');
+        });
+}
+
+function regenerateEquipmentTechnicalProfile(equipmentId) {
+    const regenBtn = document.querySelector('#technicalProfileModal .btn.btn-warning');
+    const original = regenBtn ? regenBtn.innerHTML : '';
+    if (regenBtn) { regenBtn.disabled = true; regenBtn.innerHTML = '<i class="fas fa-spinner fa-spin me-1"></i>Regenerando...'; }
+
+    fetch(`/api/maintenance/equipment/${equipmentId}/technical-profile/generate`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: '{}'
+    })
+    .then(async response => {
+        if (!response.ok) {
+            let errorMessage = `Erro ${response.status}: ${response.statusText}`;
+            try { const err = await response.json(); errorMessage = err.detail || errorMessage; } catch (_) {}
+            throw new Error(errorMessage);
+        }
+        return response.json();
+    })
+    .then(data => {
+        showAlert('Perfil técnico atualizado com sucesso.', 'success');
+        const existing = document.getElementById('technicalProfileModal');
+        if (existing) {
+            const inst = bootstrap.Modal.getInstance(existing);
+            if (inst) inst.hide();
+            existing.remove();
+        }
+        viewTechnicalProfile(equipmentId);
+    })
+    .catch(error => {
+        console.error('Erro ao regenerar perfil técnico:', error);
+        showAlert(error.message || 'Erro ao regenerar perfil técnico', 'danger');
+    })
+    .finally(() => {
+        if (regenBtn) { regenBtn.disabled = false; regenBtn.innerHTML = original; }
+    });
+}
+
+function submitHorimeterEntry(equipmentId) {
+    // Validar formulário
+    const newValue = document.getElementById('newValue').value;
+    const recordedDate = document.getElementById('recordedDate').value;
+    const recordedBy = document.getElementById('recordedBy').value;
+    const notes = document.getElementById('notes').value;
+    
+    if (!newValue || !recordedDate || !recordedBy) {
+        showAlert('Por favor, preencha todos os campos obrigatórios', 'warning');
+        return;
+    }
+    
+    if (parseFloat(newValue) <= 0) {
+        showAlert('O valor do horímetro deve ser maior que zero', 'warning');
+        return;
+    }
+    
+    // Preparar dados para envio
+    const horimeterData = {
+        new_value: parseFloat(newValue),
+        recorded_date: recordedDate + 'T12:00:00Z', // Adicionar horário padrão
+        recorded_by: recordedBy.trim(),
+        notes: notes.trim()
+    };
+    
+    // Desabilitar botão de envio
+    const submitButton = document.getElementById('horimeterSubmitBtn') || document.querySelector('#horimeterModal .btn.btn-primary');
+    const originalText = submitButton ? submitButton.innerHTML : '';
+    if (submitButton) {
+        submitButton.disabled = true;
+        submitButton.innerHTML = '<i class="fas fa-spinner fa-spin me-1"></i>Salvando...';
+    }
+    
+    // Enviar dados para API
+    fetch(`/api/maintenance/equipment/${equipmentId}/horimeter`, {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(horimeterData)
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.detail) {
+            throw new Error(data.detail);
+        }
+        
+        // Sucesso
+        showAlert(data.message || 'Horímetro lançado com sucesso!', 'success');
+
+        // Informar criação automática de OS preventiva, se houver
+        if (data.maintenance && data.maintenance.orders_created) {
+            const count = data.maintenance.orders_created;
+            const planName = data.maintenance.plan && data.maintenance.plan.name ? data.maintenance.plan.name : 'Plano por Horímetro';
+            showAlert(`${count} ordem(ns) de serviço preventiva criada(s) automaticamente (${planName}).`, 'success');
+        }
+        
+        // Fechar modal
+        const modal = bootstrap.Modal.getInstance(document.getElementById('horimeterModal'));
+        modal.hide();
+        
+        // Recarregar lista de equipamentos
+        loadEquipment();
+    })
+    .catch(error => {
+        console.error('Erro ao lançar horímetro:', error);
+        showAlert(error.message || 'Erro ao lançar horímetro', 'danger');
+        
+        // Reabilitar botão
+        if (submitButton) {
+            submitButton.disabled = false;
+            submitButton.innerHTML = originalText;
+        }
+    });
+}
+
+function showAlert(message, type) {
+    const alertDiv = document.createElement('div');
+    alertDiv.className = `alert alert-${type} alert-dismissible fade show`;
+    alertDiv.innerHTML = `
+        ${message}
+        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+    `;
+    
+    const container = document.querySelector('.container-fluid');
+    container.insertBefore(alertDiv, container.firstChild);
+    
+    // Auto-remover após 5 segundos
+    setTimeout(() => {
+        if (alertDiv.parentNode) {
+            alertDiv.remove();
+        }
+    }, 5000);
+}
+</script>
+{% endblock %}

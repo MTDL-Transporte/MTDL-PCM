@@ -1,0 +1,16 @@
+{% extends "base.html" %}
+{% block title %}Offline - MTDL-PCM{% endblock %}
+{% block page_title %}Modo Offline{% endblock %}
+{% block breadcrumb_title %}Offline{% endblock %}
+{% block content %}
+<div class="container py-4">
+  <div class="alert alert-warning d-flex align-items-center" role="alert">
+    <i class="bi bi-wifi-off me-2"></i>
+    <div>
+      Você está sem conexão. Conteúdos estáticos continuam disponíveis pelo cache.
+      Operações de envio serão enfileiradas e sincronizadas automaticamente quando a conexão voltar.
+    </div>
+  </div>
+  <p class="text-muted">Tente novamente mais tarde ou continue trabalhando com dados locais.</p>
+</div>
+{% endblock %}

@@ -1,0 +1,90 @@
+{% extends "base.html" %}
+
+{% block title %}Painel Admin - MTDL-PCM{% endblock %}
+{% block page_title %}Painel Admin{% endblock %}
+{% block breadcrumb_title %}Painel Admin{% endblock %}
+
+{% block content %}
+<div class="row g-3">
+  <div class="col-12 col-md-6 col-xl-3">
+    <div class="card shadow-sm">
+      <div class="card-body">
+        <div class="d-flex align-items-center justify-content-between">
+          <div>
+            <h6 class="text-muted mb-1">Ordens de Serviço</h6>
+            <h3 id="metricWorkOrders" class="mb-0">--</h3>
+          </div>
+          <i class="bi bi-tools fs-2 text-primary"></i>
+        </div>
+      </div>
+    </div>
+  </div>
+  <div class="col-12 col-md-6 col-xl-3">
+    <div class="card shadow-sm">
+      <div class="card-body">
+        <div class="d-flex align-items-center justify-content-between">
+          <div>
+            <h6 class="text-muted mb-1">Equipamentos</h6>
+            <h3 id="metricEquipment" class="mb-0">--</h3>
+          </div>
+          <i class="bi bi-gear fs-2 text-success"></i>
+        </div>
+      </div>
+    </div>
+  </div>
+  <div class="col-12 col-md-6 col-xl-3">
+    <div class="card shadow-sm">
+      <div class="card-body">
+        <div class="d-flex align-items-center justify-content-between">
+          <div>
+            <h6 class="text-muted mb-1">Materiais</h6>
+            <h3 id="metricMaterials" class="mb-0">--</h3>
+          </div>
+          <i class="bi bi-stack fs-2 text-warning"></i>
+        </div>
+      </div>
+    </div>
+  </div>
+  <div class="col-12 col-md-6 col-xl-3">
+    <div class="card shadow-sm">
+      <div class="card-body">
+        <div class="d-flex align-items-center justify-content-between">
+          <div>
+            <h6 class="text-muted mb-1">Funcionários</h6>
+            <h3 id="metricEmployees" class="mb-0">--</h3>
+          </div>
+          <i class="bi bi-person-badge fs-2 text-danger"></i>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="row g-3 mt-1">
+  <div class="col-12">
+    <div class="alert alert-info d-flex align-items-center" role="alert">
+      <i class="bi bi-info-circle me-2"></i>
+      <div>
+        Bem-vindo ao Painel Admin (Backoffice). Em breve: CRUDs completos, filtros, exportações e gestão de usuários.
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+(async function loadAdminOverview() {
+  try {
+    const res = await axios.get('/api/admin/overview');
+    const m = res.data && res.data.metrics ? res.data.metrics : {};
+    document.getElementById('metricWorkOrders').textContent = m.work_orders ?? '--';
+    document.getElementById('metricEquipment').textContent = m.equipment ?? '--';
+    document.getElementById('metricMaterials').textContent = m.materials ?? '--';
+    document.getElementById('metricEmployees').textContent = m.employees ?? '--';
+  } catch (err) {
+    console.warn('Falha ao carregar overview do Admin:', err);
+  }
+})();
+</script>
+{% endblock %}

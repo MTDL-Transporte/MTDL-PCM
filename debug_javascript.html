@@ -1,0 +1,280 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Debug JavaScript - editMaterial</title>
+    <!-- Bootstrap CSS -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+</head>
+<body>
+    <div class="container mt-5">
+        <h1>Debug da Função editMaterial</h1>
+        
+        <div class="alert alert-info">
+            <h5>Instruções:</h5>
+            <ol>
+                <li>Abra o DevTools (F12)</li>
+                <li>Vá para a aba Console</li>
+                <li>Clique no botão "Testar editMaterial" abaixo</li>
+                <li>Verifique os logs no console</li>
+            </ol>
+        </div>
+        
+        <button id="testBtn" class="btn btn-primary">Testar editMaterial</button>
+        
+        <div id="results" class="mt-3"></div>
+        
+        <!-- Modal de teste -->
+        <div class="modal fade" id="materialModal" tabindex="-1">
+            <div class="modal-dialog modal-lg">
+                <div class="modal-content">
+                    <div class="modal-header">
+                        <h5 class="modal-title" id="materialModalTitle">Teste Modal</h5>
+                        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                    </div>
+                    <div class="modal-body">
+                        <form id="materialForm">
+                            <input type="hidden" id="material-id">
+                            
+                            <div class="row">
+                                <div class="col-md-6">
+                                    <div class="mb-3">
+                                        <label for="material-code" class="form-label">Código</label>
+                                        <input type="text" class="form-control" id="material-code" readonly>
+                                    </div>
+                                </div>
+                                <div class="col-md-6">
+                                    <div class="mb-3">
+                                        <label for="material-name" class="form-label">Nome</label>
+                                        <input type="text" class="form-control" id="material-name">
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            <div class="row">
+                                <div class="col-md-6">
+                                    <div class="mb-3">
+                                        <label for="material-reference" class="form-label">Referência</label>
+                                        <input type="text" class="form-control" id="material-reference">
+                                    </div>
+                                </div>
+                                <div class="col-md-6">
+                                    <div class="mb-3">
+                                        <label for="material-category" class="form-label">Categoria</label>
+                                        <select class="form-select" id="material-category">
+                                            <option value="">Selecione...</option>
+                                            <option value="Peças">Peças</option>
+                                            <option value="Ferramentas">Ferramentas</option>
+                                            <option value="Consumíveis">Consumíveis</option>
+                                            <option value="Lubrificantes">Lubrificantes</option>
+                                            <option value="EPI">EPI</option>
+                                        </select>
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            <div class="row">
+                                <div class="col-md-6">
+                                    <div class="mb-3">
+                                        <label for="material-unit" class="form-label">Unidade</label>
+                                        <select class="form-select" id="material-unit">
+                                            <option value="">Selecione...</option>
+                                            <option value="PC">Peça</option>
+                                            <option value="L">Litro</option>
+                                            <option value="KG">Quilograma</option>
+                                            <option value="M">Metro</option>
+                                            <option value="UN">Unidade</option>
+                                        </select>
+                                    </div>
+                                </div>
+                                <div class="col-md-6">
+                                    <div class="mb-3">
+                                        <label for="material-unit-price" class="form-label">Preço Unitário</label>
+                                        <input type="number" class="form-control" id="material-unit-price" step="0.01">
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            <div class="mb-3">
+                                <label for="material-description" class="form-label">Descrição</label>
+                                <textarea class="form-control" id="material-description" rows="3"></textarea>
+                            </div>
+                            
+                            <div class="row">
+                                <div class="col-md-6">
+                                    <div class="mb-3">
+                                        <label for="minimum-stock" class="form-label">Estoque Mínimo</label>
+                                        <input type="number" class="form-control" id="minimum-stock" step="0.01">
+                                    </div>
+                                </div>
+                                <div class="col-md-6">
+                                    <div class="mb-3">
+                                        <label for="maximum-stock" class="form-label">Estoque Máximo</label>
+                                        <input type="number" class="form-control" id="maximum-stock" step="0.01">
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            <div class="mb-3">
+                                <label for="material-status" class="form-label">Status</label>
+                                <select class="form-select" id="material-status">
+                                    <option value="Ativo">Ativo</option>
+                                    <option value="Inativo">Inativo</option>
+                                </select>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Bootstrap JS -->
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <!-- Axios for API calls -->
+    <script src="https://cdn.jsdelivr.net/npm/axios/dist/axios.min.js"></script>
+    
+    <script>
+        // Função editMaterial copiada do materials.html
+        async function editMaterial(materialId) {
+            console.log('🔧 editMaterial chamada com ID:', materialId);
+            
+            try {
+                // Buscar dados do material
+                console.log('📡 Fazendo requisição para:', `/api/warehouse/api/materials/${materialId}`);
+                const response = await axios.get(`/api/warehouse/api/materials/${materialId}`);
+                const material = response.data;
+                
+                console.log('📦 Dados do material recebidos:', material);
+                
+                // Verificar se os elementos existem antes de preencher
+                const elements = {
+                    'materialModalTitle': document.getElementById('materialModalTitle'),
+                    'material-id': document.getElementById('material-id'),
+                    'material-code': document.getElementById('material-code'),
+                    'material-name': document.getElementById('material-name'),
+                    'material-reference': document.getElementById('material-reference'),
+                    'material-category': document.getElementById('material-category'),
+                    'material-unit': document.getElementById('material-unit'),
+                    'material-description': document.getElementById('material-description'),
+                    'material-unit-price': document.getElementById('material-unit-price'),
+                    'minimum-stock': document.getElementById('minimum-stock'),
+                    'maximum-stock': document.getElementById('maximum-stock'),
+                    'material-status': document.getElementById('material-status')
+                };
+                
+                // Verificar elementos não encontrados
+                const missingElements = [];
+                for (const [id, element] of Object.entries(elements)) {
+                    if (!element) {
+                        missingElements.push(id);
+                    }
+                }
+                
+                if (missingElements.length > 0) {
+                    console.error('❌ Elementos não encontrados:', missingElements);
+                }
+                
+                // Preencher o formulário com os dados do material
+                if (elements['materialModalTitle']) {
+                    elements['materialModalTitle'].textContent = 'Editar Material';
+                }
+                if (elements['material-id']) {
+                    elements['material-id'].value = material.id;
+                    console.log('✅ ID preenchido:', material.id);
+                }
+                if (elements['material-code']) {
+                    elements['material-code'].value = material.code || '';
+                    console.log('✅ Código preenchido:', material.code);
+                }
+                if (elements['material-name']) {
+                    elements['material-name'].value = material.name || '';
+                    console.log('✅ Nome preenchido:', material.name);
+                }
+                if (elements['material-reference']) {
+                    elements['material-reference'].value = material.reference || '';
+                    console.log('✅ Referência preenchida:', material.reference);
+                }
+                if (elements['material-category']) {
+                    elements['material-category'].value = material.category || '';
+                    console.log('✅ Categoria preenchida:', material.category);
+                }
+                if (elements['material-unit']) {
+                    elements['material-unit'].value = material.unit || '';
+                    console.log('✅ Unidade preenchida:', material.unit);
+                }
+                if (elements['material-description']) {
+                    elements['material-description'].value = material.description || '';
+                    console.log('✅ Descrição preenchida:', material.description);
+                }
+                if (elements['material-unit-price']) {
+                    elements['material-unit-price'].value = material.unit_price || '';
+                    console.log('✅ Preço unitário preenchido:', material.unit_price);
+                }
+                if (elements['minimum-stock']) {
+                    elements['minimum-stock'].value = material.minimum_stock || '';
+                    console.log('✅ Estoque mínimo preenchido:', material.minimum_stock);
+                }
+                if (elements['maximum-stock']) {
+                    elements['maximum-stock'].value = material.maximum_stock || '';
+                    console.log('✅ Estoque máximo preenchido:', material.maximum_stock);
+                }
+                if (elements['material-status']) {
+                    elements['material-status'].value = material.is_active ? 'Ativo' : 'Inativo';
+                    console.log('✅ Status preenchido:', material.is_active ? 'Ativo' : 'Inativo');
+                }
+                
+                // Abrir o modal
+                const modal = new bootstrap.Modal(document.getElementById('materialModal'));
+                modal.show();
+                console.log('🎭 Modal aberto');
+                
+                // Mostrar resultado na página
+                document.getElementById('results').innerHTML = `
+                    <div class="alert alert-success">
+                        <h5>✅ Teste Concluído com Sucesso!</h5>
+                        <p>Material carregado: <strong>${material.name}</strong></p>
+                        <p>Verifique o console para logs detalhados.</p>
+                    </div>
+                `;
+                
+            } catch (error) {
+                console.error('❌ Erro ao carregar material:', error);
+                document.getElementById('results').innerHTML = `
+                    <div class="alert alert-danger">
+                        <h5>❌ Erro no Teste!</h5>
+                        <p>Erro: ${error.message}</p>
+                        <p>Verifique o console para mais detalhes.</p>
+                    </div>
+                `;
+            }
+        }
+        
+        // Verificar se as bibliotecas estão carregadas
+        document.addEventListener('DOMContentLoaded', function() {
+            console.log('🚀 Página carregada');
+            
+            // Verificar Axios
+            if (typeof axios !== 'undefined') {
+                console.log('✅ Axios carregado');
+            } else {
+                console.error('❌ Axios não carregado');
+            }
+            
+            // Verificar Bootstrap
+            if (typeof bootstrap !== 'undefined') {
+                console.log('✅ Bootstrap carregado');
+            } else {
+                console.error('❌ Bootstrap não carregado');
+            }
+            
+            // Configurar botão de teste
+            document.getElementById('testBtn').addEventListener('click', function() {
+                console.log('🖱️ Botão clicado - iniciando teste');
+                editMaterial(1); // Testar com ID 1
+            });
+        });
+    </script>
+</body>
+</html>

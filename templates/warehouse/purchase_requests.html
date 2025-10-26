@@ -1,0 +1,547 @@
+{% extends "base.html" %}
+
+{% block page_title %}Requisições de Compra{% endblock %}
+{% block breadcrumb_title %}Requisições de Compra{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <!-- Filtros e Ações -->
+    <div class="col-md-6">
+        <div class="d-flex align-items-center gap-2">
+            <div class="flex-grow-1">
+                <select class="form-select" id="statusFilter" onchange="filterByStatus()">
+                    <option value="">Status</option>
+                    <option value="Pendente">Pendente</option>
+                    <option value="Em análise">Em análise</option>
+                    <option value="Aprovada">Aprovada</option>
+                    <option value="Rejeitada">Rejeitada</option>
+                    <option value="Finalizada">Finalizada</option>
+                </select>
+            </div>
+            <div class="flex-grow-1">
+                <input type="text" class="form-control" id="search-input" placeholder="Buscar...">
+            </div>
+        </div>
+    </div>
+    <div class="col-md-6">
+        <div class="d-flex justify-content-end gap-2">
+            <button class="btn btn-outline-secondary" onclick="clearFilters()">
+                <i class="bi bi-arrow-clockwise"></i> Limpar
+            </button>
+            <button class="btn btn-outline-primary" onclick="applyFilters()">
+                <i class="bi bi-funnel"></i> Filtrar
+            </button>
+            <button class="btn btn-success" onclick="showAddRequestModal()">
+                <i class="bi bi-plus"></i> Nova Requisição
+            </button>
+        </div>
+    </div>
+
+    <!-- Lista de Requisições -->
+    <div class="card shadow-sm mt-4">
+        <div class="card-body p-0">
+            <div class="table-responsive">
+                <table class="table table-light border-0 mb-0" id="requestsTable">
+                    <thead>
+                        <tr>
+                            <th class="border-0 ps-4">REQUISIÇÃO</th>
+                            <th class="border-0">SOLICITANTE</th>
+                            <th class="border-0">MATERIAL</th>
+                            <th class="border-0">QUANTIDADE</th>
+                            <th class="border-0">STATUS</th>
+                            <th class="border-0 pe-4">AÇÕES</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <td colspan="6" class="text-center py-5">
+                                <div class="text-muted">
+                                    <i class="bi bi-clipboard-data fs-1 d-block mb-2"></i>
+                                    Nenhuma requisição encontrada
+                                </div>
+                            </td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+            
+            <!-- Paginação -->
+            <div class="d-flex justify-content-center py-3 border-top">
+                <nav aria-label="Paginação">
+                    <ul class="pagination pagination-sm mb-0" id="pagination">
+                    </ul>
+                </nav>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Modal para adicionar/editar requisição -->
+<div class="modal fade" id="requestModal" tabindex="-1">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Requisição de Compra</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <form id="requestForm">
+                    <!-- Busca por código do material -->
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label for="materialCode" class="form-label">Código do Material</label>
+                                <input type="text" class="form-control" id="materialCode" placeholder="Digite o código do material">
+                                <div class="form-text">Digite o código e pressione Enter para buscar</div>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label for="materialDescription" class="form-label">Descrição</label>
+                                <input type="text" class="form-control" id="materialDescription" readonly>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- Informações do material -->
+                    <div class="row">
+                        <div class="col-md-4">
+                            <div class="mb-3">
+                                <label for="materialUnit" class="form-label">Unidade</label>
+                                <input type="text" class="form-control" id="materialUnit" readonly>
+                            </div>
+                        </div>
+                        <div class="col-md-4">
+                            <div class="mb-3">
+                                <label for="currentStock" class="form-label">Estoque Atual</label>
+                                <input type="text" class="form-control" id="currentStock" readonly>
+                            </div>
+                        </div>
+                        <div class="col-md-4">
+                            <div class="mb-3">
+                                <label for="minimumStock" class="form-label">Estoque Mínimo</label>
+                                <input type="text" class="form-control" id="minimumStock" readonly>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- Alerta de estoque disponível -->
+                    <div id="stockAlert" class="alert alert-warning d-none" role="alert">
+                        <i class="bi bi-exclamation-triangle-fill me-2"></i>
+                        <strong>Atenção:</strong> Existe saldo em estoque acima do mínimo. É necessário justificar o motivo desta nova requisição.
+                    </div>
+                    
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label for="requestQuantity" class="form-label">Quantidade</label>
+                                <input type="number" class="form-control" id="requestQuantity" min="1" required>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label for="requestCostCenter" class="form-label">Centro de Custo</label>
+                                <input type="text" class="form-control" id="requestCostCenter" required list="costCenterOptions" placeholder="Selecione ou digite o centro de custo">
+                                <datalist id="costCenterOptions">
+                                    <option value="55000001001">Produção</option>
+                                    <option value="55000002001">Qualidade</option>
+                                    <option value="55000003001">Segurança (SESMT)</option>
+                                    <option value="55000004001">Manutenção</option>
+                                    <option value="55000005001">Logística</option>
+                                    <option value="55000006001">Recursos Humanos (RH)</option>
+                                    <option value="55000007001">Financeiro</option>
+                                    <option value="55000008001">Comercial/Vendas</option>
+                                    <option value="55000009001">Tecnologia da Informação (TI)</option>
+                                    <option value="55000010001">Engenharia</option>
+                                    <option value="55000011001">Almoxarifado</option>
+                                    <option value="55000012001">Compras</option>
+                                    <option value="55000013001">Jurídico</option>
+                                    <option value="55000014001">Marketing</option>
+                                    <option value="55000015001">Pesquisa e Desenvolvimento</option>
+                                    <option value="55000016001">Atendimento ao Cliente</option>
+                                    <option value="55000017001">Planejamento Estratégico</option>
+                                    <option value="55000018001">Expedição</option>
+                                    <option value="55000019001">Facilities/Serviços Gerais</option>
+                                    <option value="55000020001">Sustentabilidade/Meio Ambiente</option>
+                                </datalist>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label for="requestRequester" class="form-label">Solicitante</label>
+                                <input type="text" class="form-control" id="requestRequester" required>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label for="requestPriority" class="form-label">Prioridade</label>
+                                <select class="form-select" id="requestPriority" required>
+                                    <option value="">Selecione...</option>
+                                    <option value="Baixa">Baixa</option>
+                                    <option value="Normal">Normal</option>
+                                    <option value="Alta">Alta</option>
+                                    <option value="Urgente">Urgente</option>
+                                </select>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label for="requestJustification" class="form-label">Justificativa</label>
+                        <textarea class="form-control" id="requestJustification" rows="3" required placeholder="Descreva o motivo da requisição"></textarea>
+                    </div>
+                    
+                    <!-- Justificativa para estoque disponível -->
+                    <div id="stockJustificationGroup" class="mb-3 d-none">
+                        <label for="stockJustification" class="form-label">Justificativa para Estoque Disponível <span class="text-danger">*</span></label>
+                        <textarea class="form-control" id="stockJustification" rows="3" placeholder="Justifique por que é necessária uma nova compra mesmo com estoque disponível"></textarea>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label for="requestNotes" class="form-label">Observações</label>
+                        <textarea class="form-control" id="requestNotes" rows="2" placeholder="Observações adicionais (opcional)"></textarea>
+                    </div>
+                    
+                    <input type="hidden" id="materialId">
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                <button type="button" class="btn btn-primary" onclick="saveRequest()">Salvar</button>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+let requestsData = [];
+let currentRequestId = null;
+
+document.addEventListener('DOMContentLoaded', function() {
+    loadRequests();
+    setupMaterialCodeSearch();
+});
+
+function setupMaterialCodeSearch() {
+    const materialCodeInput = document.getElementById('materialCode');
+    
+    materialCodeInput.addEventListener('keypress', function(e) {
+        if (e.key === 'Enter') {
+            e.preventDefault();
+            searchMaterialByCode(this.value);
+        }
+    });
+    
+    materialCodeInput.addEventListener('blur', function() {
+        if (this.value) {
+            searchMaterialByCode(this.value);
+        }
+    });
+}
+
+async function searchMaterialByCode(code) {
+    if (!code.trim()) return;
+    
+    try {
+        const response = await axios.get(`/api/warehouse/materials/by-code/${code}`);
+        const material = response.data;
+        
+        // Preencher campos automaticamente
+        document.getElementById('materialId').value = material.material_id;
+        document.getElementById('materialDescription').value = material.description;
+        document.getElementById('materialUnit').value = material.unit;
+        document.getElementById('currentStock').value = material.current_stock;
+        document.getElementById('minimumStock').value = material.minimum_stock;
+        
+        // Verificar se precisa de justificativa
+        if (material.requires_justification) {
+            document.getElementById('stockAlert').classList.remove('d-none');
+            document.getElementById('stockJustificationGroup').classList.remove('d-none');
+            document.getElementById('stockJustification').required = true;
+        } else {
+            document.getElementById('stockAlert').classList.add('d-none');
+            document.getElementById('stockJustificationGroup').classList.add('d-none');
+            document.getElementById('stockJustification').required = false;
+        }
+        
+    } catch (error) {
+        if (error.response && error.response.status === 404) {
+            showAlert('Material não encontrado', 'error');
+            clearMaterialFields();
+        } else {
+            console.error('Erro ao buscar material:', error);
+            showAlert('Erro ao buscar material', 'error');
+        }
+    }
+}
+
+function clearMaterialFields() {
+    document.getElementById('materialId').value = '';
+    document.getElementById('materialDescription').value = '';
+    document.getElementById('materialUnit').value = '';
+    document.getElementById('currentStock').value = '';
+    document.getElementById('minimumStock').value = '';
+    document.getElementById('stockAlert').classList.add('d-none');
+    document.getElementById('stockJustificationGroup').classList.add('d-none');
+    document.getElementById('stockJustification').required = false;
+}
+
+async function loadRequests() {
+    try {
+        const response = await axios.get('/api/warehouse/purchase-requests');
+        requestsData = response.data;
+        renderRequestsTable();
+        updateSummaryCards();
+    } catch (error) {
+        console.error('Erro ao carregar requisições:', error);
+        showAlert('Erro ao carregar requisições de compra', 'error');
+    }
+}
+
+function renderRequestsTable() {
+    const tbody = document.querySelector('#requestsTable tbody');
+    tbody.innerHTML = '';
+    
+    const statusFilter = document.getElementById('statusFilter').value;
+    const searchTerm = document.getElementById('search-input').value.toLowerCase();
+    
+    let filteredData = requestsData;
+    if (statusFilter) {
+        filteredData = filteredData.filter(req => req.status === statusFilter);
+    }
+    if (searchTerm) {
+        filteredData = filteredData.filter(req => 
+            (req.requester || '').toLowerCase().includes(searchTerm) ||
+            (req.material_name || '').toLowerCase().includes(searchTerm) ||
+            (req.justification || '').toLowerCase().includes(searchTerm)
+        );
+    }
+    
+    if (filteredData.length === 0) {
+        tbody.innerHTML = `
+            <tr>
+                <td colspan="6" class="text-center py-5">
+                    <div class="text-muted">
+                        <i class="bi bi-clipboard-data fs-1 d-block mb-2"></i>
+                        Nenhuma requisição encontrada
+                    </div>
+                </td>
+            </tr>
+        `;
+        return;
+    }
+    
+    filteredData.forEach(request => {
+        const row = tbody.insertRow();
+        const statusClass = getStatusClass(request.status);
+        const requestDate = request.created_at ? new Date(request.created_at).toLocaleDateString('pt-BR') : 'N/A';
+        
+        row.innerHTML = `
+            <td class="ps-4 py-3">
+                <div class="fw-semibold">#${request.id}</div>
+                <small class="text-muted">${requestDate}</small>
+            </td>
+            <td class="py-3">${request.requester || 'N/A'}</td>
+            <td class="py-3">${request.material_name || 'N/A'}</td>
+            <td class="py-3">${request.quantity || 0}</td>
+            <td class="py-3"><span class="badge bg-${statusClass}">${request.status || 'Pendente'}</span></td>
+            <td class="pe-4 py-3">
+                <div class="btn-group btn-group-sm">
+                    <button class="btn btn-outline-primary btn-sm" onclick="viewRequest(${request.id})" title="Visualizar" aria-label="Visualizar requisição">
+                        <i class="bi bi-eye"></i>
+                    </button>
+                    <button class="btn btn-outline-secondary btn-sm" onclick="editRequest(${request.id})" title="Editar" aria-label="Editar requisição">
+                        <i class="bi bi-pencil"></i>
+                    </button>
+                </div>
+            </td>
+        `;
+    });
+}
+
+function getStatusClass(status) {
+    switch(status?.toLowerCase()) {
+        case 'pendente': return 'warning';
+        case 'em análise': return 'info';
+        case 'aprovada': return 'success';
+        case 'rejeitada': return 'danger';
+        case 'finalizada': return 'secondary';
+        default: return 'warning';
+    }
+}
+
+function updateSummaryCards() {
+    const pendingEl = document.getElementById('pendingRequests');
+    const reviewingEl = document.getElementById('reviewingRequests');
+    const approvedEl = document.getElementById('approvedRequests');
+    const rejectedEl = document.getElementById('rejectedRequests');
+
+    if (pendingEl) pendingEl.textContent = requestsData.filter(req => req.status === 'Pendente').length;
+    if (reviewingEl) reviewingEl.textContent = requestsData.filter(req => req.status === 'Em análise').length;
+    if (approvedEl) approvedEl.textContent = requestsData.filter(req => req.status === 'Aprovada').length;
+    if (rejectedEl) rejectedEl.textContent = requestsData.filter(req => req.status === 'Rejeitada').length;
+}
+
+async function loadMaterialOptions() {
+    try {
+        const response = await axios.get('/api/warehouse/materials');
+        const materials = response.data;
+        
+        const select = document.getElementById('requestMaterial');
+        select.innerHTML = '<option value="">Selecione um material...</option>';
+        
+        materials.forEach(material => {
+            const option = document.createElement('option');
+            option.value = material.id;
+            option.textContent = `${material.name} (${material.code})`;
+            select.appendChild(option);
+        });
+    } catch (error) {
+        console.error('Erro ao carregar materiais:', error);
+    }
+}
+
+function filterByStatus() {
+    renderRequestsTable();
+}
+
+function clearFilters() {
+    document.getElementById('statusFilter').value = '';
+    document.getElementById('search-input').value = '';
+    renderRequestsTable();
+}
+
+function applyFilters() {
+    renderRequestsTable();
+}
+
+function editRequest(id) {
+    // Implementar edição
+    showAlert('Funcionalidade em desenvolvimento', 'info');
+}
+
+function showAddRequestModal() {
+    currentRequestId = null;
+    document.getElementById('requestForm').reset();
+    clearMaterialFields();
+    document.querySelector('#requestModal .modal-title').textContent = 'Nova Requisição de Compra';
+    new bootstrap.Modal(document.getElementById('requestModal')).show();
+}
+
+function viewRequest(id) {
+    // Implementar visualização
+    showAlert('Funcionalidade em desenvolvimento', 'info');
+}
+
+function approveRequest(id) {
+    if (confirm('Tem certeza que deseja aprovar esta requisição?')) {
+        // Implementar aprovação
+        showAlert('Funcionalidade em desenvolvimento', 'info');
+    }
+}
+
+function rejectRequest(id) {
+    if (confirm('Tem certeza que deseja rejeitar esta requisição?')) {
+        // Implementar rejeição
+        showAlert('Funcionalidade em desenvolvimento', 'info');
+    }
+}
+
+async function saveRequest() {
+    try {
+        const form = document.getElementById('requestForm');
+        const formData = new FormData(form);
+        
+        // Validar campos obrigatórios
+        const materialId = document.getElementById('materialId').value;
+        const quantity = document.getElementById('requestQuantity').value;
+        const requester = document.getElementById('requestRequester').value;
+        const priority = document.getElementById('requestPriority').value;
+        const justification = document.getElementById('requestJustification').value;
+        const costCenter = document.getElementById('requestCostCenter').value;
+        
+        if (!materialId) {
+            showAlert('Por favor, selecione um material válido', 'warning');
+            return;
+        }
+        
+        if (!quantity || quantity <= 0) {
+            showAlert('Por favor, informe uma quantidade válida', 'warning');
+            return;
+        }
+        
+        if (!requester.trim()) {
+            showAlert('Por favor, informe o solicitante', 'warning');
+            return;
+        }
+        
+        if (!justification.trim()) {
+            showAlert('Por favor, informe a justificativa', 'warning');
+            return;
+        }
+        
+        if (!costCenter.trim()) {
+            showAlert('Por favor, informe o centro de custo', 'warning');
+            return;
+        }
+        
+        // Verificar se justificativa de estoque é necessária
+        const stockJustificationDiv = document.getElementById('stockJustificationDiv');
+        const stockJustification = document.getElementById('requestStockJustification').value;
+        
+        if (!stockJustificationDiv.classList.contains('d-none') && !stockJustification.trim()) {
+            showAlert('Por favor, informe a justificativa para requisição com estoque disponível', 'warning');
+            return;
+        }
+        
+        // Preparar dados para envio
+        const requestData = {
+            material_id: parseInt(materialId),
+            quantity: parseFloat(quantity),
+            requester: requester.trim(),
+            priority: priority,
+            justification: justification.trim(),
+            cost_center: costCenter.trim(),
+            observations: document.getElementById('requestObservations').value.trim() || null
+        };
+        
+        // Adicionar justificativa de estoque se necessária
+        if (!stockJustificationDiv.classList.contains('d-none')) {
+            requestData.stock_justification = stockJustification.trim();
+        }
+        
+        // Enviar requisição
+        const response = await axios.post('/api/warehouse/purchase-requests', requestData);
+        
+        if (response.status === 201) {
+            showAlert('Requisição criada com sucesso!', 'success');
+            
+            // Fechar modal
+            const modal = bootstrap.Modal.getInstance(document.getElementById('requestModal'));
+            modal.hide();
+            
+            // Recarregar dados
+            await loadRequests();
+            
+            // Limpar formulário
+            form.reset();
+            clearMaterialFields();
+        }
+        
+    } catch (error) {
+        console.error('Erro ao salvar requisição:', error);
+        
+        if (error.response && error.response.data && error.response.data.detail) {
+            showAlert(error.response.data.detail, 'danger');
+        } else {
+            showAlert('Erro ao salvar requisição. Tente novamente.', 'danger');
+        }
+    }
+}
+</script>
+{% endblock %}

@@ -1,0 +1,27 @@
+<manual>
+  <maintenance interval="250h">
+    <material>
+      <name>Filtro de óleo do motor</name>
+      <reference>FO-123</reference>
+      <unit>un</unit>
+      <quantity>1</quantity>
+      <category>Filtros</category>
+    </material>
+    <material>
+      <name>Óleo do motor SAE 15W-40</name>
+      <reference>OM-15W40</reference>
+      <unit>L</unit>
+      <quantity>10</quantity>
+      <category>Óleos e Lubrificantes</category>
+    </material>
+  </maintenance>
+  <maintenance interval="500h">
+    <material>
+      <name>Filtro de combustível</name>
+      <reference>FC-456</reference>
+      <unit>un</unit>
+      <quantity>1</quantity>
+      <category>Filtros</category>
+    </material>
+  </maintenance>
+</manual>

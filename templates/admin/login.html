@@ -1,0 +1,133 @@
+{% extends "auth_base.html" %}
+{% block title %}Sistema de Login - MTDL-PCM{% endblock %}
+
+{% block extra_css %}
+<style>
+  .login-card {
+    background: #fff;
+    border: 1px solid #e6ebf1;
+    border-radius: 12px;
+    box-shadow: 0 8px 20px rgba(16, 24, 40, 0.06);
+    padding: 22px 22px 18px;
+  }
+  .login-title {
+    font-weight: 600;
+    color: #334155;
+    text-align: center;
+    margin-bottom: 14px;
+  }
+  .input-group-text { border-radius: 8px 0 0 8px; }
+  .form-control { border-radius: 0 8px 8px 0; }
+  .form-control:focus { box-shadow: 0 0 0 .2rem rgba(46, 144, 250, .25); }
+  .helper-row { display: flex; justify-content: space-between; align-items: center; margin: 6px 2px 12px; }
+  .helper-row a { font-size: .875rem; }
+  .btn-login {
+    border-radius: 10px;
+    background: linear-gradient(90deg, #2F80ED 0%, #1C74D9 100%);
+    border: none;
+  }
+  .btn-login:disabled { opacity: .7; }
+  .feedback { margin-top: 10px; }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="login-card">
+  <h6 class="login-title">Sistema de Login</h6>
+  <form id="loginForm" autocomplete="on">
+    <div class="input-group input-group-lg mb-3">
+      <span class="input-group-text bg-light"><i class="bi bi-person"></i></span>
+      <input type="text" class="form-control" id="username" name="username" placeholder="Seu usuário" required />
+    </div>
+    <div class="input-group input-group-lg mb-2">
+      <span class="input-group-text bg-light"><i class="bi bi-lock"></i></span>
+      <input type="password" class="form-control" id="password" name="password" placeholder="Sua senha" required />
+      <button type="button" class="btn btn-outline-secondary" id="togglePwd" title="Mostrar/ocultar" style="border-radius: 0 8px 8px 0;">
+        <i class="bi bi-eye"></i>
+      </button>
+    </div>
+    <div class="helper-row">
+      <a href="/admin/change-password" class="link-primary text-decoration-none">Esqueci a senha</a>
+      <span class="text-muted" style="font-size:.8rem">Cadastrar?</span>
+    </div>
+    <button type="submit" class="btn btn-primary btn-login w-100" id="btnSubmit">
+      <span class="btn-text">Entrar</span>
+      <span class="spinner-border spinner-border-sm ms-2 d-none" role="status" aria-hidden="true" id="btnSpinner"></span>
+    </button>
+  </form>
+  <div id="loginFeedback" class="feedback"></div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+  (function(){
+    const form = document.getElementById('loginForm');
+    const feedback = document.getElementById('loginFeedback');
+    const btn = document.getElementById('btnSubmit');
+    const btnText = document.querySelector('.btn-text');
+    const btnSpinner = document.getElementById('btnSpinner');
+    const togglePwd = document.getElementById('togglePwd');
+    const pwd = document.getElementById('password');
+
+    togglePwd.addEventListener('click', function(){
+      const isPwd = pwd.type === 'password';
+      pwd.type = isPwd ? 'text' : 'password';
+      togglePwd.innerHTML = isPwd ? '<i class="bi bi-eye-slash"></i>' : '<i class="bi bi-eye"></i>';
+    });
+
+    form.addEventListener('submit', async function(e){
+      e.preventDefault();
+      feedback.innerHTML = '';
+      const username = document.getElementById('username').value.trim();
+      const password = document.getElementById('password').value;
+      if (!username || !password) {
+        feedback.innerHTML = '<div class="alert alert-warning">Informe usuário e senha.</div>';
+        return;
+      }
+      btn.disabled = true; btnSpinner.classList.remove('d-none'); btnText.textContent = 'Entrando...';
+      try {
+        const resp = await fetch('/api/admin/auth/login', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ username, password })
+        });
+        if (!resp.ok) {
+          const err = await resp.json().catch(() => ({ detail: 'Erro no login' }));
+          throw new Error(err.detail || 'Falha na autenticação');
+        }
+        const data = await resp.json();
+        // salva token em cookie e localStorage
+        localStorage.setItem('authToken', data.token);
+        document.cookie = `auth_token=${data.token}; path=/; Max-Age=86400; SameSite=Lax`;
+        // se for obrigatória a troca de senha, redireciona
+        if (data.user && data.user.must_change_password) {
+          feedback.innerHTML = '<div class="alert alert-warning">Primeiro acesso: redirecionando para troca de senha...</div>';
+          setTimeout(() => { window.location.href = '/admin/change-password'; }, 600);
+        } else {
+          feedback.innerHTML = '<div class="alert alert-success">Login realizado! Redirecionando...</div>';
+          const user = data.user || {};
+          const modules = Array.isArray(user.modules) ? user.modules : [];
+          let target = '/dashboard';
+          if (user.is_admin) {
+            target = '/admin';
+          } else if (modules.includes('construction')) {
+            target = '/construction/appropriation';
+          } else if (modules.includes('maintenance')) {
+            target = '/maintenance/work-orders';
+          } else if (modules.includes('warehouse')) {
+            target = '/warehouse/purchase_orders';
+          } else if (modules.includes('hr')) {
+            target = '/hr/employees';
+          }
+          setTimeout(() => { window.location.href = target; }, 600);
+        }
+      } catch (err) {
+        feedback.innerHTML = '<div class="alert alert-danger">' + (err.message || 'Erro') + '</div>';
+      } finally {
+        btn.disabled = false; btnSpinner.classList.add('d-none'); btnText.textContent = 'Entrar';
+      }
+    });
+  })();
+</script>
+{% endblock %}

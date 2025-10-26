@@ -1,0 +1,279 @@
+{% extends "base.html" %}
+{% block title %}Cadastro de Funcionários{% endblock %}
+{% block page_title %}Recursos Humanos{% endblock %}
+{% block breadcrumb_title %}Cadastro de Funcionários{% endblock %}
+
+{% block content %}
+<div class="row">
+  <div class="col-12">
+    <div class="card shadow-sm">
+      <div class="card-header d-flex justify-content-between align-items-center">
+        <h5 class="mb-0">Funcionários</h5>
+        <button class="btn btn-primary" id="btnNewEmployee">
+          <i class="bi bi-person-plus"></i> Novo Funcionário
+        </button>
+      </div>
+      <div class="card-body">
+        <div class="row mb-3">
+          <div class="col-md-4">
+            <label class="form-label">Buscar</label>
+            <input type="text" id="searchInput" class="form-control" placeholder="Nome, matrícula...">
+          </div>
+          <div class="col-md-3">
+            <label class="form-label">Ativos</label>
+            <select id="activeFilter" class="form-select">
+              <option value="true" selected>Somente ativos</option>
+              <option value="false">Todos</option>
+            </select>
+          </div>
+        </div>
+        <div class="table-responsive">
+          <table class="table table-striped table-hover">
+            <thead>
+              <tr>
+                <th>Matrícula</th>
+                <th>Nome</th>
+                <th>Setor</th>
+                <th>Função</th>
+                <th>Tipo</th>
+                <th>E-mail</th>
+                <th>Ações</th>
+              </tr>
+            </thead>
+            <tbody id="employeesTableBody">
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Modal de Novo/Editar Funcionário -->
+<div class="modal fade" id="employeeModal" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog modal-lg">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title">Novo Funcionário</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+      </div>
+      <div class="modal-body">
+        <form id="employeeForm">
+          <div class="row g-3">
+            <div class="col-md-3">
+              <label class="form-label">Matrícula</label>
+              <input type="text" id="matricula" class="form-control" readonly>
+            </div>
+            <div class="col-md-9">
+              <label class="form-label">Nome</label>
+              <input type="text" id="name" class="form-control" required>
+            </div>
+            <div class="col-md-6">
+              <label class="form-label">E-mail Corporativo</label>
+              <input type="email" id="corporate_email" class="form-control">
+            </div>
+            <div class="col-md-6">
+              <label class="form-label">E-mail Pessoal</label>
+              <input type="email" id="personal_email" class="form-control">
+            </div>
+            <div class="col-md-4">
+              <label class="form-label">Telefone</label>
+              <input type="text" id="phone" class="form-control">
+            </div>
+            <div class="col-md-4">
+              <label class="form-label">Tipo de Mão de Obra</label>
+              <select id="labor_type" class="form-select" required></select>
+            </div>
+            <div class="col-md-4">
+              <label class="form-label">Setor</label>
+              <select id="sector" class="form-select" required></select>
+            </div>
+            <div class="col-md-6">
+              <label class="form-label">Função</label>
+              <input type="text" id="role" class="form-control">
+            </div>
+            <div class="col-md-6">
+              <label class="form-label">Salário Inicial</label>
+              <input type="number" id="initial_salary" class="form-control" step="0.01" min="0">
+            </div>
+            <div class="col-12">
+              <hr>
+              <h6>Contato de Emergência</h6>
+            </div>
+            <div class="col-md-4">
+              <label class="form-label">Nome</label>
+              <input type="text" id="emergency_contact_name" class="form-control">
+            </div>
+            <div class="col-md-4">
+              <label class="form-label">Telefone</label>
+              <input type="text" id="emergency_contact_phone" class="form-control">
+            </div>
+            <div class="col-md-4">
+              <label class="form-label">Relação</label>
+              <input type="text" id="emergency_contact_relation" class="form-control">
+            </div>
+          </div>
+        </form>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+        <button type="button" class="btn btn-primary" id="saveEmployeeBtn">Salvar</button>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+const apiBase = '/api/hr';
+let currentEditingId = null;
+
+async function loadNextMatricula() {
+  try {
+    const res = await axios.get(`${apiBase}/next-matricula`, { headers: { Accept: 'application/json' } });
+    document.getElementById('matricula').value = res.data.next_matricula;
+  } catch (e) { console.error(e); }
+}
+
+async function loadReferenceData(selected = {}) {
+  try {
+    const [sectorsRes, laborTypesRes] = await Promise.all([
+      axios.get(`${apiBase}/sectors`, { headers: { Accept: 'application/json' } }),
+      axios.get(`${apiBase}/labor-types`, { headers: { Accept: 'application/json' } })
+    ]);
+    const sectorSel = document.getElementById('sector');
+    sectorSel.innerHTML = '';
+    sectorsRes.data.data.forEach(s => {
+      const opt = document.createElement('option'); opt.value = s; opt.textContent = s;
+      if (selected.sector === s) opt.selected = true;
+      sectorSel.appendChild(opt);
+    });
+    const laborSel = document.getElementById('labor_type');
+    laborSel.innerHTML = '';
+    laborTypesRes.data.data.forEach(l => {
+      const opt = document.createElement('option'); opt.value = l; opt.textContent = l;
+      if (selected.labor_type === l) opt.selected = true;
+      laborSel.appendChild(opt);
+    });
+  } catch (e) { console.error(e); }
+}
+
+async function loadEmployees() {
+  try {
+    const activeOnly = document.getElementById('activeFilter').value === 'true';
+    const res = await axios.get(`${apiBase}/employees`, { params: { active_only: activeOnly }, headers: { Accept: 'application/json' } });
+    const tbody = document.getElementById('employeesTableBody');
+    tbody.innerHTML = '';
+    res.data.forEach(emp => {
+      const tr = document.createElement('tr');
+      tr.innerHTML = `
+        <td>${emp.matricula}</td>
+        <td>${emp.name}</td>
+        <td>${emp.sector || ''}</td>
+        <td>${emp.role || ''}</td>
+        <td>${emp.labor_type || ''}</td>
+        <td>${emp.corporate_email || emp.personal_email || ''}</td>
+        <td>
+          <button class="btn btn-sm btn-outline-secondary" onclick="editEmployee(${emp.id})"><i class="bi bi-pencil"></i></button>
+        </td>
+      `;
+      tbody.appendChild(tr);
+    });
+  } catch (e) { console.error(e); }
+}
+
+function showEmployeeModal(mode = 'new') {
+  const modalEl = document.getElementById('employeeModal');
+  modalEl.querySelector('.modal-title').textContent = mode === 'new' ? 'Novo Funcionário' : 'Editar Funcionário';
+  const modal = new bootstrap.Modal(modalEl);
+  modal.show();
+}
+
+function resetEmployeeForm() {
+  document.getElementById('matricula').value = '';
+  document.getElementById('name').value = '';
+  document.getElementById('corporate_email').value = '';
+  document.getElementById('personal_email').value = '';
+  document.getElementById('phone').value = '';
+  document.getElementById('emergency_contact_name').value = '';
+  document.getElementById('emergency_contact_phone').value = '';
+  document.getElementById('emergency_contact_relation').value = '';
+  document.getElementById('role').value = '';
+  document.getElementById('initial_salary').value = '';
+}
+
+async function saveEmployee() {
+  try {
+    const payload = {
+      name: document.getElementById('name').value,
+      corporate_email: document.getElementById('corporate_email').value || null,
+      personal_email: document.getElementById('personal_email').value || null,
+      phone: document.getElementById('phone').value || null,
+      emergency_contact_name: document.getElementById('emergency_contact_name').value || null,
+      emergency_contact_phone: document.getElementById('emergency_contact_phone').value || null,
+      emergency_contact_relation: document.getElementById('emergency_contact_relation').value || null,
+      labor_type: document.getElementById('labor_type').value,
+      sector: document.getElementById('sector').value,
+      role: document.getElementById('role').value || null,
+      initial_salary: parseFloat(document.getElementById('initial_salary').value || '0')
+    };
+    const headers = { 'Content-Type': 'application/json', Accept: 'application/json' };
+    if (currentEditingId) {
+      await axios.put(`${apiBase}/employees/${currentEditingId}`, payload, { headers });
+    } else {
+      await axios.post(`${apiBase}/employees`, payload, { headers });
+    }
+    bootstrap.Modal.getInstance(document.getElementById('employeeModal')).hide();
+    currentEditingId = null;
+    await loadEmployees();
+  } catch (e) {
+    console.error(e);
+    alert('Erro ao salvar funcionário');
+  }
+}
+
+async function editEmployee(id) {
+  try {
+    const res = await axios.get(`${apiBase}/employees/${id}`, { headers: { Accept: 'application/json' } });
+    const emp = res.data;
+    currentEditingId = id;
+
+    document.getElementById('matricula').value = emp.matricula;
+    document.getElementById('name').value = emp.name || '';
+    document.getElementById('corporate_email').value = emp.corporate_email || '';
+    document.getElementById('personal_email').value = emp.personal_email || '';
+    document.getElementById('phone').value = emp.phone || '';
+    document.getElementById('role').value = emp.role || '';
+    document.getElementById('initial_salary').value = emp.initial_salary || '';
+    document.getElementById('emergency_contact_name').value = emp.emergency_contact_name || '';
+    document.getElementById('emergency_contact_phone').value = emp.emergency_contact_phone || '';
+    document.getElementById('emergency_contact_relation').value = emp.emergency_contact_relation || '';
+
+    await loadReferenceData({ sector: emp.sector, labor_type: emp.labor_type });
+
+    showEmployeeModal('edit');
+  } catch (e) {
+    console.error(e);
+    alert('Erro ao carregar dados do funcionário');
+  }
+}
+
+// Eventos
+
+document.getElementById('btnNewEmployee').addEventListener('click', async () => {
+  currentEditingId = null;
+  resetEmployeeForm();
+  await loadReferenceData();
+  await loadNextMatricula();
+  showEmployeeModal('new');
+});
+
+document.getElementById('saveEmployeeBtn').addEventListener('click', saveEmployee);
+
+document.getElementById('activeFilter').addEventListener('change', loadEmployees);
+
+// Inicialização
+loadEmployees();
+</script>
+{% endblock %}
