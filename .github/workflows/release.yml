@@ -79,3 +79,22 @@ jobs:
           git add docs/version.json static/version.json
           git commit -m "chore: atualiza feeds de versão para ${{ steps.ver.outputs.version }}"
           git push origin main
+
+  deploy-feed:
+    runs-on: ubuntu-latest
+    needs: build-and-release
+    if: ${{ secrets.WEB_SSH_HOST }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Upload version.json to mtdl.com.br (optional)
+        uses: appleboy/scp-action@v0.1.7
+        with:
+          host: ${{ secrets.WEB_SSH_HOST }}
+          username: ${{ secrets.WEB_SSH_USERNAME }}
+          key: ${{ secrets.WEB_SSH_PRIVATE_KEY }}
+          password: ${{ secrets.WEB_SSH_PASSWORD }}
+          port: ${{ secrets.WEB_SSH_PORT }}
+          source: "docs/version.json"
+          target: "/public_html/version.json"
+        continue-on-error: true

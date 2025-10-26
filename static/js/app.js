@@ -641,7 +641,10 @@ window.MTDL = {
   }
 
   async function fetchUpdateFeed(){
-    const remoteUrl = 'https://MTDL-Transporte.github.io/MTDL-PCM/version.json';
+    const remoteCandidates = [
+      'https://mtdl.com.br/version.json',
+      'https://MTDL-Transporte.github.io/MTDL-PCM/version.json'
+    ];
     const localUrl = '/static/version.json';
     const noCache = `?t=${Date.now()}`;
 
@@ -656,16 +659,21 @@ window.MTDL = {
       };
     }
 
-    try {
-      return await tryFetch(remoteUrl);
-    } catch (eRemote) {
-      console.warn('[update-check] Feed remoto indisponível, tentando local:', eRemote);
+    // Tenta primeiro no domínio oficial, depois fallback para GitHub Pages
+    for (const u of remoteCandidates){
       try {
-        return await tryFetch(localUrl);
-      } catch (eLocal) {
-        console.warn('[update-check] Feed local indisponível:', eLocal);
-        return { latest: '0.0.0', url: '', changelog: '' };
+        return await tryFetch(u);
+      } catch (e) {
+        console.warn('[update-check] Feed remoto indisponível:', u, e);
       }
+    }
+
+    // Fallback final: feed local do pacote
+    try {
+      return await tryFetch(localUrl);
+    } catch (eLocal) {
+      console.warn('[update-check] Feed local indisponível:', eLocal);
+      return { latest: '0.0.0', url: '', changelog: '' };
     }
   }
 
