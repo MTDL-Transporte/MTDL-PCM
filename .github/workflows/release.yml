@@ -62,12 +62,25 @@ jobs:
 
       - name: Update feeds (docs/static) with new version
         shell: pwsh
+        env:
+          FEED_DOWNLOAD_URL: ${{ secrets.FEED_DOWNLOAD_URL }}
+          FEED_CHANGELOG: ${{ secrets.FEED_CHANGELOG }}
         run: |
           $repo = "${{ github.repository }}"
           $tag = "${{ steps.ver.outputs.tag }}"
           $version = "${{ steps.ver.outputs.version }}"
-          $download = "https://github.com/$repo/releases/download/$tag/MTDL-PCM.exe"
-          $json = @{ latest_version = $version; download_url = $download; changelog = "Correções de bugs e melhorias de desempenho" } | ConvertTo-Json -Depth 3
+          $defaultDownload = "https://github.com/$repo/releases/download/$tag/MTDL-PCM.exe"
+          if ($env:FEED_DOWNLOAD_URL) {
+            $download = $env:FEED_DOWNLOAD_URL
+          } else {
+            $download = $defaultDownload
+          }
+          if ($env:FEED_CHANGELOG) {
+            $changelog = $env:FEED_CHANGELOG
+          } else {
+            $changelog = "Correções de bugs e melhorias de desempenho"
+          }
+          $json = @{ latest_version = $version; download_url = $download; changelog = $changelog } | ConvertTo-Json -Depth 3
           Set-Content -Path "docs/version.json" -Value $json -Encoding UTF8
           Set-Content -Path "static/version.json" -Value $json -Encoding UTF8
 
