@@ -641,18 +641,31 @@ window.MTDL = {
   }
 
   async function fetchUpdateFeed(){
-    try {
-      const res = await fetch('/static/version.json', { cache: 'no-store' });
-      if (!res.ok) throw new Error('Falha ao obter feed');
+    const remoteUrl = 'https://MTDL-Transporte.github.io/MTDL-PCM/version.json';
+    const localUrl = '/static/version.json';
+    const noCache = `?t=${Date.now()}`;
+
+    async function tryFetch(url){
+      const res = await fetch(url + noCache, { cache: 'no-store' });
+      if (!res.ok) throw new Error(`Feed HTTP ${res.status}`);
       const data = await res.json();
       return {
         latest: String(data.latest_version || '0.0.0'),
         url: String(data.download_url || ''),
         changelog: String(data.changelog || '')
       };
-    } catch (e) {
-      console.warn('[update-check] Erro ao obter feed:', e);
-      return { latest: '0.0.0', url: '', changelog: '' };
+    }
+
+    try {
+      return await tryFetch(remoteUrl);
+    } catch (eRemote) {
+      console.warn('[update-check] Feed remoto indisponível, tentando local:', eRemote);
+      try {
+        return await tryFetch(localUrl);
+      } catch (eLocal) {
+        console.warn('[update-check] Feed local indisponível:', eLocal);
+        return { latest: '0.0.0', url: '', changelog: '' };
+      }
     }
   }
 
