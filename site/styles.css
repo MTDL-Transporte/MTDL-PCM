@@ -1,0 +1,157 @@
+/* Fonte e reset */
+* { box-sizing: border-box; }
+html, body { height: 100%; }
+body {
+  margin: 0;
+  font-family: 'Inter', system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif;
+  color: #e8eaed;
+  background: radial-gradient(1200px 600px at 10% 10%, #101521 0%, #0a0f1a 40%, #070b14 100%);
+}
+
+/* Containers */
+.container {
+  width: min(1200px, 92vw);
+  margin: 0 auto;
+}
+
+/* Header */
+.site-header {
+  position: sticky;
+  top: 0;
+  z-index: 50;
+  backdrop-filter: blur(10px);
+  background: rgba(8, 12, 20, 0.6);
+  border-bottom: 1px solid rgba(255,255,255,0.07);
+}
+.header-inner {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 16px 0;
+}
+.brand { display: flex; align-items: baseline; gap: 10px; }
+.logo {
+  font-family: 'Orbitron', sans-serif;
+  font-weight: 700;
+  letter-spacing: 1px;
+  font-size: 22px;
+  color: #7cc9ff;
+  text-shadow: 0 0 10px rgba(124,201,255,0.6);
+}
+.divider { color: #4a90e2; opacity: 0.6; }
+.product { font-weight: 700; opacity: 0.9; }
+
+.nav .btn-download {
+  padding: 10px 16px;
+  border-radius: 10px;
+  background: linear-gradient(135deg, #4a90e2 0%, #7cc9ff 100%);
+  color: #0a0f1a;
+  font-weight: 700;
+  text-decoration: none;
+  box-shadow: 0 10px 25px rgba(76, 160, 255, 0.25);
+}
+.nav .btn-download:hover { filter: brightness(1.08); }
+
+/* Hero */
+.hero {
+  position: relative;
+  min-height: 68vh;
+  display: grid;
+  align-items: center;
+  background-image:
+    linear-gradient(120deg, rgba(10, 15, 26, 0.6) 0%, rgba(10, 15, 26, 0.2) 60%, rgba(10, 15, 26, 0.7) 100%);
+}
+.overlay {
+  position: absolute; inset: 0;
+  pointer-events: none;
+  background:
+    radial-gradient(600px 300px at 80% 10%, rgba(124, 201, 255, 0.25) 0%, rgba(124, 201, 255, 0) 70%),
+    radial-gradient(600px 300px at 10% 90%, rgba(255, 99, 132, 0.18) 0%, rgba(255, 99, 132, 0) 70%);
+}
+.hero-content { position: relative; padding: 60px 0 80px; }
+.hero h1 {
+  font-size: clamp(28px, 6vw, 54px);
+  line-height: 1.08;
+  margin: 0 0 16px;
+  text-shadow: 0 10px 40px rgba(0,0,0,0.55);
+}
+.accent { color: #7cc9ff; text-shadow: 0 0 10px rgba(124,201,255,0.6); }
+.subtitle {
+  font-size: clamp(16px, 2.5vw, 20px);
+  opacity: 0.9;
+  max-width: 800px;
+}
+.actions { display: flex; gap: 14px; margin-top: 22px; }
+
+/* Botões */
+.btn {
+  display: inline-block;
+  padding: 12px 20px;
+  border-radius: 12px;
+  text-decoration: none;
+  font-weight: 700;
+}
+.btn-primary {
+  color: #0b0f19;
+  background: linear-gradient(135deg, #4a90e2 0%, #7cc9ff 100%);
+  box-shadow: 0 20px 40px rgba(76,160,255,0.35);
+}
+.btn-primary:hover { filter: brightness(1.08); }
+.btn-secondary {
+  color: #e8eaed;
+  background: rgba(255,255,255,0.06);
+  border: 1px solid rgba(255,255,255,0.15);
+}
+.btn-secondary:hover { background: rgba(255,255,255,0.1); }
+
+/* Robot illustration */
+.robot-illustration {
+  position: absolute;
+  right: max(4vw, 24px);
+  bottom: 10px;
+  width: min(42vw, 420px);
+  opacity: 0.9;
+  filter: drop-shadow(0 40px 80px rgba(76,160,255,0.18));
+}
+.robot-illustration svg { display: block; }
+
+/* Features */
+.features {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+  gap: 18px;
+  padding: 40px 0 60px;
+}
+.feature-card {
+  padding: 22px;
+  border-radius: 16px;
+  background: linear-gradient(180deg, rgba(255,255,255,0.06) 0%, rgba(255,255,255,0.03) 100%);
+  border: 1px solid rgba(255,255,255,0.12);
+  box-shadow: inset 0 1px 0 rgba(255,255,255,0.08);
+}
+.feature-card .icon { font-size: 28px; }
+.feature-card h3 { margin: 10px 0 8px; }
+.feature-card p { opacity: 0.9; }
+
+/* CTA */
+.cta {
+  padding: 40px 0 70px;
+  background: linear-gradient(180deg, rgba(124,201,255,0.08) 0%, rgba(124,201,255,0) 100%);
+}
+.cta-inner { display: flex; align-items: center; gap: 16px; justify-content: space-between; flex-wrap: wrap; }
+.cta h2 { margin: 0; }
+
+/* Footer */
+.site-footer {
+  border-top: 1px solid rgba(255,255,255,0.07);
+  background: rgba(8, 12, 20, 0.6);
+}
+.footer-inner { display: flex; align-items: center; gap: 12px; justify-content: space-between; padding: 18px 0; }
+
+/* Responsivo */
+@media (max-width: 640px) {
+  .header-inner { padding: 12px 0; }
+  .actions { flex-wrap: wrap; }
+  .cta-inner { justify-content: center; text-align: center; }
+  .robot-illustration { opacity: 0.6; width: min(80vw, 360px); right: 16px; }
+}
