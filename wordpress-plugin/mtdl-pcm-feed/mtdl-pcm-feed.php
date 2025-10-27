@@ -213,3 +213,96 @@ function mtdl_pcm_feed_download_button_shortcode($atts = array()) {
     return '<a class="' . esc_attr($atts['class']) . '" href="' . esc_url($url) . '">' . esc_html($atts['label']) . '</a>';
 }
 add_shortcode('pcm_download_button', 'mtdl_pcm_feed_download_button_shortcode');
+
+// --- Shortcode de Landing Page ---
+function mtdl_pcm_enqueue_landing_assets_if_needed() {
+    if (is_singular()) {
+        global $post;
+        if ($post && has_shortcode($post->post_content, 'pcm_landing')) {
+            wp_enqueue_style('mtdl-pcm-landing', plugin_dir_url(__FILE__) . 'assets/landing.css', array(), '1.0.0');
+        }
+    }
+}
+add_action('wp_enqueue_scripts', 'mtdl_pcm_enqueue_landing_assets_if_needed');
+
+function mtdl_pcm_landing_shortcode($atts = array()) {
+    $download_url = get_option('mtdl_pcm_download_url', site_url('/downloads/pcm'));
+    $plans_url    = get_option('mtdl_pcm_plans_url', site_url('/planos'));
+    $download_url = esc_url($download_url);
+    $plans_url    = esc_url($plans_url);
+
+    ob_start();
+    ?>
+    <section class="pcm-landing">
+      <div class="pcm-hero">
+        <div class="pcm-overlay"></div>
+        <div class="pcm-container pcm-hero-content">
+          <div class="pcm-topbar">
+            <span class="pcm-brand"><strong>MTDL</strong> • PCM</span>
+            <a class="pcm-btn pcm-btn-download" href="<?php echo $download_url; ?>">Baixar Programa</a>
+          </div>
+          <h1><span class="pcm-accent">Gestão</span> de manutenção com inteligência</h1>
+          <p class="pcm-subtitle">Planeje, execute e acompanhe operações com performance — impulsionado por dados e IA.</p>
+          <div class="pcm-actions">
+            <a class="pcm-btn pcm-btn-primary" href="<?php echo $download_url; ?>">Baixar Agora</a>
+            <a class="pcm-btn pcm-btn-secondary" href="<?php echo $plans_url; ?>">Ver planos</a>
+          </div>
+        </div>
+        <div class="pcm-robot" aria-hidden="true">
+          <svg viewBox="0 0 400 400" xmlns="http://www.w3.org/2000/svg" role="img">
+            <defs>
+              <linearGradient id="pcm-grad" x1="0" y1="0" x2="1" y2="1">
+                <stop offset="0%" stop-color="#7cc9ff" />
+                <stop offset="100%" stop-color="#4a90e2" />
+              </linearGradient>
+              <radialGradient id="pcm-glow" cx="50%" cy="50%" r="50%">
+                <stop offset="0%" stop-color="rgba(124,201,255,0.9)" />
+                <stop offset="100%" stop-color="rgba(124,201,255,0)" />
+              </radialGradient>
+            </defs>
+            <circle cx="200" cy="200" r="170" fill="url(#pcm-glow)" />
+            <rect x="90" y="110" width="220" height="180" rx="40" fill="rgba(255,255,255,0.06)" stroke="url(#pcm-grad)" stroke-width="2" />
+            <rect x="120" y="160" width="160" height="60" rx="16" fill="url(#pcm-grad)" opacity="0.85" />
+            <circle cx="150" cy="190" r="12" fill="#0a0f1a" />
+            <circle cx="190" cy="190" r="12" fill="#0a0f1a" />
+            <circle cx="230" cy="190" r="12" fill="#0a0f1a" />
+            <line x1="100" y1="120" x2="70" y2="80" stroke="#7cc9ff" stroke-width="3" />
+            <circle cx="68" cy="78" r="6" fill="#7cc9ff" />
+            <line x1="300" y1="120" x2="330" y2="80" stroke="#7cc9ff" stroke-width="3" />
+            <circle cx="332" cy="78" r="6" fill="#7cc9ff" />
+            <path d="M120 250 H280" stroke="rgba(124,201,255,0.6)" stroke-width="2" />
+            <path d="M140 270 H260" stroke="rgba(124,201,255,0.4)" stroke-width="2" />
+            <path d="M160 290 H240" stroke="rgba(124,201,255,0.25)" stroke-width="2" />
+          </svg>
+        </div>
+      </div>
+
+      <div class="pcm-features pcm-container">
+        <div class="pcm-card">
+          <div class="pcm-icon">⚙️</div>
+          <h3>Manutenção inteligente</h3>
+          <p>Planos preventivos automáticos, ordens de serviço e histórico completo.</p>
+        </div>
+        <div class="pcm-card">
+          <div class="pcm-icon">📦</div>
+          <h3>Estoque sem surpresas</h3>
+          <p>Movimentos, custos e alertas com visibilidade total.</p>
+        </div>
+        <div class="pcm-card">
+          <div class="pcm-icon">📊</div>
+          <h3>Dashboards e relatórios</h3>
+          <p>Métricas de desempenho e insights para decisões rápidas.</p>
+        </div>
+      </div>
+
+      <div class="pcm-cta">
+        <div class="pcm-container pcm-cta-inner">
+          <h2>Pronto para acelerar sua operação?</h2>
+          <a class="pcm-btn pcm-btn-primary" href="<?php echo $download_url; ?>">Baixar Programa</a>
+        </div>
+      </div>
+    </section>
+    <?php
+    return ob_get_clean();
+}
+add_shortcode('pcm_landing', 'mtdl_pcm_landing_shortcode');
