@@ -186,6 +186,15 @@ function mtdl_pcm_feed_settings_page() {
             </table>
             <?php submit_button('Salvar alterações'); ?>
         </form>
+
+        <hr />
+        <h2>Landing Page</h2>
+        <p>Criar/atualizar a página inicial com o layout MTDL PCM. Isso evita erros de publicação pelo editor bloqueado no servidor.</p>
+        <form method="post" action="<?php echo esc_url(admin_url('admin-post.php')); ?>">
+            <?php wp_nonce_field('mtdl_pcm_create_landing'); ?>
+            <input type="hidden" name="action" value="mtdl_pcm_create_landing" />
+            <?php submit_button('Criar/Atualizar Landing e Definir como Página Inicial', 'primary'); ?>
+        </form>
     </div>
     <?php
 }
@@ -306,3 +315,45 @@ function mtdl_pcm_landing_shortcode($atts = array()) {
     return ob_get_clean();
 }
 add_shortcode('pcm_landing', 'mtdl_pcm_landing_shortcode');
+
+// --- Admin action: criar/atualizar página de landing e definir como inicial ---
+function mtdl_pcm_create_landing_handler() {
+    if (!current_user_can('manage_options')) {
+        wp_die(__('Sem permissão.', 'mtdl-pcm'));
+    }
+    check_admin_referer('mtdl_pcm_create_landing');
+
+    $content = '[pcm_landing]';
+    $page = get_page_by_path('inicio');
+    if (!$page) {
+        $page = get_page_by_title('Início');
+    }
+
+    $args = array(
+        'post_title'   => 'Início',
+        'post_name'    => 'inicio',
+        'post_content' => $content,
+        'post_status'  => 'publish',
+        'post_type'    => 'page',
+    );
+
+    if ($page && isset($page->ID)) {
+        $args['ID'] = intval($page->ID);
+        $page_id = wp_update_post($args, true);
+    } else {
+        $page_id = wp_insert_post($args, true);
+    }
+
+    if (is_wp_error($page_id)) {
+        wp_die('Erro ao criar/atualizar a página: ' . $page_id->get_error_message());
+    }
+
+    // Define como página inicial
+    update_option('show_on_front', 'page');
+    update_option('page_on_front', $page_id);
+
+    // Redireciona para edição da página
+    wp_safe_redirect(admin_url('post.php?post=' . $page_id . '&action=edit'));
+    exit;
+}
+add_action('admin_post_mtdl_pcm_create_landing', 'mtdl_pcm_create_landing_handler');
