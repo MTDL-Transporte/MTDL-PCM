@@ -24,6 +24,14 @@ add_filter('query_vars', 'mtdl_pcm_feed_query_vars');
 
 function mtdl_pcm_feed_template_redirect() {
     if (intval(get_query_var('mtdl_pcm_version_json')) === 1) {
+        // Preflight CORS
+        if ($_SERVER['REQUEST_METHOD'] === 'OPTIONS') {
+            status_header(204);
+            header('Access-Control-Allow-Origin: *');
+            header('Access-Control-Allow-Methods: GET, OPTIONS');
+            header('Access-Control-Allow-Headers: Content-Type');
+            exit;
+        }
         $version = get_option('mtdl_pcm_latest_version', '1.0.1');
         $download_url = get_option('mtdl_pcm_download_url', site_url('/downloads/pcm'));
         $changelog = get_option('mtdl_pcm_changelog', 'Correções de bugs e melhorias de desempenho');
@@ -36,6 +44,8 @@ function mtdl_pcm_feed_template_redirect() {
 
         status_header(200);
         header('Content-Type: application/json; charset=utf-8');
+        header('Access-Control-Allow-Origin: *');
+        header('X-Robots-Tag: noindex, nofollow');
         header('Cache-Control: no-cache, no-store, must-revalidate');
         header('Pragma: no-cache');
         header('Expires: 0');
