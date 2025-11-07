@@ -22,6 +22,13 @@ if (-not $Version -or $Version.Trim().Length -eq 0) {
   }
 }
 
+# Sincroniza feeds de versão com a versão alvo
+try {
+  & .\.venv\Scripts\python.exe scripts\bump_version.py --set $Version | Out-Null
+} catch {
+  Write-Warning "Não foi possível sincronizar feeds de versão. Prosseguindo mesmo assim."
+}
+
 # Garantir que o EXE existe (gerar se necessário)
 if (-not (Test-Path $distExe)) {
   Write-Host "==> Executável não encontrado em dist/. Vou gerar com build.ps1"
@@ -37,8 +44,33 @@ $possible = @(
   "C:\\Program Files\\Inno Setup 6\\ISCC.exe"
 )
 $iscc = $null
-foreach ($p in $possible) { if (Test-Path $p) { $iscc = $p; break } }
-if (-not $iscc) { throw "ISCC.exe não encontrado. Instale o Inno Setup 6: https://jrsoftware.org/isdl.php" }
+
+# Tentar descobrir via PATH
+$cmd = Get-Command ISCC.exe -ErrorAction SilentlyContinue
+if ($cmd) { $iscc = $cmd.Path }
+
+# Tentar nos caminhos comuns
+if (-not $iscc) {
+  foreach ($p in $possible) { if (Test-Path $p) { $iscc = $p; break } }
+}
+
+# Instalar automaticamente via Chocolatey se não encontrado (em runners Windows)
+if (-not $iscc) {
+  Write-Warning "ISCC.exe não encontrado. Tentando instalar Inno Setup via Chocolatey..."
+  try {
+    choco install innosetup -y | Out-Null
+  } catch {
+    Write-Warning "Falha ao instalar Inno Setup via Chocolatey."
+  }
+  # Procurar novamente
+  $cmd = Get-Command ISCC.exe -ErrorAction SilentlyContinue
+  if ($cmd) { $iscc = $cmd.Path }
+  if (-not $iscc) {
+    foreach ($p in $possible) { if (Test-Path $p) { $iscc = $p; break } }
+  }
+}
+
+if (-not $iscc) { throw "ISCC.exe não encontrado após tentativa de instalação. Instale o Inno Setup 6: https://jrsoftware.org/isdl.php" }
 
 # Compilar o instalador
 Write-Host "==> Compilando instalador com Inno Setup"
