@@ -41,6 +41,33 @@ jobs:
         run: |
           ./scripts/build.ps1 -Version "${{ steps.ver.outputs.version }}" -Name "MTDL-PCM"
 
+      - name: Install Inno Setup (for installer build)
+        shell: pwsh
+        run: |
+          choco install innosetup -y
+
+      - name: Build installer (Setup exe)
+        shell: pwsh
+        run: |
+          ./scripts/build_installer.ps1 -Version "${{ steps.ver.outputs.version }}" -Name "MTDL-PCM"
+
+      - name: Upload installer to server via SCP (optional)
+        if: ${{ secrets.WEB_SSH_HOST }}
+        shell: pwsh
+        env:
+          WEB_SSH_HOST: ${{ secrets.WEB_SSH_HOST }}
+          WEB_SSH_USERNAME: ${{ secrets.WEB_SSH_USERNAME }}
+          WEB_SSH_PRIVATE_KEY: ${{ secrets.WEB_SSH_PRIVATE_KEY }}
+          WEB_SSH_PASSWORD: ${{ secrets.WEB_SSH_PASSWORD }}
+          WEB_SSH_PORT: ${{ secrets.WEB_SSH_PORT }}
+        run: |
+          $version = "${{ steps.ver.outputs.version }}"
+          $localFile = "releases/MTDL-PCM-Setup-$version/MTDL-PCM-Setup-$version.exe"
+          if (-not (Test-Path $localFile)) { throw "Installer not found: $localFile" }
+          $targetDir = "/public_html/downloads/"
+          # Use scp from OpenSSH (available on windows-latest)
+          scp -P $env:WEB_SSH_PORT "$localFile" "$($env:WEB_SSH_USERNAME)@$($env:WEB_SSH_HOST):$targetDir"
+
       - name: Create GitHub Release and upload exe
         uses: softprops/action-gh-release@v1
         with:
@@ -48,6 +75,7 @@ jobs:
           name: MTDL-PCM ${{ steps.ver.outputs.version }}
           files: |
             dist/MTDL-PCM.exe
+            releases/MTDL-PCM-Setup-${{ steps.ver.outputs.version }}/MTDL-PCM-Setup-${{ steps.ver.outputs.version }}.exe
           draft: false
           prerelease: false
         env:
@@ -101,11 +129,15 @@ jobs:
           WP_FEED_TOKEN: ${{ secrets.WP_FEED_TOKEN }}
           FEED_DOWNLOAD_URL: ${{ secrets.FEED_DOWNLOAD_URL }}
           FEED_CHANGELOG: ${{ secrets.FEED_CHANGELOG }}
+          SITE_DOWNLOAD_BASE: ${{ secrets.SITE_DOWNLOAD_BASE }}
         run: |
           $repo = "${{ github.repository }}"
           $tag = "${{ steps.ver.outputs.tag }}"
           $version = "${{ steps.ver.outputs.version }}"
-          $defaultDownload = "https://github.com/$repo/releases/download/$tag/MTDL-PCM.exe"
+          $defaultDownload = "https://github.com/$repo/releases/download/$tag/MTDL-PCM-Setup-$version.exe"
+          if ($env:SITE_DOWNLOAD_BASE) {
+            $defaultDownload = "$env:SITE_DOWNLOAD_BASE/MTDL-PCM-Setup-$version.exe"
+          }
           if ($env:FEED_DOWNLOAD_URL) {
             $download = $env:FEED_DOWNLOAD_URL
           } else {
@@ -116,9 +148,10 @@ jobs:
           } else {
             $changelog = "Correções de bugs e melhorias de desempenho"
           }
-          $payload = @{ latest_version = $version; download_url = $download; changelog = $changelog } | ConvertTo-Json -Depth 3
+          # Use form-encoded payload to maximize compatibility with WordPress/LiteSpeed
+          $payload = @{ latest_version = $version; download_url = $download; changelog = $changelog }
           try {
-            Invoke-RestMethod -Method POST -Uri $env:WP_FEED_URL -Headers @{ 'X-Feed-Token' = $env:WP_FEED_TOKEN; 'Content-Type' = 'application/json' } -Body $payload
+            Invoke-RestMethod -Method POST -Uri $env:WP_FEED_URL -Headers @{ 'X-Feed-Token' = $env:WP_FEED_TOKEN } -Body $payload -ContentType 'application/x-www-form-urlencoded'
             Write-Host "WordPress feed updated via REST."
           } catch {
             Write-Warning "Failed to update WordPress feed via REST: $($_.Exception.Message)"
@@ -141,4 +174,16 @@ jobs:
           port: ${{ secrets.WEB_SSH_PORT }}
           source: "docs/version.json"
           target: "/public_html/version.json"
+        continue-on-error: true
+
+      - name: Upload installer to mtdl.com.br (optional)
+        uses: appleboy/scp-action@v0.1.7
+        with:
+          host: ${{ secrets.WEB_SSH_HOST }}
+          username: ${{ secrets.WEB_SSH_USERNAME }}
+          key: ${{ secrets.WEB_SSH_PRIVATE_KEY }}
+          password: ${{ secrets.WEB_SSH_PASSWORD }}
+          port: ${{ secrets.WEB_SSH_PORT }}
+          source: "releases/MTDL-PCM-Setup-${{ needs.build-and-release.outputs.version }}/MTDL-PCM-Setup-${{ needs.build-and-release.outputs.version }}.exe"
+          target: "/public_html/downloads/"
         continue-on-error: true
