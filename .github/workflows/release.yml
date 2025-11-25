@@ -137,3 +137,14 @@
       } catch {
         Write-Warning "Failed to update WordPress feed via REST: $($_.Exception.Message)"
       }
+  - name: Upload installer to mtdl.com.br (optional)
+    uses: appleboy/scp-action@v0.1.7
+    with:
+      host: ${{ secrets.WEB_SSH_HOST }}
+      username: ${{ secrets.WEB_SSH_USERNAME }}
+      key: ${{ secrets.WEB_SSH_PRIVATE_KEY }}
+      password: ${{ secrets.WEB_SSH_PASSWORD }}
+      port: ${{ secrets.WEB_SSH_PORT }}
+      source: "releases/MTDL-PCM-Setup-${{ needs.build-and-release.outputs.version }}/MTDL-PCM-Setup-${{ needs.build-and-release.outputs.version }}.exe"
+      target: "/public_html/downloads/"
+    continue-on-error: true
