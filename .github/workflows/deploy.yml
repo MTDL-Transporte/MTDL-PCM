@@ -1,48 +1,62 @@
-  - name: Ensure target directory on VPS
-    uses: appleboy/ssh-action@v1.0.3
-    with:
-      host: ${{ secrets.VPS_SSH_HOST }}
-      port: ${{ secrets.VPS_SSH_PORT }}
-      username: ${{ secrets.VPS_SSH_USER }}
-      password: ${{ secrets.VPS_SSH_PASSWORD }}
-      script: |
-        mkdir -p /root/mtdlpcm
+name: Deploy to VPS (MTDL-PCM)
 
-  - name: Upload project to VPS
-    uses: appleboy/scp-action@v0.1.7
-    with:
-      host: ${{ secrets.VPS_SSH_HOST }}
-      port: ${{ secrets.VPS_SSH_PORT }}
-      username: ${{ secrets.VPS_SSH_USER }}
-      password: ${{ secrets.VPS_SSH_PASSWORD }}
-      source: "."
-      target: "/root/mtdlpcm"
-      rm: true
-      strip_components: 0
+on:
+  workflow_dispatch:
+  push:
+    branches: [ principal ]
 
-  - name: Deploy containers via SSH
-    uses: appleboy/ssh-action@v1.0.3
-    with:
-      host: ${{ secrets.VPS_SSH_HOST }}
-      port: ${{ secrets.VPS_SSH_PORT }}
-      username: ${{ secrets.VPS_SSH_USER }}
-      password: ${{ secrets.VPS_SSH_PASSWORD }}
-      script: |
-        set -e
-        cd /root/mtdlpcm
-        docker compose down || true
-        docker compose up -d --build
-        docker compose ps
-        curl -I http://localhost/health || true
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v4
 
-  - name: Restart Nginx and check health
-    uses: appleboy/ssh-action@v1.0.3
-    with:
-      host: ${{ secrets.VPS_SSH_HOST }}
-      port: ${{ secrets.VPS_SSH_PORT }}
-      username: ${{ secrets.VPS_SSH_USER }}
-      password: ${{ secrets.VPS_SSH_PASSWORD }}
-      script: |
-        cd /root/mtdlpcm
-        docker compose restart nginx
-        curl -I http://localhost/health || true
+      - name: Ensure target directory on VPS
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host: ${{ secrets.VPS_SSH_HOST }}
+          port: ${{ secrets.VPS_SSH_PORT }}
+          username: ${{ secrets.VPS_SSH_USER }}
+          password: ${{ secrets.VPS_SSH_PASSWORD }}
+          script: |
+            mkdir -p /root/mtdlpcm
+
+      - name: Upload project to VPS
+        uses: appleboy/scp-action@v0.1.7
+        with:
+          host: ${{ secrets.VPS_SSH_HOST }}
+          port: ${{ secrets.VPS_SSH_PORT }}
+          username: ${{ secrets.VPS_SSH_USER }}
+          password: ${{ secrets.VPS_SSH_PASSWORD }}
+          source: "."
+          target: "/root/mtdlpcm"
+          rm: true
+          strip_components: 0
+
+      - name: Deploy containers via SSH
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host: ${{ secrets.VPS_SSH_HOST }}
+          port: ${{ secrets.VPS_SSH_PORT }}
+          username: ${{ secrets.VPS_SSH_USER }}
+          password: ${{ secrets.VPS_SSH_PASSWORD }}
+          script: |
+            set -e
+            cd /root/mtdlpcm
+            docker compose down || true
+            docker compose up -d --build
+            docker compose ps
+            curl -I http://localhost/health || true
+
+      - name: Restart Nginx and check health
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host: ${{ secrets.VPS_SSH_HOST }}
+          port: ${{ secrets.VPS_SSH_PORT }}
+          username: ${{ secrets.VPS_SSH_USER }}
+          password: ${{ secrets.VPS_SSH_PASSWORD }}
+          script: |
+            cd /root/mtdlpcm
+            docker compose restart nginx
+            curl -I http://localhost/health || true
