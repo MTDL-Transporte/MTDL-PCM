@@ -1,189 +1,139 @@
-name: Release MTDL-PCM
+  - name: Setup Python
+    uses: actions/setup-python@v5
+    with:
+      python-version: '3.11'
 
-on:
-  push:
-    tags:
-      - 'v*'
+  - name: Install dependencies
+    shell: pwsh
+    run: |
+      python -m pip install --upgrade pip
+      pip install -r requirements.txt
+      pip install pyinstaller
 
-permissions:
-  contents: write
+  - name: Extract version from tag
+    id: ver
+    shell: pwsh
+    run: |
+      $tag = "${{ github.ref_name }}"
+      $version = $tag -replace '^v',''
+      echo "tag=$tag" >> $env:GITHUB_OUTPUT
+      echo "version=$version" >> $env:GITHUB_OUTPUT
 
-jobs:
-  build-and-release:
-    runs-on: windows-latest
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v4
+  - name: Build executable
+    shell: pwsh
+    run: |
+      ./scripts/build.ps1 -Version "${{ steps.ver.outputs.version }}" -Name "MTDL-PCM"
 
-      - name: Setup Python
-        uses: actions/setup-python@v5
-        with:
-          python-version: '3.11'
+  - name: Install Inno Setup (for installer build)
+    shell: pwsh
+    run: |
+      choco install innosetup -y
 
-      - name: Install dependencies
-        shell: pwsh
-        run: |
-          python -m pip install --upgrade pip
-          pip install -r requirements.txt
-          pip install pyinstaller
+  - name: Build installer (Setup exe)
+    shell: pwsh
+    run: |
+      ./scripts/build_installer.ps1 -Version "${{ steps.ver.outputs.version }}" -Name "MTDL-PCM"
 
-      - name: Extract version from tag
-        id: ver
-        shell: pwsh
-        run: |
-          $tag = "${{ github.ref_name }}"
-          $version = $tag -replace '^v',''
-          echo "tag=$tag" >> $env:GITHUB_OUTPUT
-          echo "version=$version" >> $env:GITHUB_OUTPUT
-
-      - name: Build executable
-        shell: pwsh
-        run: |
-          ./scripts/build.ps1 -Version "${{ steps.ver.outputs.version }}" -Name "MTDL-PCM"
-
-      - name: Install Inno Setup (for installer build)
-        shell: pwsh
-        run: |
-          choco install innosetup -y
-
-      - name: Build installer (Setup exe)
-        shell: pwsh
-        run: |
-          ./scripts/build_installer.ps1 -Version "${{ steps.ver.outputs.version }}" -Name "MTDL-PCM"
-
-      - name: Upload installer to server via SCP (optional)
-        if: ${{ secrets.WEB_SSH_HOST }}
-        shell: pwsh
-        env:
-          WEB_SSH_HOST: ${{ secrets.WEB_SSH_HOST }}
-          WEB_SSH_USERNAME: ${{ secrets.WEB_SSH_USERNAME }}
-          WEB_SSH_PRIVATE_KEY: ${{ secrets.WEB_SSH_PRIVATE_KEY }}
-          WEB_SSH_PASSWORD: ${{ secrets.WEB_SSH_PASSWORD }}
-          WEB_SSH_PORT: ${{ secrets.WEB_SSH_PORT }}
-        run: |
-          $version = "${{ steps.ver.outputs.version }}"
-          $localFile = "releases/MTDL-PCM-Setup-$version/MTDL-PCM-Setup-$version.exe"
-          if (-not (Test-Path $localFile)) { throw "Installer not found: $localFile" }
-          $targetDir = "/public_html/downloads/"
-          # Use scp from OpenSSH (available on windows-latest)
-          scp -P $env:WEB_SSH_PORT "$localFile" "$($env:WEB_SSH_USERNAME)@$($env:WEB_SSH_HOST):$targetDir"
-
-      - name: Create GitHub Release and upload exe
-        uses: softprops/action-gh-release@v1
-        with:
-          tag_name: ${{ steps.ver.outputs.tag }}
-          name: MTDL-PCM ${{ steps.ver.outputs.version }}
-          files: |
-            dist/MTDL-PCM.exe
-            releases/MTDL-PCM-Setup-${{ steps.ver.outputs.version }}/MTDL-PCM-Setup-${{ steps.ver.outputs.version }}.exe
-          draft: false
-          prerelease: false
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-
-      - name: Checkout main branch
-        shell: pwsh
-        run: |
-          git fetch origin main
-          git checkout main
-          git pull --ff-only origin main
-
-      - name: Update feeds (docs/static) with new version
-        shell: pwsh
-        env:
-          FEED_DOWNLOAD_URL: ${{ secrets.FEED_DOWNLOAD_URL }}
-          FEED_CHANGELOG: ${{ secrets.FEED_CHANGELOG }}
-        run: |
-          $repo = "${{ github.repository }}"
-          $tag = "${{ steps.ver.outputs.tag }}"
-          $version = "${{ steps.ver.outputs.version }}"
-          $defaultDownload = "https://github.com/$repo/releases/download/$tag/MTDL-PCM.exe"
-          if ($env:FEED_DOWNLOAD_URL) {
-            $download = $env:FEED_DOWNLOAD_URL
-          } else {
-            $download = $defaultDownload
-          }
-          if ($env:FEED_CHANGELOG) {
-            $changelog = $env:FEED_CHANGELOG
-          } else {
-            $changelog = "Correções de bugs e melhorias de desempenho"
-          }
-          $json = @{ latest_version = $version; download_url = $download; changelog = $changelog } | ConvertTo-Json -Depth 3
-          Set-Content -Path "docs/version.json" -Value $json -Encoding UTF8
-          Set-Content -Path "static/version.json" -Value $json -Encoding UTF8
-
-      - name: Commit and push feed updates
-        shell: pwsh
-        run: |
-          git config user.name "github-actions[bot]"
-          git config user.email "github-actions[bot]@users.noreply.github.com"
-          git add docs/version.json static/version.json
-          git commit -m "chore: atualiza feeds de versão para ${{ steps.ver.outputs.version }}"
-          git push origin main
-
-      - name: Update WordPress feed via REST (optional)
-        if: ${{ secrets.WP_FEED_URL && secrets.WP_FEED_TOKEN }}
-        shell: pwsh
-        env:
-          WP_FEED_URL: ${{ secrets.WP_FEED_URL }}
-          WP_FEED_TOKEN: ${{ secrets.WP_FEED_TOKEN }}
-          FEED_DOWNLOAD_URL: ${{ secrets.FEED_DOWNLOAD_URL }}
-          FEED_CHANGELOG: ${{ secrets.FEED_CHANGELOG }}
-          SITE_DOWNLOAD_BASE: ${{ secrets.SITE_DOWNLOAD_BASE }}
-        run: |
-          $repo = "${{ github.repository }}"
-          $tag = "${{ steps.ver.outputs.tag }}"
-          $version = "${{ steps.ver.outputs.version }}"
-          $defaultDownload = "https://github.com/$repo/releases/download/$tag/MTDL-PCM-Setup-$version.exe"
-          if ($env:SITE_DOWNLOAD_BASE) {
-            $defaultDownload = "$env:SITE_DOWNLOAD_BASE/MTDL-PCM-Setup-$version.exe"
-          }
-          if ($env:FEED_DOWNLOAD_URL) {
-            $download = $env:FEED_DOWNLOAD_URL
-          } else {
-            $download = $defaultDownload
-          }
-          if ($env:FEED_CHANGELOG) {
-            $changelog = $env:FEED_CHANGELOG
-          } else {
-            $changelog = "Correções de bugs e melhorias de desempenho"
-          }
-          # Use form-encoded payload to maximize compatibility with WordPress/LiteSpeed
-          $payload = @{ latest_version = $version; download_url = $download; changelog = $changelog }
-          try {
-            Invoke-RestMethod -Method POST -Uri $env:WP_FEED_URL -Headers @{ 'X-Feed-Token' = $env:WP_FEED_TOKEN } -Body $payload -ContentType 'application/x-www-form-urlencoded'
-            Write-Host "WordPress feed updated via REST."
-          } catch {
-            Write-Warning "Failed to update WordPress feed via REST: $($_.Exception.Message)"
-          }
-
-  deploy-feed:
-    runs-on: ubuntu-latest
-    needs: build-and-release
+  - name: Upload installer to server via SCP (optional)
     if: ${{ secrets.WEB_SSH_HOST }}
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-      - name: Upload version.json to mtdl.com.br (optional)
-        uses: appleboy/scp-action@v0.1.7
-        with:
-          host: ${{ secrets.WEB_SSH_HOST }}
-          username: ${{ secrets.WEB_SSH_USERNAME }}
-          key: ${{ secrets.WEB_SSH_PRIVATE_KEY }}
-          password: ${{ secrets.WEB_SSH_PASSWORD }}
-          port: ${{ secrets.WEB_SSH_PORT }}
-          source: "docs/version.json"
-          target: "/public_html/version.json"
-        continue-on-error: true
+    shell: pwsh
+    env:
+      WEB_SSH_HOST: ${{ secrets.WEB_SSH_HOST }}
+      WEB_SSH_USERNAME: ${{ secrets.WEB_SSH_USERNAME }}
+      WEB_SSH_PRIVATE_KEY: ${{ secrets.WEB_SSH_PRIVATE_KEY }}
+      WEB_SSH_PASSWORD: ${{ secrets.WEB_SSH_PASSWORD }}
+      WEB_SSH_PORT: ${{ secrets.WEB_SSH_PORT }}
+    run: |
+      $version = "${{ steps.ver.outputs.version }}"
+      $localFile = "releases/MTDL-PCM-Setup-$version/MTDL-PCM-Setup-$version.exe"
+      if (-not (Test-Path $localFile)) { throw "Installer not found: $localFile" }
+      $targetDir = "/public_html/downloads/"
+      scp -P $env:WEB_SSH_PORT "$localFile" "$($env:WEB_SSH_USERNAME)@$($env:WEB_SSH_HOST):$targetDir"
 
-      - name: Upload installer to mtdl.com.br (optional)
-        uses: appleboy/scp-action@v0.1.7
-        with:
-          host: ${{ secrets.WEB_SSH_HOST }}
-          username: ${{ secrets.WEB_SSH_USERNAME }}
-          key: ${{ secrets.WEB_SSH_PRIVATE_KEY }}
-          password: ${{ secrets.WEB_SSH_PASSWORD }}
-          port: ${{ secrets.WEB_SSH_PORT }}
-          source: "releases/MTDL-PCM-Setup-${{ needs.build-and-release.outputs.version }}/MTDL-PCM-Setup-${{ needs.build-and-release.outputs.version }}.exe"
-          target: "/public_html/downloads/"
-        continue-on-error: true
+  - name: Create GitHub Release and upload exe
+    uses: softprops/action-gh-release@v1
+    with:
+      tag_name: ${{ steps.ver.outputs.tag }}
+      name: MTDL-PCM ${{ steps.ver.outputs.version }}
+      files: |
+        dist/MTDL-PCM.exe
+        releases/MTDL-PCM-Setup-${{ steps.ver.outputs.version }}/MTDL-PCM-Setup-${{ steps.ver.outputs.version }}.exe
+      draft: false
+      prerelease: false
+    env:
+      GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+  - name: Checkout main branch
+    shell: pwsh
+    run: |
+      git fetch origin main
+      git checkout main
+      git pull --ff-only origin main
+
+  - name: Update feeds (docs/static) with new version
+    shell: pwsh
+    env:
+      FEED_DOWNLOAD_URL: ${{ secrets.FEED_DOWNLOAD_URL }}
+      FEED_CHANGELOG: ${{ secrets.FEED_CHANGELOG }}
+    run: |
+      $repo = "${{ github.repository }}"
+      $tag = "${{ steps.ver.outputs.tag }}"
+      $version = "${{ steps.ver.outputs.version }}"
+      $defaultDownload = "https://github.com/$repo/releases/download/$tag/MTDL-PCM.exe"
+      if ($env:FEED_DOWNLOAD_URL) {
+        $download = $env:FEED_DOWNLOAD_URL
+      } else {
+        $download = $defaultDownload
+      }
+      if ($env:FEED_CHANGELOG) {
+        $changelog = $env:FEED_CHANGELOG
+      } else {
+        $changelog = "Correções de bugs e melhorias de desempenho"
+      }
+      $json = @{ latest_version = $version; download_url = $download; changelog = $changelog } | ConvertTo-Json -Depth 3
+      Set-Content -Path "docs/version.json" -Value $json -Encoding UTF8
+      Set-Content -Path "static/version.json" -Value $json -Encoding UTF8
+
+  - name: Commit and push feed updates
+    shell: pwsh
+    run: |
+      git config user.name "github-actions[bot]"
+      git config user.email "github-actions[bot]@users.noreply.github.com"
+      git add docs/version.json static/version.json
+      git commit -m "chore: atualiza feeds de versão para ${{ steps.ver.outputs.version }}"
+      git push origin main
+
+  - name: Update WordPress feed via REST (optional)
+    if: ${{ secrets.WP_FEED_URL && secrets.WP_FEED_TOKEN }}
+    shell: pwsh
+    env:
+      WP_FEED_URL: ${{ secrets.WP_FEED_URL }}
+      WP_FEED_TOKEN: ${{ secrets.WP_FEED_TOKEN }}
+      FEED_DOWNLOAD_URL: ${{ secrets.FEED_DOWNLOAD_URL }}
+      FEED_CHANGELOG: ${{ secrets.FEED_CHANGELOG }}
+      SITE_DOWNLOAD_BASE: ${{ secrets.SITE_DOWNLOAD_BASE }}
+    run: |
+      $repo = "${{ github.repository }}"
+      $tag = "${{ steps.ver.outputs.tag }}"
+      $version = "${{ steps.ver.outputs.version }}"
+      $defaultDownload = "https://github.com/$repo/releases/download/$tag/MTDL-PCM-Setup-$version.exe"
+      if ($env:SITE_DOWNLOAD_BASE) {
+        $defaultDownload = "$env:SITE_DOWNLOAD_BASE/MTDL-PCM-Setup-$version.exe"
+      }
+      if ($env:FEED_DOWNLOAD_URL) {
+        $download = $env:FEED_DOWNLOAD_URL
+      } else {
+        $download = $defaultDownload
+      }
+      if ($env:FEED_CHANGELOG) {
+        $changelog = $env:FEED_CHANGELOG
+      } else {
+        $changelog = "Correções de bugs e melhorias de desempenho"
+      }
+      $payload = @{ latest_version = $version; download_url = $download; changelog = $changelog }
+      try {
+        Invoke-RestMethod -Method POST -Uri $env:WP_FEED_URL -Headers @{ 'X-Feed-Token' = $env:WP_FEED_TOKEN } -Body $payload -ContentType 'application/x-www-form-urlencoded'
+        Write-Host "WordPress feed updated via REST."
+      } catch {
+        Write-Warning "Failed to update WordPress feed via REST: $($_.Exception.Message)"
+      }
