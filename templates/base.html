@@ -404,6 +404,7 @@
 
         <!-- Content -->
         <div class="container-fluid">
+            <div id="versionBanner" class="alert alert-warning d-none" role="alert"></div>
             {% block content %}{% endblock %}
         </div>
     </main>
@@ -447,6 +448,19 @@
     </script>
     <script>
     (function(){
+      // Banner de atualização de versão
+      const banner = document.getElementById('versionBanner');
+      function showVersionBanner(msg){ if(!banner) return; banner.textContent = msg; banner.classList.remove('d-none'); }
+      fetch('/api/admin/version')
+        .then(r => r.ok ? r.json() : Promise.reject(r))
+        .then(d => {
+          const current = '{{ app_version|default("") }}';
+          const server = d && d.version;
+          if (server && current && server !== current) {
+            showVersionBanner(`Atualização disponível: versão ${server}. Recarregue a página (Ctrl+F5) para aplicar.`);
+          }
+        })
+        .catch(() => {});
       const logoutLink = document.getElementById('adminLogoutLink');
       const headerLogoutBtn = document.getElementById('headerLogoutBtn');
       async function performLogout(){

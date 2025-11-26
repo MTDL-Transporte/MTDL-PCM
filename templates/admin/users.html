@@ -87,6 +87,16 @@
           <input id="cu_password" type="text" class="form-control" placeholder="deixe em branco para gerar">
         </div>
         <div class="col-12 col-md-6">
+          <label class="form-label">Duração do usuário temporário</label>
+          <select id="cu_temp_days" class="form-select">
+            <option value="">Padrão (90 dias)</option>
+            <option value="30">30 dias</option>
+            <option value="90">3 meses (90 dias)</option>
+            <option value="180">6 meses (180 dias)</option>
+            <option value="365">1 ano (365 dias)</option>
+          </select>
+        </div>
+        <div class="col-12 col-md-6">
           <label class="form-label">Perfil</label>
           <div class="form-check form-switch mt-2">
             <input class="form-check-input" type="checkbox" id="cu_is_admin">
@@ -251,6 +261,8 @@
     };
     const pwd = document.getElementById('cu_password').value.trim();
     if(pwd) payload.password = pwd;
+    const tempDaysVal = document.getElementById('cu_temp_days').value;
+    if(tempDaysVal) payload.temp_password_days = parseInt(tempDaysVal, 10);
 
     if(!payload.username){
       alert('Informe o login do usuário.');

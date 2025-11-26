@@ -153,7 +153,7 @@ def create_session_token(user_id: int, db: Session, ttl_hours: Optional[int] = N
 # Página de Login
 @router.get("/login")
 async def admin_login_page(request: Request):
-    return templates.TemplateResponse("admin/login.html", {"request": request})
+    return templates.TemplateResponse("admin/login.html", {"request": request, "app_version": APP_VERSION})
 
 # API: overview com contagens básicas
 @router.get("/overview")
@@ -207,6 +207,13 @@ async def admin_register(request: Request, db: Session = Depends(get_db)):
     salt = generate_salt()
     pwd_hash = hash_password(raw_password, salt)
 
+    # duração configurável para expiração da senha temporária
+    temp_days_raw = payload.get("temp_password_days")
+    try:
+        temp_days = int(temp_days_raw) if temp_days_raw is not None else 90
+    except Exception:
+        temp_days = 90
+
     user = User(
         username=username,
         email=email,
@@ -218,7 +225,7 @@ async def admin_register(request: Request, db: Session = Depends(get_db)):
         is_active=True,
         is_admin=is_admin,
         must_change_password=generate_temp_password,
-        temp_password_expires_at=(datetime.utcnow() + timedelta(days=90)) if generate_temp_password else None,
+        temp_password_expires_at=(datetime.utcnow() + timedelta(days=temp_days)) if generate_temp_password else None,
     )
     db.add(user)
     db.commit()
@@ -421,7 +428,7 @@ async def admin_home(request: Request, db: Session = Depends(get_db)):
         return RedirectResponse(url="/admin/login", status_code=302)
     if not user.is_admin:
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Acesso restrito ao perfil Admin")
-    return templates.TemplateResponse("admin/index.html", {"request": request, "current_user": user})
+    return templates.TemplateResponse("admin/index.html", {"request": request, "current_user": user, "app_version": APP_VERSION})
 
 # Página de troca de senha
 @router.get("/change-password")
@@ -429,7 +436,7 @@ async def admin_change_password_page(request: Request, db: Session = Depends(get
     user = get_user_from_request_token(request, db)
     if not user:
         return RedirectResponse(url="/admin/login", status_code=302)
-    return templates.TemplateResponse("admin/change_password.html", {"request": request, "current_user": user})
+    return templates.TemplateResponse("admin/change_password.html", {"request": request, "current_user": user, "app_version": APP_VERSION})
 
 # Endpoint: troca de senha
 @router.post("/auth/change-password")
@@ -648,7 +655,7 @@ async def admin_users_page(request: Request, db: Session = Depends(get_db)):
         return RedirectResponse(url="/admin/login", status_code=302)
     if not user.is_admin:
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Acesso restrito ao perfil Admin")
-    return templates.TemplateResponse("admin/users.html", {"request": request, "current_user": user})
+    return templates.TemplateResponse("admin/users.html", {"request": request, "current_user": user, "app_version": APP_VERSION})
 
 # Página: Logs de Auditoria/Erros
 @router.get("/logs-page")
@@ -658,7 +665,7 @@ async def admin_logs_page(request: Request, db: Session = Depends(get_db)):
         return RedirectResponse(url="/admin/login", status_code=302)
     if not user.is_admin:
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Acesso restrito ao perfil Admin")
-    return templates.TemplateResponse("admin/logs.html", {"request": request, "current_user": user})
+    return templates.TemplateResponse("admin/logs.html", {"request": request, "current_user": user, "app_version": APP_VERSION})
 
 # Página: Logs de Erros
 @router.get("/errors-page")
@@ -668,7 +675,7 @@ async def admin_errors_page(request: Request, db: Session = Depends(get_db)):
         return RedirectResponse(url="/admin/login", status_code=302)
     if not user.is_admin:
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Acesso restrito ao perfil Admin")
-    return templates.TemplateResponse("admin/errors.html", {"request": request, "current_user": user})
+    return templates.TemplateResponse("admin/errors.html", {"request": request, "current_user": user, "app_version": APP_VERSION})
 
 @router.get("/error-logs")
 async def list_error_logs(request: Request, db: Session = Depends(get_db)):
