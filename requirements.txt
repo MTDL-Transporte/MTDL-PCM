@@ -7,6 +7,7 @@ uvicorn
 
 # Banco de Dados
 sqlalchemy
+psycopg2-binary
 
 # Templates
 jinja2
