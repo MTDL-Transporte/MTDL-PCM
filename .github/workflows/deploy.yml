@@ -12,42 +12,73 @@ jobs:
       - name: Checkout repo
         uses: actions/checkout@v4
 
-      - name: Test SSH connectivity
+      - name: Test SSH connectivity (port 22022)
+        id: ssh_test_22022
+        continue-on-error: true
         uses: appleboy/ssh-action@v1.0.3
         with:
           host: ${{ secrets.VPS_SSH_HOST }}
-          port: ${{ secrets.VPS_SSH_PORT }}
+          port: 22022
           username: ${{ secrets.VPS_SSH_USER }}
-          key: ${{ secrets.VPS_SSH_KEY }}
           password: ${{ secrets.VPS_SSH_PASSWORD }}
           timeout: 600s
           script_stop: true
           script: |
-            echo "Connected"
+            echo "Connected via 22022"
             hostname || true
             uname -a || true
             ls -la /root || true
 
-      - name: Ensure target directory on VPS
+      - name: Test SSH connectivity (port 22)
+        id: ssh_test_22
+        if: steps.ssh_test_22022.outcome == 'failure'
         uses: appleboy/ssh-action@v1.0.3
         with:
           host: ${{ secrets.VPS_SSH_HOST }}
-          port: ${{ secrets.VPS_SSH_PORT }}
+          port: 22
           username: ${{ secrets.VPS_SSH_USER }}
-          key: ${{ secrets.VPS_SSH_KEY }}
+          password: ${{ secrets.VPS_SSH_PASSWORD }}
+          timeout: 600s
+          script_stop: true
+          script: |
+            echo "Connected via 22"
+            hostname || true
+            uname -a || true
+            ls -la /root || true
+
+      - name: Ensure target directory on VPS (22022)
+        if: steps.ssh_test_22022.outcome == 'success'
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host: ${{ secrets.VPS_SSH_HOST }}
+          port: 22022
+          username: ${{ secrets.VPS_SSH_USER }}
           password: ${{ secrets.VPS_SSH_PASSWORD }}
           timeout: 600s
           script_stop: true
           script: |
             mkdir -p /root/mtdlpcm
 
-      - name: Upload project to VPS
+      - name: Ensure target directory on VPS (22)
+        if: steps.ssh_test_22022.outcome == 'failure' && steps.ssh_test_22.outcome == 'success'
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host: ${{ secrets.VPS_SSH_HOST }}
+          port: 22
+          username: ${{ secrets.VPS_SSH_USER }}
+          password: ${{ secrets.VPS_SSH_PASSWORD }}
+          timeout: 600s
+          script_stop: true
+          script: |
+            mkdir -p /root/mtdlpcm
+
+      - name: Upload project to VPS (22022)
+        if: steps.ssh_test_22022.outcome == 'success'
         uses: appleboy/scp-action@v0.1.7
         with:
           host: ${{ secrets.VPS_SSH_HOST }}
-          port: ${{ secrets.VPS_SSH_PORT }}
+          port: 22022
           username: ${{ secrets.VPS_SSH_USER }}
-          key: ${{ secrets.VPS_SSH_KEY }}
           password: ${{ secrets.VPS_SSH_PASSWORD }}
           source: "."
           target: "/root/mtdlpcm"
@@ -56,13 +87,28 @@ jobs:
           debug: true
           timeout: 600s
 
-      - name: Deploy containers via SSH
+      - name: Upload project to VPS (22)
+        if: steps.ssh_test_22022.outcome == 'failure' && steps.ssh_test_22.outcome == 'success'
+        uses: appleboy/scp-action@v0.1.7
+        with:
+          host: ${{ secrets.VPS_SSH_HOST }}
+          port: 22
+          username: ${{ secrets.VPS_SSH_USER }}
+          password: ${{ secrets.VPS_SSH_PASSWORD }}
+          source: "."
+          target: "/root/mtdlpcm"
+          rm: true
+          strip_components: 0
+          debug: true
+          timeout: 600s
+
+      - name: Deploy containers via SSH (22022)
+        if: steps.ssh_test_22022.outcome == 'success'
         uses: appleboy/ssh-action@v1.0.3
         with:
           host: ${{ secrets.VPS_SSH_HOST }}
-          port: ${{ secrets.VPS_SSH_PORT }}
+          port: 22022
           username: ${{ secrets.VPS_SSH_USER }}
-          key: ${{ secrets.VPS_SSH_KEY }}
           password: ${{ secrets.VPS_SSH_PASSWORD }}
           timeout: 600s
           script_stop: true
@@ -74,13 +120,47 @@ jobs:
             docker compose ps
             curl -I http://localhost/health || true
 
-      - name: Restart Nginx and check health
+      - name: Deploy containers via SSH (22)
+        if: steps.ssh_test_22022.outcome == 'failure' && steps.ssh_test_22.outcome == 'success'
         uses: appleboy/ssh-action@v1.0.3
         with:
           host: ${{ secrets.VPS_SSH_HOST }}
-          port: ${{ secrets.VPS_SSH_PORT }}
+          port: 22
           username: ${{ secrets.VPS_SSH_USER }}
-          key: ${{ secrets.VPS_SSH_KEY }}
+          password: ${{ secrets.VPS_SSH_PASSWORD }}
+          timeout: 600s
+          script_stop: true
+          script: |
+            set -e
+            cd /root/mtdlpcm
+            docker compose down || true
+            docker compose up -d --build
+            docker compose ps
+            curl -I http://localhost/health || true
+
+      - name: Restart Nginx and check health (22022)
+        if: steps.ssh_test_22022.outcome == 'success'
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host: ${{ secrets.VPS_SSH_HOST }}
+          port: 22022
+          username: ${{ secrets.VPS_SSH_USER }}
+          password: ${{ secrets.VPS_SSH_PASSWORD }}
+          timeout: 600s
+          script_stop: true
+          script: |
+            set -e
+            cd /root/mtdlpcm
+            docker compose restart nginx
+            curl -I http://localhost/health || true
+
+      - name: Restart Nginx and check health (22)
+        if: steps.ssh_test_22022.outcome == 'failure' && steps.ssh_test_22.outcome == 'success'
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host: ${{ secrets.VPS_SSH_HOST }}
+          port: 22
+          username: ${{ secrets.VPS_SSH_USER }}
           password: ${{ secrets.VPS_SSH_PASSWORD }}
           timeout: 600s
           script_stop: true
@@ -97,13 +177,32 @@ jobs:
           curl -I http://69.6.215.27/health || true
           curl -I http://app.mtdl.com.br/health || true
 
-      - name: Diagnose containers and logs
+      - name: Diagnose containers and logs (22022)
+        if: steps.ssh_test_22022.outcome == 'success'
         uses: appleboy/ssh-action@v1.0.3
         with:
           host: ${{ secrets.VPS_SSH_HOST }}
-          port: ${{ secrets.VPS_SSH_PORT }}
+          port: 22022
           username: ${{ secrets.VPS_SSH_USER }}
-          key: ${{ secrets.VPS_SSH_KEY }}
+          password: ${{ secrets.VPS_SSH_PASSWORD }}
+          timeout: 600s
+          script_stop: true
+          script: |
+            set -e
+            cd /root/mtdlpcm
+            docker compose ps
+            echo "--- nginx logs (tail 200) ---"
+            docker compose logs --no-color --tail=200 nginx || true
+            echo "--- app logs (tail 200) ---"
+            docker compose logs --no-color --tail=200 app || true
+
+      - name: Diagnose containers and logs (22)
+        if: steps.ssh_test_22022.outcome == 'failure' && steps.ssh_test_22.outcome == 'success'
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host: ${{ secrets.VPS_SSH_HOST }}
+          port: 22
+          username: ${{ secrets.VPS_SSH_USER }}
           password: ${{ secrets.VPS_SSH_PASSWORD }}
           timeout: 600s
           script_stop: true
