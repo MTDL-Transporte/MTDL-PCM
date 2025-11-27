@@ -5,7 +5,7 @@
   - Estratégias simples para /static e /api GET
 */
 
-const VERSION = 'v2';
+const VERSION = 'v3';
 const STATIC_CACHE = `mtdl-static-${VERSION}`;
 const DYNAMIC_CACHE = `mtdl-dynamic-${VERSION}`;
 
@@ -29,9 +29,21 @@ self.addEventListener('install', event => {
 });
 
 self.addEventListener('activate', event => {
-  event.waitUntil(
-    caches.keys().then(keys => Promise.all(keys.filter(k => ![STATIC_CACHE, DYNAMIC_CACHE].includes(k)).map(k => caches.delete(k)))).then(() => self.clients.claim())
-  );
+  event.waitUntil((async () => {
+    const keys = await caches.keys();
+    await Promise.all(keys.filter(k => ![STATIC_CACHE, DYNAMIC_CACHE].includes(k)).map(k => caches.delete(k)));
+    await self.clients.claim();
+    try {
+      const res = await fetch('/api/version', { cache: 'no-store' });
+      if (res.ok) {
+        const json = await res.json();
+        const clientsList = await self.clients.matchAll({ type: 'window', includeUncontrolled: true });
+        for (const client of clientsList) {
+          client.postMessage({ type: 'APP_VERSION', payload: json });
+        }
+      }
+    } catch (e) {}
+  })());
 });
 
 self.addEventListener('fetch', event => {

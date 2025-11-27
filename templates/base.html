@@ -420,7 +420,22 @@
     // Registrar Service Worker
     if ('serviceWorker' in navigator) {
         window.addEventListener('load', () => {
-            navigator.serviceWorker.register('/static/sw.js').catch(err => {
+            navigator.serviceWorker.register('/static/sw.js').then(reg => {
+                navigator.serviceWorker.addEventListener('message', (event) => {
+                    const data = event.data || {};
+                    if (data.type === 'APP_VERSION' && data.payload && data.payload.version) {
+                        const current = '{{ app_version|default("") }}';
+                        if (current && data.payload.version !== current) {
+                            const banner = document.getElementById('versionBanner');
+                            if (banner) {
+                                banner.textContent = `Atualização disponível: versão ${data.payload.version}. Clique aqui para atualizar.`;
+                                banner.classList.remove('d-none');
+                                banner.onclick = () => window.location.reload(true);
+                            }
+                        }
+                    }
+                });
+            }).catch(err => {
                 console.warn('Falha ao registrar Service Worker:', err);
             });
         });

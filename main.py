@@ -381,11 +381,17 @@ async def root(request: Request):
 @app.get("/health")
 async def health_check():
     """Endpoint para verificação de saúde da aplicação"""
+    from app.version import APP_VERSION
     return {
         "status": "healthy",
         "message": "MTDL-PCM está funcionando corretamente",
-        "version": "1.0.0"
+        "version": APP_VERSION
     }
+
+@app.get("/api/version")
+async def api_version():
+    from app.version import APP_VERSION
+    return {"version": APP_VERSION}
 
 
 @app.get("/favicon.ico")
